@@ -5,11 +5,16 @@ import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.TravelPlanDto;
 import com.tourism.platform.dto.TravelPlanActivityDto;
 import com.tourism.platform.dto.ReservationDto;
+import com.tourism.platform.dto.TravelerMatchDto;
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.model.TravelType;
+import com.tourism.platform.model.User;
+import com.tourism.platform.repository.UserRepository;
+import com.tourism.platform.service.TravelPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +27,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 /**
  * REST Controller for Travel Plan Management
@@ -34,13 +45,17 @@ import java.util.List;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/api/v1/travel-plans")
+@RequestMapping("/travel-plans")
 @RequiredArgsConstructor
 @Tag(name = "Travel Planning", description = "APIs for managing travel plans and itineraries")
 public class TravelPlanController {
 
-    // Placeholder service - would be injected in real implementation
-    // private final TravelPlanService travelPlanService;
+    private final TravelPlanService travelPlanService;
+    private final UserRepository userRepository;
+    
+    // Simple in-memory storage for testing
+    private static final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
+    private static AtomicLong idCounter = new AtomicLong(1);
 
     @PostMapping
     @Operation(summary = "Create a new travel plan", description = "Creates a new travel plan with the provided details")
@@ -48,9 +63,10 @@ public class TravelPlanController {
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
         
-        // Placeholder implementation
+        // Generate unique ID and store in memory
+        Long newId = idCounter.getAndIncrement();
         TravelPlanDto createdPlan = TravelPlanDto.builder()
-                .id(1L)
+                .id(newId)
                 .title(travelPlanDto.getTitle())
                 .description(travelPlanDto.getDescription())
                 .status(TravelPlanStatus.DRAFT)
@@ -63,6 +79,9 @@ public class TravelPlanController {
                 .destinationLocation(travelPlanDto.getDestinationLocation())
                 .isPublic(false)
                 .build();
+        
+        // Store in memory
+        travelPlans.put(newId, createdPlan);
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
@@ -80,21 +99,17 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
         
-        // Placeholder implementation
-        TravelPlanDto travelPlan = TravelPlanDto.builder()
-                .id(id)
-                .title("Summer Vacation to Paris")
-                .description("A wonderful trip to the city of lights")
-                .status(TravelPlanStatus.ACTIVE)
-                .travelType(TravelType.LEISURE)
-                .startDate(java.time.LocalDateTime.of(2024, 6, 15, 10, 0))
-                .endDate(java.time.LocalDateTime.of(2024, 6, 22, 18, 0))
-                .estimatedBudget(new java.math.BigDecimal("3000.00"))
-                .numberOfTravelers(2)
-                .originLocation("New York")
-                .destinationLocation("Paris, France")
-                .isPublic(true)
-                .build();
+        // Get from memory storage
+        TravelPlanDto travelPlan = travelPlans.get(id);
+        
+        if (travelPlan == null) {
+            ApiResponse<TravelPlanDto> response = ApiResponse.error(
+                    HttpStatus.NOT_FOUND.value(),
+                    "Travel plan not found with ID: " + id,
+                    request.getRequestURI()
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -405,12 +420,36 @@ public class TravelPlanController {
             @Parameter(description = "New status") @RequestParam TravelPlanStatus status,
             HttpServletRequest request) {
         
-        // Placeholder implementation
+        // Get travel plan from memory storage
+        TravelPlanDto existingPlan = travelPlans.get(id);
+        
+        if (existingPlan == null) {
+            ApiResponse<TravelPlanDto> response = ApiResponse.error(
+                    HttpStatus.NOT_FOUND.value(),
+                    "Travel plan not found with ID: " + id,
+                    request.getRequestURI()
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+        
+        // Update status
         TravelPlanDto updatedPlan = TravelPlanDto.builder()
-                .id(id)
-                .title("Updated Travel Plan")
+                .id(existingPlan.getId())
+                .title(existingPlan.getTitle())
+                .description(existingPlan.getDescription())
                 .status(status)
+                .travelType(existingPlan.getTravelType())
+                .startDate(existingPlan.getStartDate())
+                .endDate(existingPlan.getEndDate())
+                .estimatedBudget(existingPlan.getEstimatedBudget())
+                .numberOfTravelers(existingPlan.getNumberOfTravelers())
+                .originLocation(existingPlan.getOriginLocation())
+                .destinationLocation(existingPlan.getDestinationLocation())
+                .isPublic(existingPlan.getIsPublic())
                 .build();
+        
+        // Update in memory
+        travelPlans.put(id, updatedPlan);
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -420,5 +459,112 @@ public class TravelPlanController {
         );
         
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/compatible-travelers")
+    @Operation(summary = "Find compatible travelers", description = "Finds travelers with similar destinations and compatible dates")
+    public ResponseEntity<ApiResponse<List<TravelerMatchDto>>> findCompatibleTravelers(
+            @Parameter(description = "Travel plan ID") @PathVariable Long id,
+            HttpServletRequest request) {
+        
+        // Get the reference travel plan from memory
+        TravelPlanDto referencePlan = travelPlans.get(id);
+        
+        if (referencePlan == null) {
+            ApiResponse<List<TravelerMatchDto>> response = ApiResponse.error(
+                    HttpStatus.NOT_FOUND.value(),
+                    "Travel plan not found with ID: " + id,
+                    request.getRequestURI()
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+        
+        // Find compatible travelers in memory
+        List<TravelerMatchDto> compatibleTravelers = new ArrayList<>();
+        
+        for (Map.Entry<Long, TravelPlanDto> entry : travelPlans.entrySet()) {
+            Long otherPlanId = entry.getKey();
+            TravelPlanDto otherPlan = entry.getValue();
+            
+            // Skip the same plan and non-ACTIVE plans
+            if (otherPlanId.equals(id) || otherPlan.getStatus() != TravelPlanStatus.ACTIVE) {
+                continue;
+            }
+            
+            // Check destination match (case-insensitive)
+            if (referencePlan.getDestinationLocation() != null && 
+                otherPlan.getDestinationLocation() != null &&
+                referencePlan.getDestinationLocation().equalsIgnoreCase(otherPlan.getDestinationLocation())) {
+                
+                // Check date overlap
+                if (isDateOverlap(referencePlan.getStartDate(), referencePlan.getEndDate(), 
+                                otherPlan.getStartDate(), otherPlan.getEndDate())) {
+                    
+                    // Calculate overlapping days
+                    long overlappingDays = calculateOverlappingDays(
+                        referencePlan.getStartDate(), referencePlan.getEndDate(),
+                        otherPlan.getStartDate(), otherPlan.getEndDate()
+                    );
+                    
+                    // Calculate compatibility score
+                    double compatibilityScore = (double) overlappingDays / 
+                        Math.min(
+                            getDaysBetween(referencePlan.getStartDate(), referencePlan.getEndDate()),
+                            getDaysBetween(otherPlan.getStartDate(), otherPlan.getEndDate())
+                        ) * 100;
+                    
+                    // Create match DTO (simplified user info)
+                    TravelerMatchDto match = TravelerMatchDto.builder()
+                        .userId(otherPlanId) // Using plan ID as traveler ID for demo
+                        .username("traveler" + otherPlanId)
+                        .firstName("Traveler")
+                        .lastName("User " + otherPlanId)
+                        .travelPlanId(otherPlanId)
+                        .travelPlanTitle(otherPlan.getTitle())
+                        .destinationLocation(otherPlan.getDestinationLocation())
+                        .travelStartDate(otherPlan.getStartDate())
+                        .travelEndDate(otherPlan.getEndDate())
+                        .numberOfTravelers(otherPlan.getNumberOfTravelers())
+                        .daysOverlap((int) overlappingDays)
+                        .compatibilityScore(Math.round(compatibilityScore * 10.0) / 10.0)
+                        .build();
+                    
+                    compatibleTravelers.add(match);
+                }
+            }
+        }
+        
+        if (compatibleTravelers.isEmpty()) {
+            ApiResponse<List<TravelerMatchDto>> response = ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "No compatible travelers found for this travel plan",
+                    compatibleTravelers,
+                    request.getRequestURI()
+            );
+            return ResponseEntity.ok(response);
+        }
+        
+        ApiResponse<List<TravelerMatchDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Compatible travelers found successfully",
+                compatibleTravelers,
+                request.getRequestURI()
+        );
+        return ResponseEntity.ok(response);
+    }
+    
+    // Helper methods for date calculations
+    private boolean isDateOverlap(LocalDateTime start1, LocalDateTime end1, LocalDateTime start2, LocalDateTime end2) {
+        return start1.isBefore(end2) && end1.isAfter(start2);
+    }
+    
+    private long calculateOverlappingDays(LocalDateTime start1, LocalDateTime end1, LocalDateTime start2, LocalDateTime end2) {
+        LocalDateTime overlapStart = start1.isAfter(start2) ? start1 : start2;
+        LocalDateTime overlapEnd = end1.isBefore(end2) ? end1 : end2;
+        return ChronoUnit.DAYS.between(overlapStart, overlapEnd);
+    }
+    
+    private long getDaysBetween(LocalDateTime start, LocalDateTime end) {
+        return ChronoUnit.DAYS.between(start, end);
     }
 }
