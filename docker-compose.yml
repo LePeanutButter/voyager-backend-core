@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tourism-postgres
+    environment:
+      POSTGRES_DB: tourism_platform
+      POSTGRES_USER: tourism_user
+      POSTGRES_PASSWORD: tourism_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - tourism-network
+
+  backend:
+    build: .
+    container_name: tourism-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/tourism_platform
+      DB_USERNAME: tourism_user
+      DB_PASSWORD: tourism_pass
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - postgres
+    networks:
+      - tourism-network
+
+volumes:
+  postgres_data:
+
+networks:
+  tourism-network:
+    driver: bridge

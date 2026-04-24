@@ -1,6 +1,7 @@
 package com.tourism.platform.controller;
 
 import com.tourism.platform.dto.ApiResponse;
+import com.tourism.platform.dto.LoginResponseDto;
 import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.dto.UserLoginDto;
@@ -8,6 +9,7 @@ import com.tourism.platform.dto.UserRegistrationDto;
 import com.tourism.platform.dto.UserUpdateDto;
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
+import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,6 +27,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * REST Controller for user management operations
@@ -37,12 +41,14 @@ import java.util.Optional;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 @Tag(name = "User Management", description = "APIs for managing user accounts and authentication")
 public class UserController {
 
     private final UserService userService;
+    private final JwtTokenProvider tokenProvider;
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @PostMapping
     @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
@@ -50,20 +56,29 @@ public class UserController {
             @Valid @RequestBody UserRegistrationDto registrationDto,
             HttpServletRequest request) {
         
-        UserDto createdUser = userService.registerUser(registrationDto);
-        ApiResponse<UserDto> response = ApiResponse.success(
-                HttpStatus.CREATED.value(),
-                "User registered successfully",
-                createdUser,
-                request.getRequestURI()
-        );
+        logger.debug("=== DEBUG: registerUser called ===");
+        logger.debug("Registration DTO: {}", registrationDto);
+        logger.debug("UserService: {}", userService);
         
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        try {
+            UserDto createdUser = userService.registerUser(registrationDto);
+            ApiResponse<UserDto> response = ApiResponse.success(
+                    HttpStatus.CREATED.value(),
+                    "User registered successfully",
+                    createdUser,
+                    request.getRequestURI()
+            );
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            logger.error("=== ERROR: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information")
-    public ResponseEntity<ApiResponse<UserDto>> loginUser(
+    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns JWT token")
+    public ResponseEntity<ApiResponse<LoginResponseDto>> loginUser(
             @Valid @RequestBody UserLoginDto loginDto,
             HttpServletRequest request) {
         
@@ -71,15 +86,21 @@ public class UserController {
                 loginDto.getUsernameOrEmail(), loginDto.getPassword());
         
         if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
+            // Generate JWT token
+            String token = tokenProvider.generateTokenFromUsername(userOpt.get().getUsername());
+            Long expiresIn = 86400L; // 24 hours in seconds
+            
+            LoginResponseDto loginResponse = LoginResponseDto.fromUserDto(token, expiresIn, userOpt.get());
+            
+            ApiResponse<LoginResponseDto> response = ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Authentication successful",
-                    userOpt.get(),
+                    loginResponse,
                     request.getRequestURI()
             );
             return ResponseEntity.ok(response);
         } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
+            ApiResponse<LoginResponseDto> response = ApiResponse.error(
                     HttpStatus.UNAUTHORIZED.value(),
                     "Invalid credentials",
                     request.getRequestURI()
