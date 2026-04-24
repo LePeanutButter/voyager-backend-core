@@ -58,7 +58,7 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         // Convert to TravelerMatchDto
         List<TravelerMatchDto> matches = compatiblePlans.stream()
                 .map(plan -> createTravelerMatch(plan, referenceTravelPlan))
-                .collect(Collectors.toList());
+                .toList();
 
         log.info("Returning {} traveler matches", matches.size());
         return matches;

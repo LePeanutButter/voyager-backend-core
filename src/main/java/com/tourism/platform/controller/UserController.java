@@ -27,6 +27,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * REST Controller for user management operations
@@ -46,6 +48,7 @@ public class UserController {
 
     private final UserService userService;
     private final JwtTokenProvider tokenProvider;
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @PostMapping
     @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
@@ -53,9 +56,9 @@ public class UserController {
             @Valid @RequestBody UserRegistrationDto registrationDto,
             HttpServletRequest request) {
         
-        System.out.println("=== DEBUG: registerUser called ===");
-        System.out.println("Registration DTO: " + registrationDto);
-        System.out.println("UserService: " + userService);
+        logger.debug("=== DEBUG: registerUser called ===");
+        logger.debug("Registration DTO: {}", registrationDto);
+        logger.debug("UserService: {}", userService);
         
         try {
             UserDto createdUser = userService.registerUser(registrationDto);
@@ -68,8 +71,7 @@ public class UserController {
             
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
-            System.out.println("=== ERROR: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("=== ERROR: {}", e.getMessage(), e);
             throw e;
         }
     }

@@ -64,4 +64,60 @@ public class TravelerMatchDto {
                 .daysOverlap(daysOverlap)
                 .build();
     }
+    
+    /**
+     * Creates a simplified traveler match using builder pattern
+     * 
+     * @param matchData traveler match data object
+     * @return TravelerMatchDto instance
+     */
+    public static TravelerMatchDto createSimpleMatch(TravelerMatchData matchData) {
+        return TravelerMatchDto.builder()
+                .userId(matchData.userId)
+                .username(matchData.username)
+                .firstName(matchData.firstName)
+                .lastName(matchData.lastName)
+                .destinationLocation(matchData.destinationLocation)
+                .travelStartDate(matchData.travelStartDate)
+                .travelEndDate(matchData.travelEndDate)
+                .daysOverlap(matchData.daysOverlap)
+                .build();
+    }
+    
+    /**
+     * Data class for traveler match parameters
+     */
+    public static class TravelerMatchData {
+        private final Long userId;
+        private final String username;
+        private final String firstName;
+        private final String lastName;
+        private final String destinationLocation;
+        private final LocalDateTime travelStartDate;
+        private final LocalDateTime travelEndDate;
+        private final Integer daysOverlap;
+        
+        public TravelerMatchData(Long userId, String username, String firstName, String lastName,
+                               String destinationLocation, LocalDateTime travelStartDate,
+                               LocalDateTime travelEndDate, Integer daysOverlap) {
+            this.userId = userId;
+            this.username = username;
+            this.firstName = firstName;
+            this.lastName = lastName;
+            this.destinationLocation = destinationLocation;
+            this.travelStartDate = travelStartDate;
+            this.travelEndDate = travelEndDate;
+            this.daysOverlap = daysOverlap;
+        }
+        
+        // Getters
+        public Long getUserId() { return userId; }
+        public String getUsername() { return username; }
+        public String getFirstName() { return firstName; }
+        public String getLastName() { return lastName; }
+        public String getDestinationLocation() { return destinationLocation; }
+        public LocalDateTime getTravelStartDate() { return travelStartDate; }
+        public LocalDateTime getTravelEndDate() { return travelEndDate; }
+        public Integer getDaysOverlap() { return daysOverlap; }
+    }
 }

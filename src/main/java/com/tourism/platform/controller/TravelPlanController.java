@@ -56,6 +56,9 @@ public class TravelPlanController {
     // Simple in-memory storage for testing
     private static final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
     private static AtomicLong idCounter = new AtomicLong(1);
+    
+    // Constants for error messages
+    private static final String TRAVEL_PLAN_NOT_FOUND_MSG = "Travel plan not found with ID: ";
 
     @PostMapping
     @Operation(summary = "Create a new travel plan", description = "Creates a new travel plan with the provided details")
@@ -105,7 +108,7 @@ public class TravelPlanController {
         if (travelPlan == null) {
             ApiResponse<TravelPlanDto> response = ApiResponse.error(
                     HttpStatus.NOT_FOUND.value(),
-                    "Travel plan not found with ID: " + id,
+                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
                     request.getRequestURI()
             );
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
@@ -426,7 +429,7 @@ public class TravelPlanController {
         if (existingPlan == null) {
             ApiResponse<TravelPlanDto> response = ApiResponse.error(
                     HttpStatus.NOT_FOUND.value(),
-                    "Travel plan not found with ID: " + id,
+                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
                     request.getRequestURI()
             );
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
@@ -473,7 +476,7 @@ public class TravelPlanController {
         if (referencePlan == null) {
             ApiResponse<List<TravelerMatchDto>> response = ApiResponse.error(
                     HttpStatus.NOT_FOUND.value(),
-                    "Travel plan not found with ID: " + id,
+                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
                     request.getRequestURI()
             );
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
@@ -491,46 +494,43 @@ public class TravelPlanController {
                 continue;
             }
             
-            // Check destination match (case-insensitive)
+            // Check destination match (case-insensitive) and date overlap
             if (referencePlan.getDestinationLocation() != null && 
                 otherPlan.getDestinationLocation() != null &&
-                referencePlan.getDestinationLocation().equalsIgnoreCase(otherPlan.getDestinationLocation())) {
+                referencePlan.getDestinationLocation().equalsIgnoreCase(otherPlan.getDestinationLocation()) &&
+                isDateOverlap(referencePlan.getStartDate(), referencePlan.getEndDate(), 
+                             otherPlan.getStartDate(), otherPlan.getEndDate())) {
                 
-                // Check date overlap
-                if (isDateOverlap(referencePlan.getStartDate(), referencePlan.getEndDate(), 
-                                otherPlan.getStartDate(), otherPlan.getEndDate())) {
-                    
-                    // Calculate overlapping days
-                    long overlappingDays = calculateOverlappingDays(
-                        referencePlan.getStartDate(), referencePlan.getEndDate(),
-                        otherPlan.getStartDate(), otherPlan.getEndDate()
-                    );
-                    
-                    // Calculate compatibility score
-                    double compatibilityScore = (double) overlappingDays / 
-                        Math.min(
-                            getDaysBetween(referencePlan.getStartDate(), referencePlan.getEndDate()),
-                            getDaysBetween(otherPlan.getStartDate(), otherPlan.getEndDate())
-                        ) * 100;
-                    
-                    // Create match DTO (simplified user info)
-                    TravelerMatchDto match = TravelerMatchDto.builder()
-                        .userId(otherPlanId) // Using plan ID as traveler ID for demo
-                        .username("traveler" + otherPlanId)
-                        .firstName("Traveler")
-                        .lastName("User " + otherPlanId)
-                        .travelPlanId(otherPlanId)
-                        .travelPlanTitle(otherPlan.getTitle())
-                        .destinationLocation(otherPlan.getDestinationLocation())
-                        .travelStartDate(otherPlan.getStartDate())
-                        .travelEndDate(otherPlan.getEndDate())
-                        .numberOfTravelers(otherPlan.getNumberOfTravelers())
-                        .daysOverlap((int) overlappingDays)
-                        .compatibilityScore(Math.round(compatibilityScore * 10.0) / 10.0)
-                        .build();
-                    
-                    compatibleTravelers.add(match);
-                }
+                // Calculate overlapping days
+                long overlappingDays = calculateOverlappingDays(
+                    referencePlan.getStartDate(), referencePlan.getEndDate(),
+                    otherPlan.getStartDate(), otherPlan.getEndDate()
+                );
+                
+                // Calculate compatibility score
+                double compatibilityScore = (double) overlappingDays / 
+                    Math.min(
+                        getDaysBetween(referencePlan.getStartDate(), referencePlan.getEndDate()),
+                        getDaysBetween(otherPlan.getStartDate(), otherPlan.getEndDate())
+                    ) * 100;
+                
+                // Create match DTO (simplified user info)
+                TravelerMatchDto match = TravelerMatchDto.builder()
+                    .userId(otherPlanId) // Using plan ID as traveler ID for demo
+                    .username("traveler" + otherPlanId)
+                    .firstName("Traveler")
+                    .lastName("User " + otherPlanId)
+                    .travelPlanId(otherPlanId)
+                    .travelPlanTitle(otherPlan.getTitle())
+                    .destinationLocation(otherPlan.getDestinationLocation())
+                    .travelStartDate(otherPlan.getStartDate())
+                    .travelEndDate(otherPlan.getEndDate())
+                    .numberOfTravelers(otherPlan.getNumberOfTravelers())
+                    .daysOverlap((int) overlappingDays)
+                    .compatibilityScore(Math.round(compatibilityScore * 10.0) / 10.0)
+                    .build();
+                
+                compatibleTravelers.add(match);
             }
         }
         
