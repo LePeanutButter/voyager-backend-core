@@ -24,6 +24,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -65,26 +67,13 @@ public class TravelPlanController {
     public ResponseEntity<ApiResponse<TravelPlanDto>> createTravelPlan(
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
-        
-        // Generate unique ID and store in memory
-        Long newId = idCounter.getAndIncrement();
-        TravelPlanDto createdPlan = TravelPlanDto.builder()
-                .id(newId)
-                .title(travelPlanDto.getTitle())
-                .description(travelPlanDto.getDescription())
-                .status(TravelPlanStatus.DRAFT)
-                .travelType(travelPlanDto.getTravelType())
-                .startDate(travelPlanDto.getStartDate())
-                .endDate(travelPlanDto.getEndDate())
-                .estimatedBudget(travelPlanDto.getEstimatedBudget())
-                .numberOfTravelers(travelPlanDto.getNumberOfTravelers())
-                .originLocation(travelPlanDto.getOriginLocation())
-                .destinationLocation(travelPlanDto.getDestinationLocation())
-                .isPublic(false)
-                .build();
-        
-        // Store in memory
-        travelPlans.put(newId, createdPlan);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        TravelPlanDto createdPlan = travelPlanService.createTravelPlan(travelPlanDto, user.getId());
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
@@ -132,14 +121,7 @@ public class TravelPlanController {
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
         
-        // Placeholder implementation
-        List<TravelPlanDto> plans = List.of(
-                TravelPlanDto.builder().id(1L).title("Summer Vacation").build(),
-                TravelPlanDto.builder().id(2L).title("Business Trip").build(),
-                TravelPlanDto.builder().id(3L).title("Weekend Getaway").build()
-        );
-        
-        // Create a mock page
+        List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(userId);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<TravelPlanDto> pageResult = new org.springframework.data.domain.PageImpl<>(
                 plans, pageable, plans.size()

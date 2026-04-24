@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 /**
  * Data Transfer Object for user update requests
  * 
@@ -39,4 +41,7 @@ public class UserUpdateDto {
     @Schema(description = "User bio", example = "Travel enthusiast exploring the world")
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;
+
+    @Schema(description = "Travel interests", example = "[\"beaches\", \"food\", \"museums\"]")
+    private List<String> interests;
 }

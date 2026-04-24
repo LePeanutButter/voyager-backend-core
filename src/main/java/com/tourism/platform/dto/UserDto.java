@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 /**
  * Data Transfer Object for User responses
@@ -53,6 +54,9 @@ public class UserDto {
     @Schema(description = "User bio")
     private String bio;
 
+    @Schema(description = "User travel interests")
+    private Set<String> interests;
+
     @Schema(description = "User date of birth")
     private LocalDateTime dateOfBirth;
 
@@ -61,4 +65,7 @@ public class UserDto {
 
     @Schema(description = "Last update timestamp")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "JWT token for authenticated sessions")
+    private String token;
 }

@@ -99,6 +99,15 @@ app:
     default-size: 20
     max-size: 100
 
+# Microsoft OAuth2 (Azure AD) - custom config
+microsoft:
+  oauth2:
+    tenant-id: ${AZURE_TENANT_ID:common}
+    client-id: ${AZURE_CLIENT_ID:}
+    client-secret: ${AZURE_CLIENT_SECRET:}
+    redirect-uri: ${AZURE_REDIRECT_URI:http://localhost:8080/api/v1/auth/microsoft/callback}
+    scopes: ${AZURE_SCOPES:openid profile email User.Read}
+
 ---
 # Development Profile
 spring:

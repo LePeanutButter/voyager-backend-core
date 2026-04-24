@@ -1,7 +1,6 @@
 package com.tourism.platform.controller;
 
 import com.tourism.platform.dto.ApiResponse;
-import com.tourism.platform.dto.LoginResponseDto;
 import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.dto.UserLoginDto;
@@ -76,9 +75,17 @@ public class UserController {
         }
     }
 
+    @PostMapping("/register")
+    @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
+    public ResponseEntity<ApiResponse<UserDto>> registerUserAlias(
+            @Valid @RequestBody UserRegistrationDto registrationDto,
+            HttpServletRequest request) {
+        return registerUser(registrationDto, request);
+    }
+
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns JWT token")
-    public ResponseEntity<ApiResponse<LoginResponseDto>> loginUser(
+    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information with JWT token")
+    public ResponseEntity<ApiResponse<UserDto>> loginUser(
             @Valid @RequestBody UserLoginDto loginDto,
             HttpServletRequest request) {
         
@@ -86,21 +93,19 @@ public class UserController {
                 loginDto.getUsernameOrEmail(), loginDto.getPassword());
         
         if (userOpt.isPresent()) {
-            // Generate JWT token
-            String token = tokenProvider.generateTokenFromUsername(userOpt.get().getUsername());
-            Long expiresIn = 86400L; // 24 hours in seconds
+            UserDto userDto = userOpt.get();
+            String token = tokenProvider.generateTokenFromUsername(userDto.getUsername());
+            userDto.setToken(token);
             
-            LoginResponseDto loginResponse = LoginResponseDto.fromUserDto(token, expiresIn, userOpt.get());
-            
-            ApiResponse<LoginResponseDto> response = ApiResponse.success(
+            ApiResponse<UserDto> response = ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Authentication successful",
-                    loginResponse,
+                    userDto,
                     request.getRequestURI()
             );
             return ResponseEntity.ok(response);
         } else {
-            ApiResponse<LoginResponseDto> response = ApiResponse.error(
+            ApiResponse<UserDto> response = ApiResponse.error(
                     HttpStatus.UNAUTHORIZED.value(),
                     "Invalid credentials",
                     request.getRequestURI()
