@@ -41,7 +41,7 @@ spring:
   # Security Configuration
   security:
     jwt:
-      secret: ${JWT_SECRET:mySuperSecretKeyForJWTTokenGenerationThatIsAtLeast512BitsLongAndSecureEnoughForHS512AlgorithmImplementation1234567890}
+      secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890}
       expiration: ${JWT_EXPIRATION:86400000} # 24 hours
       refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days
   
@@ -126,34 +126,6 @@ logging:
   level:
     com.tourism.platform: DEBUG
     org.springframework.security: DEBUG
-
----
-# Docker Profile
-spring:
-  config:
-    activate:
-      on-profile: docker
-  
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://postgres:5432/tourism_platform}
-    username: ${DB_USERNAME:tourism_user}
-    password: ${DB_PASSWORD:tourism_pass}
-    driver-class-name: org.postgresql.Driver
-  
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        use_sql_comments: true
-
-logging:
-  level:
-    com.tourism.platform: INFO
-    org.springframework.security: INFO
 
 ---
 # Production Profile

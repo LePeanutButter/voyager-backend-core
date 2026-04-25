@@ -1,10 +1,17 @@
 package com.tourism.platform.dto;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
-@Data
 public class ShareActivityRequest {
-    @NotNull(message = "receiverUserId is required")
-    private Long receiverUserId;
+
+    @NotNull(message = "receiverId is required")
+    private Long receiverId;
+
+    public Long getReceiverId() {
+        return receiverId;
+    }
+
+    public void setReceiverId(Long receiverId) {
+        this.receiverId = receiverId;
+    }
 }

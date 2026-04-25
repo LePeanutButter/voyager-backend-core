@@ -16,10 +16,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 /**
  * User entity representing platform users
@@ -98,12 +96,6 @@ public class User implements UserDetails {
     @Column(name = "bio")
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;
-
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "interest", nullable = false)
-    @Builder.Default
-    private Set<String> interests = new HashSet<>();
 
     @Column(name = "date_of_birth")
     private LocalDateTime dateOfBirth;

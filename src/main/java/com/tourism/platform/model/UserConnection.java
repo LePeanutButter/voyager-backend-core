@@ -1,53 +1,58 @@
 package com.tourism.platform.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_connections", indexes = {
-        @Index(name = "idx_connection_requester", columnList = "requester_user_id"),
-        @Index(name = "idx_connection_receiver", columnList = "receiver_user_id"),
-        @Index(name = "idx_connection_trip_context", columnList = "trip_context_id")
+        @Index(name = "idx_user_connection_requester", columnList = "requester_id"),
+        @Index(name = "idx_user_connection_recipient", columnList = "recipient_id"),
+        @Index(name = "idx_user_connection_status", columnList = "status")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_user_connection_pair", columnNames = {"requester_id", "recipient_id"})
 })
-@EntityListeners(AuditingEntityListener.class)
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class UserConnection {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "requester_user_id", nullable = false)
-    @NotNull
-    private User requesterUser;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "requester_id", nullable = false)
+    private User requester;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "receiver_user_id", nullable = false)
-    @NotNull
-    private User receiverUser;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "recipient_id", nullable = false)
+    private User recipient;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    @NotNull
-    private UserConnectionStatus status;
+    private ConnectionStatus status;
 
-    @Column(name = "trip_context_id", nullable = false)
-    @NotNull
-    private Long tripContextId;
+    public Long getId() {
+        return id;
+    }
 
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    public User getRequester() {
+        return requester;
+    }
+
+    public void setRequester(User requester) {
+        this.requester = requester;
+    }
+
+    public User getRecipient() {
+        return recipient;
+    }
+
+    public void setRecipient(User recipient) {
+        this.recipient = recipient;
+    }
+
+    public ConnectionStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ConnectionStatus status) {
+        this.status = status;
+    }
 }

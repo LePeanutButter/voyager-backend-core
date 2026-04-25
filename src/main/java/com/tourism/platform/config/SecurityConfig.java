@@ -1,7 +1,8 @@
 package com.tourism.platform.config;
 
-import com.tourism.platform.security.CustomUserDetailsService;
 import com.tourism.platform.security.JwtAuthenticationFilter;
+import com.tourism.platform.security.JwtTokenProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +12,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -36,12 +36,6 @@ import java.util.List;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    private final CustomUserDetailsService customUserDetailsService;
-
-    public SecurityConfig(CustomUserDetailsService customUserDetailsService) {
-        this.customUserDetailsService = customUserDetailsService;
-    }
-
 
     @Value("${app.cors.allowed-origins}")
     private String[] allowedOrigins;
@@ -52,17 +46,6 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    /**
-     * Authentication provider bean that uses our custom UserDetailsService
-     */
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(customUserDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
     }
 
     /**
@@ -115,13 +98,12 @@ public class SecurityConfig {
             
             // Configure authorization rules
             .authorizeHttpRequests(authz -> authz
-                // Public endpoints - MOST SPECIFIC FIRST
-                .requestMatchers(HttpMethod.POST, "/users").permitAll()
-                .requestMatchers("/users/register").permitAll()
-                .requestMatchers("/users/login").permitAll()
-                .requestMatchers("/users/check-username").permitAll()
-                .requestMatchers("/users/check-email").permitAll()
-                .requestMatchers("/auth/**").permitAll()
+                // Public endpoints
+                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/v1/users/register").permitAll()
+                .requestMatchers("/api/v1/users/login").permitAll()
+                .requestMatchers("/api/v1/users/check-username").permitAll()
+                .requestMatchers("/api/v1/users/check-email").permitAll()
                 
                 // Swagger/OpenAPI endpoints
                 .requestMatchers("/api-docs/**").permitAll()
@@ -139,23 +121,22 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/activities/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/services/**").permitAll()
                 
-                // User management endpoints - AUTHENTICATED
-                .requestMatchers(HttpMethod.GET, "/users").authenticated()
-                .requestMatchers(HttpMethod.GET, "/users/*").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/users/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("SUPER_ADMIN")
-                
                 // Travel planning endpoints (authenticated)
-                .requestMatchers("/travel-plans/**").authenticated()
-                .requestMatchers("/reservations/**").authenticated()
+                .requestMatchers("/api/v1/travel-plans/**").authenticated()
+                .requestMatchers("/api/v1/reservations/**").authenticated()
                 
                 // Social features endpoints (authenticated)
-                .requestMatchers("/connections/**").authenticated()
-                .requestMatchers("/reviews/**").authenticated()
-                .requestMatchers("/messages/**").authenticated()
+                .requestMatchers("/api/v1/connections/**").authenticated()
+                .requestMatchers("/api/v1/reviews/**").authenticated()
+                .requestMatchers("/api/v1/messages/**").authenticated()
+                
+                // User management endpoints
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/v1/users/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/users/**").hasRole("SUPER_ADMIN")
                 
                 // Admin endpoints
-                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 
                 // All other requests require authentication
                 .anyRequest().authenticated()

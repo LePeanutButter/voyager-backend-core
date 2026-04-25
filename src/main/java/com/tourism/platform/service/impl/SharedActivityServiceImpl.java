@@ -1,83 +1,110 @@
 package com.tourism.platform.service.impl;
 
-import com.tourism.platform.dto.SharedActivityActionRequest;
+import com.tourism.platform.dto.SharedActivityDecisionRequest;
 import com.tourism.platform.dto.SharedActivityResponse;
-import com.tourism.platform.exception.BusinessException;
+import com.tourism.platform.exception.ConflictException;
 import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.*;
-import com.tourism.platform.repository.ActivityRepository;
-import com.tourism.platform.repository.SharedActivityRepository;
-import com.tourism.platform.repository.UserConnectionRepository;
-import com.tourism.platform.repository.UserRepository;
+import com.tourism.platform.repository.*;
 import com.tourism.platform.service.SharedActivityService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
+@Transactional
 public class SharedActivityServiceImpl implements SharedActivityService {
 
-    private final ActivityRepository activityRepository;
-    private final SharedActivityRepository sharedActivityRepository;
+    private final TravelPlanActivityRepository activityRepository;
     private final UserRepository userRepository;
-    private final UserConnectionRepository userConnectionRepository;
+    private final SharedActivityRepository sharedActivityRepository;
+    private final UserConnectionRepository connectionRepository;
+    private final TravelPlanParticipantRepository participantRepository;
+
+    public SharedActivityServiceImpl(
+            TravelPlanActivityRepository activityRepository,
+            UserRepository userRepository,
+            SharedActivityRepository sharedActivityRepository,
+            UserConnectionRepository connectionRepository,
+            TravelPlanParticipantRepository participantRepository) {
+        this.activityRepository = activityRepository;
+        this.userRepository = userRepository;
+        this.sharedActivityRepository = sharedActivityRepository;
+        this.connectionRepository = connectionRepository;
+        this.participantRepository = participantRepository;
+    }
 
     @Override
-    @Transactional
-    public SharedActivityResponse shareActivity(Long activityId, Long receiverUserId, Long currentUserId) {
-        Activity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new ResourceNotFoundException("Activity not found with ID: " + activityId));
+    public SharedActivityResponse shareActivity(Long activityId, Long receiverId, String senderUsername) {
+        User sender = userRepository.findByUsername(senderUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
 
-        if (!activity.getOwnerUser().getId().equals(currentUserId)) {
-            throw new BusinessException("Only the activity owner can share this activity");
+        TravelPlanActivity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
+
+        User receiver = userRepository.findById(receiverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver not found"));
+
+        if (sender.getId().equals(receiver.getId())) {
+            throw new IllegalArgumentException("Sender and receiver must be different users");
         }
 
-        if (currentUserId.equals(receiverUserId)) {
-            throw new BusinessException("You cannot share an activity with yourself");
+        if (activity.getTravelPlan() == null || activity.getTravelPlan().getId() == null) {
+            throw new ConflictException("Activity does not belong to a valid trip context");
         }
 
-        User senderUser = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sender user not found with ID: " + currentUserId));
+        Long tripId = activity.getTravelPlan().getId();
+        Long ownerId = activity.getTravelPlan().getUser() != null ? activity.getTravelPlan().getUser().getId() : null;
 
-        User receiverUser = userRepository.findById(receiverUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Receiver user not found with ID: " + receiverUserId));
-
-        if (!isValidConnectionInTripContext(currentUserId, receiverUserId, activity.getTripContextId())) {
-            throw new BusinessException("Receiver is not a valid accepted connection in this trip context");
+        if (ownerId == null || !ownerId.equals(sender.getId())) {
+            throw new AccessDeniedException("Only the activity owner can share this activity");
         }
 
-        if (!activityRepository.existsByOwnerUserIdAndTripContextId(receiverUserId, activity.getTripContextId())) {
-            throw new BusinessException("Sender and receiver do not belong to the same trip context");
+        boolean senderInTrip = ownerId.equals(sender.getId()) || participantRepository.existsByTravelPlanIdAndUserId(tripId, sender.getId());
+        boolean receiverInTrip = ownerId.equals(receiver.getId()) || participantRepository.existsByTravelPlanIdAndUserId(tripId, receiver.getId());
+        if (!senderInTrip || !receiverInTrip) {
+            throw new ConflictException("Both users must belong to the same trip");
         }
 
-        SharedActivity sharedActivity = SharedActivity.builder()
-                .activity(activity)
-                .senderUser(senderUser)
-                .receiverUser(receiverUser)
-                .status(SharedActivityStatus.PENDING)
-                .build();
+        boolean connected = connectionRepository.existsConnectionBetweenUsersWithStatus(
+                sender.getId(), receiver.getId(), ConnectionStatus.ACCEPTED
+        );
+        if (!connected) {
+            throw new AccessDeniedException("Users must have an accepted connection");
+        }
+
+        if (sharedActivityRepository.existsByActivityIdAndReceiverIdAndStatus(
+                activity.getId(), receiver.getId(), SharedActivityStatus.PENDING)) {
+            throw new ConflictException("A pending share already exists for this receiver");
+        }
+
+        SharedActivity sharedActivity = new SharedActivity();
+        sharedActivity.setActivity(activity);
+        sharedActivity.setSender(sender);
+        sharedActivity.setReceiver(receiver);
+        sharedActivity.setStatus(SharedActivityStatus.PENDING);
+        sharedActivity.setSharedPlan(false);
 
         return toResponse(sharedActivityRepository.save(sharedActivity));
     }
 
     @Override
-    @Transactional
-    public SharedActivityResponse updateSharedActivity(Long sharedActivityId,
-                                                       SharedActivityActionRequest.SharedActivityAction action,
-                                                       Long currentUserId) {
-        SharedActivity sharedActivity = sharedActivityRepository.findById(sharedActivityId)
-                .orElseThrow(() -> new ResourceNotFoundException("Shared activity not found with ID: " + sharedActivityId));
+    public SharedActivityResponse resolveSharedActivity(Long sharedActivityId, SharedActivityDecisionRequest request, String receiverUsername) {
+        User receiver = userRepository.findByUsername(receiverUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver not found"));
 
-        if (!sharedActivity.getReceiverUser().getId().equals(currentUserId)) {
-            throw new BusinessException("Only the receiver can accept or reject this shared activity");
+        SharedActivity sharedActivity = sharedActivityRepository.findById(sharedActivityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Shared activity not found"));
+
+        if (!sharedActivity.getReceiver().getId().equals(receiver.getId())) {
+            throw new AccessDeniedException("Only the receiver can update shared activity status");
         }
 
         if (sharedActivity.getStatus() != SharedActivityStatus.PENDING) {
-            throw new BusinessException("Shared activity has already been processed");
+            throw new ConflictException("Only pending shared activities can be updated");
         }
 
-        if (action == SharedActivityActionRequest.SharedActivityAction.ACCEPT) {
+        if (request.getAction() == SharedActivityDecisionAction.ACCEPT) {
             sharedActivity.setStatus(SharedActivityStatus.ACCEPTED);
             sharedActivity.setSharedPlan(true);
         } else {
@@ -88,23 +115,14 @@ public class SharedActivityServiceImpl implements SharedActivityService {
         return toResponse(sharedActivityRepository.save(sharedActivity));
     }
 
-    private boolean isValidConnectionInTripContext(Long senderUserId, Long receiverUserId, Long tripContextId) {
-        return userConnectionRepository.existsByRequesterUserIdAndReceiverUserIdAndTripContextIdAndStatus(
-                senderUserId, receiverUserId, tripContextId, UserConnectionStatus.ACCEPTED
-        ) || userConnectionRepository.existsByReceiverUserIdAndRequesterUserIdAndTripContextIdAndStatus(
-                senderUserId, receiverUserId, tripContextId, UserConnectionStatus.ACCEPTED
-        );
-    }
-
     private SharedActivityResponse toResponse(SharedActivity sharedActivity) {
-        return SharedActivityResponse.builder()
-                .id(sharedActivity.getId())
-                .activityId(sharedActivity.getActivity().getId())
-                .senderUserId(sharedActivity.getSenderUser().getId())
-                .receiverUserId(sharedActivity.getReceiverUser().getId())
-                .status(sharedActivity.getStatus())
-                .sharedPlan(sharedActivity.isSharedPlan())
-                .createdAt(sharedActivity.getCreatedAt())
-                .build();
+        SharedActivityResponse response = new SharedActivityResponse();
+        response.setId(sharedActivity.getId());
+        response.setActivityId(sharedActivity.getActivity().getId());
+        response.setSenderId(sharedActivity.getSender().getId());
+        response.setReceiverId(sharedActivity.getReceiver().getId());
+        response.setStatus(sharedActivity.getStatus());
+        response.setSharedPlan(sharedActivity.isSharedPlan());
+        return response;
     }
 }
