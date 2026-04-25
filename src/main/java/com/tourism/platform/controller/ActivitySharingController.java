@@ -26,6 +26,9 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 public class ActivitySharingController {
     private static final Logger log = LoggerFactory.getLogger(ActivitySharingController.class);
+    private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={} resourceId={}";
+    private static final String EVENT_EXIT = "event=controller_exit endpoint={} userId={} durationMs={} status={}";
+    private static final String STATUS_SUCCESS = "SUCCESS";
 
     private final SharedActivityService sharedActivityService;
     private final UserRepository userRepository;
@@ -37,7 +40,7 @@ public class ActivitySharingController {
             HttpServletRequest request,
             Authentication authentication) {
         long startNanos = System.nanoTime();
-        log.info("event=controller_entry endpoint={} userId={} activityId={}",
+        log.info(EVENT_ENTRY,
                 request.getRequestURI(), MDC.get("userId"), activityId);
 
         SharedActivityResponse responseData = sharedActivityService.shareActivity(
@@ -52,8 +55,8 @@ public class ActivitySharingController {
                 responseData,
                 request.getRequestURI()
         );
-        log.info("event=controller_exit endpoint={} userId={} durationMs={} status=SUCCESS",
-                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000);
+        log.info(EVENT_EXIT,
+                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -64,7 +67,7 @@ public class ActivitySharingController {
             HttpServletRequest request,
             Authentication authentication) {
         long startNanos = System.nanoTime();
-        log.info("event=controller_entry endpoint={} userId={} sharedActivityId={}",
+        log.info(EVENT_ENTRY,
                 request.getRequestURI(), MDC.get("userId"), id);
         resolveCurrentUserId(authentication);
         SharedActivityDecisionRequest decisionRequest = new SharedActivityDecisionRequest();
@@ -79,8 +82,8 @@ public class ActivitySharingController {
                 responseData,
                 request.getRequestURI()
         );
-        log.info("event=controller_exit endpoint={} userId={} durationMs={} status=SUCCESS",
-                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000);
+        log.info(EVENT_EXIT,
+                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.ok(response);
     }
 

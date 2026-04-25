@@ -43,6 +43,7 @@ import java.util.Optional;
 @Tag(name = "User Management", description = "APIs for managing user accounts and authentication")
 @Validated
 public class UserController {
+    private static final String USER_NOT_FOUND = "User not found";
 
     private final UserService userService;
 
@@ -68,26 +69,16 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> loginUser(
             @Valid @RequestBody UserLoginDto loginDto,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.authenticateUser(
-                loginDto.getUsernameOrEmail(), loginDto.getPassword());
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "Authentication successful",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.UNAUTHORIZED.value(),
-                    "Invalid credentials",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-        }
+        return userService.authenticateUser(loginDto.getUsernameOrEmail(), loginDto.getPassword())
+                .map(user -> ResponseEntity.ok(ApiResponse.success(
+                        HttpStatus.OK.value(),
+                        "Authentication successful",
+                        user,
+                        request.getRequestURI()
+                )))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                        ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Invalid credentials", request.getRequestURI())
+                ));
     }
 
     @GetMapping("/{id}")
@@ -95,25 +86,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserById(
             @Parameter(description = "User ID") @PathVariable Long id,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.getUserById(id);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User retrieved successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.getUserById(id), request.getRequestURI(), "User retrieved successfully");
     }
 
     @GetMapping("/username/{username}")
@@ -121,25 +94,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserByUsername(
             @Parameter(description = "Username") @PathVariable String username,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.getUserByUsername(username);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User retrieved successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.getUserByUsername(username), request.getRequestURI(), "User retrieved successfully");
     }
 
     @GetMapping("/email/{email}")
@@ -147,25 +102,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserByEmail(
             @Parameter(description = "Email address") @PathVariable String email,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.getUserByEmail(email);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User retrieved successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.getUserByEmail(email), request.getRequestURI(), "User retrieved successfully");
     }
 
     @PutMapping("/{id}")
@@ -174,25 +111,7 @@ public class UserController {
             @Parameter(description = "User ID") @PathVariable Long id,
             @Valid @RequestBody UserUpdateDto updateDto,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.updateUser(id, updateDto);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User updated successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.updateUser(id, updateDto), request.getRequestURI(), "User updated successfully");
     }
 
     @PutMapping("/{id}/password")
@@ -317,25 +236,7 @@ public class UserController {
             @Parameter(description = "User ID") @PathVariable Long id,
             @Parameter(description = "New role") @RequestParam UserRole role,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.updateUserRole(id, role);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User role updated successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.updateUserRole(id, role), request.getRequestURI(), "User role updated successfully");
     }
 
     @PutMapping("/{id}/status")
@@ -345,25 +246,7 @@ public class UserController {
             @Parameter(description = "User ID") @PathVariable Long id,
             @Parameter(description = "New status") @RequestParam UserStatus status,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.updateUserStatus(id, status);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User status updated successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.updateUserStatus(id, status), request.getRequestURI(), "User status updated successfully");
     }
 
     @DeleteMapping("/{id}")
@@ -390,6 +273,13 @@ public class UserController {
             );
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
+    }
+
+    private ResponseEntity<ApiResponse<UserDto>> toUserResponse(Optional<UserDto> userOpt, String path, String successMessage) {
+        return userOpt
+                .map(user -> ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), successMessage, user, path)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), USER_NOT_FOUND, path)));
     }
 
     @GetMapping("/statistics")

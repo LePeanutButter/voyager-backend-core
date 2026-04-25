@@ -22,6 +22,9 @@ import java.util.List;
 @Validated
 public class CompatibilityController {
     private static final Logger log = LoggerFactory.getLogger(CompatibilityController.class);
+    private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={}";
+    private static final String EVENT_EXIT = "event=controller_exit endpoint={} userId={} durationMs={} status={}";
+    private static final String STATUS_SUCCESS = "SUCCESS";
 
     private final CompatibilityMatchingService compatibilityMatchingService;
 
@@ -35,11 +38,10 @@ public class CompatibilityController {
             Authentication authentication,
             HttpServletRequest httpServletRequest) {
         long startNanos = System.nanoTime();
-        log.info("event=controller_entry endpoint={} userId={} destination={}",
-                httpServletRequest.getRequestURI(), MDC.get("userId"), request.getDestination());
+        log.info(EVENT_ENTRY, httpServletRequest.getRequestURI(), MDC.get("userId"));
         List<CompatibilityMatchResponse> matches = compatibilityMatchingService.findMatches(request, authentication.getName());
-        log.info("event=controller_exit endpoint={} userId={} durationMs={} status=SUCCESS",
-                httpServletRequest.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000);
+        log.info(EVENT_EXIT,
+                httpServletRequest.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.ok(
                 ApiResponse.success(HttpStatus.OK.value(), "Matches generated successfully", matches, httpServletRequest.getRequestURI())
         );

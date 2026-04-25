@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class SharedActivityServiceImpl implements SharedActivityService {
     private static final Logger log = LoggerFactory.getLogger(SharedActivityServiceImpl.class);
+    private static final String STATUS_SUCCESS = "SUCCESS";
 
     private final TravelPlanActivityRepository activityRepository;
     private final UserRepository userRepository;
@@ -45,8 +46,7 @@ public class SharedActivityServiceImpl implements SharedActivityService {
 
     @Override
     public SharedActivityResponse shareActivity(Long activityId, Long receiverId, String senderUsername) {
-        log.info("event=shared_activity_share_start activityId={} receiverId={} sender={}",
-                activityId, receiverId, senderUsername);
+        log.info("event=shared_activity_share_start activityId={} receiverId={}", activityId, receiverId);
         User sender = userRepository.findByUsername(senderUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
 
@@ -88,15 +88,7 @@ public class SharedActivityServiceImpl implements SharedActivityService {
                 activity.getId(),
                 receiver.getId()
         );
-        if (latestShare.isPresent()) {
-            SharedActivityStatus status = latestShare.get().getStatus();
-            if (status == SharedActivityStatus.PENDING) {
-                throw new ConflictException("A pending share already exists for this receiver");
-            }
-            if (status == SharedActivityStatus.ACCEPTED) {
-                throw new ConflictException("This activity is already accepted by the receiver");
-            }
-        }
+        latestShare.map(SharedActivity::getStatus).ifPresent(this::validateLatestShareStatus);
 
         SharedActivity sharedActivity = new SharedActivity();
         sharedActivity.setActivity(activity);
@@ -110,13 +102,13 @@ public class SharedActivityServiceImpl implements SharedActivityService {
                 .description("Total shared activity requests")
                 .register(meterRegistry)
                 .increment();
-        log.info("event=shared_activity_share_end sharedActivityId={} status=SUCCESS", response.getId());
+        log.info("event=shared_activity_share_end sharedActivityId={} status={}", response.getId(), STATUS_SUCCESS);
         return response;
     }
 
     @Override
     public SharedActivityResponse resolveSharedActivity(Long sharedActivityId, SharedActivityDecisionRequest request, String receiverUsername) {
-        log.info("event=shared_activity_resolve_start sharedActivityId={} receiver={}", sharedActivityId, receiverUsername);
+        log.info("event=shared_activity_resolve_start sharedActivityId={}", sharedActivityId);
         User receiver = userRepository.findByUsername(receiverUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Receiver not found"));
 
@@ -140,9 +132,18 @@ public class SharedActivityServiceImpl implements SharedActivityService {
         }
 
         SharedActivityResponse response = toResponse(sharedActivityRepository.save(sharedActivity));
-        log.info("event=shared_activity_resolve_end sharedActivityId={} resultStatus={} status=SUCCESS",
-                response.getId(), response.getStatus());
+        log.info("event=shared_activity_resolve_end sharedActivityId={} resultStatus={} status={}",
+                response.getId(), response.getStatus(), STATUS_SUCCESS);
         return response;
+    }
+
+    private void validateLatestShareStatus(SharedActivityStatus status) {
+        if (status == SharedActivityStatus.PENDING) {
+            throw new ConflictException("A pending share already exists for this receiver");
+        }
+        if (status == SharedActivityStatus.ACCEPTED) {
+            throw new ConflictException("This activity is already accepted by the receiver");
+        }
     }
 
     private SharedActivityResponse toResponse(SharedActivity sharedActivity) {

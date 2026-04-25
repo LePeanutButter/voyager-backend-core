@@ -16,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,13 +40,11 @@ class MatchingServiceImplTest {
     void getMatches_shouldScoreAndSortDeterministically() {
         TravelPlan topCandidate = createPlan(2L, "alice", "Paris",
                 LocalDateTime.of(2026, 5, 2, 10, 0),
-                LocalDateTime.of(2026, 5, 5, 10, 0),
-                Set.of("food", "hiking"));
+                LocalDateTime.of(2026, 5, 5, 10, 0));
 
         TravelPlan lowCandidate = createPlan(1L, "bob", "Lima",
                 LocalDateTime.of(2026, 5, 2, 10, 0),
-                LocalDateTime.of(2026, 5, 3, 10, 0),
-                Set.of("food"));
+                LocalDateTime.of(2026, 5, 3, 10, 0));
 
         when(travelPlanRepository.findAll())
                 .thenReturn(List.of(lowCandidate, topCandidate));
@@ -75,8 +72,7 @@ class MatchingServiceImplTest {
     void getMatches_shouldApplyAnyInterestFilteringAndReturnEmptyWhenNoMatch() {
         TravelPlan candidate = createPlan(10L, "carol", "Paris",
                 LocalDateTime.of(2026, 5, 2, 10, 0),
-                LocalDateTime.of(2026, 5, 5, 10, 0),
-                Set.of("museum"));
+                LocalDateTime.of(2026, 5, 5, 10, 0));
 
         when(travelPlanRepository.findAll())
                 .thenReturn(List.of(candidate));
@@ -97,8 +93,7 @@ class MatchingServiceImplTest {
                                   String username,
                                   String destination,
                                   LocalDateTime startDate,
-                                  LocalDateTime endDate,
-                                  Set<String> interests) {
+                                  LocalDateTime endDate) {
         User user = User.builder()
                 .id(userId)
                 .username(username)

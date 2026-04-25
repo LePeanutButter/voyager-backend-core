@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class MatchingServiceImpl implements MatchingService {
     private static final Logger log = LoggerFactory.getLogger(MatchingServiceImpl.class);
+    private static final String STATUS_SUCCESS = "SUCCESS";
 
     private static final int DESTINATION_WEIGHT = 50;
     private static final int DATE_WEIGHT = 30;
@@ -41,7 +42,7 @@ public class MatchingServiceImpl implements MatchingService {
                                              LocalDate endDate,
                                              List<String> interests) {
         Timer.Sample sample = Timer.start(meterRegistry);
-        log.info("event=matching_start destination={} startDate={} endDate={}", destination, startDate, endDate);
+        log.info("event=matching_start");
         if (startDate.isAfter(endDate)) {
             throw new BusinessException("startDate must be before or equal to endDate");
         }
@@ -62,27 +63,14 @@ public class MatchingServiceImpl implements MatchingService {
 
         Set<Long> userIds = candidates.stream().map(plan -> plan.getUser().getId()).collect(Collectors.toSet());
         Map<Long, Set<String>> userInterestsMap = buildInterestsByUserId(userIds);
-        Map<Long, MatchResponseDto> bestPerUser = new HashMap<>();
-        for (TravelPlan plan : candidates) {
-            MatchResponseDto candidate = buildMatch(
-                    plan, destination, startDate, endDate, normalizedInterests,
-                    userInterestsMap.getOrDefault(plan.getUser().getId(), Set.of()));
-            if (candidate.getScore() <= 0.0d) {
-                continue;
-            }
-
-            MatchResponseDto currentBest = bestPerUser.get(candidate.getUserId());
-            if (currentBest == null || candidate.getScore() > currentBest.getScore()) {
-                bestPerUser.put(candidate.getUserId(), candidate);
-            }
-        }
+        Map<Long, MatchResponseDto> bestPerUser = buildBestMatches(candidates, destination, startDate, endDate, normalizedInterests, userInterestsMap);
 
         Collection<MatchResponseDto> filteredMatches = bestPerUser.values();
         if (!normalizedInterests.isEmpty()) {
             // Filtering mode is ANY: users are kept when at least one requested interest matches.
             filteredMatches = filteredMatches.stream()
                     .filter(match -> match.getInterestPoints() > 0)
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         List<MatchResponseDto> result = filteredMatches.stream()
@@ -93,7 +81,7 @@ public class MatchingServiceImpl implements MatchingService {
         sample.stop(Timer.builder("matching_execution_time")
                 .description("Matching execution time")
                 .register(meterRegistry));
-        log.info("event=matching_end resultCount={} status=SUCCESS", result.size());
+        log.info("event=matching_end resultCount={} status={}", result.size(), STATUS_SUCCESS);
         return result;
     }
 
@@ -181,11 +169,35 @@ public class MatchingServiceImpl implements MatchingService {
         for (Object[] row : userInterestRepository.findUserInterestsByUserIds(userIds)) {
             Long userId = (Long) row[0];
             String interest = row[1] != null ? row[1].toString() : null;
-            if (interest == null || interest.isBlank()) {
-                continue;
+            if (interest != null && !interest.isBlank()) {
+                interestsByUserId.computeIfAbsent(userId, key -> new HashSet<>()).add(interest.trim());
             }
-            interestsByUserId.computeIfAbsent(userId, key -> new HashSet<>()).add(interest.trim());
         }
         return interestsByUserId;
+    }
+
+    private Map<Long, MatchResponseDto> buildBestMatches(List<TravelPlan> candidates,
+                                                         String destination,
+                                                         LocalDate startDate,
+                                                         LocalDate endDate,
+                                                         List<String> normalizedInterests,
+                                                         Map<Long, Set<String>> userInterestsMap) {
+        Map<Long, MatchResponseDto> bestPerUser = new HashMap<>();
+        for (TravelPlan plan : candidates) {
+            MatchResponseDto candidate = buildMatch(
+                    plan, destination, startDate, endDate, normalizedInterests,
+                    userInterestsMap.getOrDefault(plan.getUser().getId(), Set.of()));
+            updateBestPerUser(bestPerUser, candidate);
+        }
+        return bestPerUser;
+    }
+
+    private void updateBestPerUser(Map<Long, MatchResponseDto> bestPerUser, MatchResponseDto candidate) {
+        if (candidate.getScore() > 0.0d) {
+            MatchResponseDto currentBest = bestPerUser.get(candidate.getUserId());
+            if (currentBest == null || candidate.getScore() > currentBest.getScore()) {
+                bestPerUser.put(candidate.getUserId(), candidate);
+            }
+        }
     }
 }

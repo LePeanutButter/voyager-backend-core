@@ -31,6 +31,9 @@ import java.util.concurrent.TimeUnit;
 public class MatchController {
     private static final Logger log = LoggerFactory.getLogger(MatchController.class);
     private static final int MAX_LIMIT = 100;
+    private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={}";
+    private static final String EVENT_EXIT = "event=controller_exit endpoint={} userId={} resultCount={} durationMs={} status={}";
+    private static final String STATUS_SUCCESS = "SUCCESS";
 
     private final MatchingService matchingService;
     private final MeterRegistry meterRegistry;
@@ -46,8 +49,7 @@ public class MatchController {
         String endpoint = request.getRequestURI();
         String userId = MDC.get("userId");
         long start = System.nanoTime();
-        log.info("event=controller_entry endpoint={} userId={} destination={} startDate={} endDate={}",
-                endpoint, userId, destination, startDate, endDate);
+        log.info(EVENT_ENTRY, endpoint, userId);
 
         List<MatchResponseDto> matches = matchingService.getMatches(destination, startDate, endDate, interests);
         List<MatchResponseDto> limitedMatches = matches.stream().limit(Math.min(MAX_LIMIT, limit)).toList();
@@ -61,9 +63,9 @@ public class MatchController {
                 .register(meterRegistry)
                 .record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
 
-        log.info("event=controller_exit endpoint={} userId={} resultCount={} durationMs={} status=SUCCESS",
+        log.info(EVENT_EXIT,
                 endpoint, userId, limitedMatches.size(),
-                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start), STATUS_SUCCESS);
 
         return ResponseEntity.ok(ApiResponse.success(
                 200,

@@ -56,24 +56,16 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
                 .collect(Collectors.groupingBy(plan -> plan.getUser().getId()));
         Map<Long, Set<String>> interestsByUserId = buildInterestsByUserId(candidateIds);
 
-        List<CompatibilityMatchResponse> matches = new ArrayList<>();
-        for (User candidate : candidates) {
-            CompatibilityMatchResponse score = computeScore(
-                    candidate,
-                    request,
-                    normalizedInputInterests,
-                    travelPlansByUserId.getOrDefault(candidate.getId(), List.of()),
-                    interestsByUserId.getOrDefault(candidate.getId(), Set.of())
-            );
-
-            if (!normalizedInputInterests.isEmpty() && score.getMatchedInterests().isEmpty()) {
-                continue;
-            }
-
-            if (score.getTotalScore() > 0.0) {
-                matches.add(score);
-            }
-        }
+        List<CompatibilityMatchResponse> matches = new ArrayList<>(candidates.stream()
+                .map(candidate -> computeScore(
+                        candidate,
+                        request,
+                        normalizedInputInterests,
+                        travelPlansByUserId.getOrDefault(candidate.getId(), List.of()),
+                        interestsByUserId.getOrDefault(candidate.getId(), Set.of())
+                ))
+                .filter(score -> shouldIncludeScore(score, normalizedInputInterests))
+                .toList());
 
         matches.sort(Comparator
                 .comparingDouble(CompatibilityMatchResponse::getTotalScore).reversed()
@@ -124,21 +116,8 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
         double bestScore = 0.0;
 
         for (TravelPlan plan : plans) {
-            if (plan.getStartDate() == null || plan.getEndDate() == null) {
-                continue;
-            }
-            LocalDate candidateStart = plan.getStartDate().toLocalDate();
-            LocalDate candidateEnd = plan.getEndDate().toLocalDate();
-
-            LocalDate overlapStart = candidateStart.isAfter(requestStart) ? candidateStart : requestStart;
-            LocalDate overlapEnd = candidateEnd.isBefore(requestEnd) ? candidateEnd : requestEnd;
-            if (overlapStart.isAfter(overlapEnd)) {
-                continue;
-            }
-
-            long overlapDays = overlapEnd.toEpochDay() - overlapStart.toEpochDay() + 1L;
-            double overlapRatio = overlapDays / (double) requestedSpan;
-            bestScore = Math.max(bestScore, DATE_WEIGHT * overlapRatio);
+            double planScore = scorePlanOverlap(plan, requestStart, requestEnd, requestedSpan);
+            bestScore = Math.max(bestScore, planScore);
         }
 
         return round(bestScore);
@@ -159,10 +138,9 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
         for (Object[] row : userInterestRepository.findUserInterestsByUserIds(candidateIds)) {
             Long userId = (Long) row[0];
             String interest = row[1] != null ? row[1].toString() : null;
-            if (interest == null || interest.isBlank()) {
-                continue;
+            if (interest != null && !interest.isBlank()) {
+                result.computeIfAbsent(userId, ignored -> new TreeSet<>()).add(interest.trim().toLowerCase());
             }
-            result.computeIfAbsent(userId, ignored -> new TreeSet<>()).add(interest.trim().toLowerCase());
         }
         return result;
     }
@@ -196,5 +174,30 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
 
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    private boolean shouldIncludeScore(CompatibilityMatchResponse score, Set<String> normalizedInputInterests) {
+        if (score.getTotalScore() <= 0.0) {
+            return false;
+        }
+        return normalizedInputInterests.isEmpty() || !score.getMatchedInterests().isEmpty();
+    }
+
+    private double scorePlanOverlap(TravelPlan plan, LocalDate requestStart, LocalDate requestEnd, long requestedSpan) {
+        if (plan.getStartDate() == null || plan.getEndDate() == null) {
+            return 0.0;
+        }
+        LocalDate candidateStart = plan.getStartDate().toLocalDate();
+        LocalDate candidateEnd = plan.getEndDate().toLocalDate();
+
+        LocalDate overlapStart = candidateStart.isAfter(requestStart) ? candidateStart : requestStart;
+        LocalDate overlapEnd = candidateEnd.isBefore(requestEnd) ? candidateEnd : requestEnd;
+        if (overlapStart.isAfter(overlapEnd)) {
+            return 0.0;
+        }
+
+        long overlapDays = overlapEnd.toEpochDay() - overlapStart.toEpochDay() + 1L;
+        double overlapRatio = overlapDays / (double) requestedSpan;
+        return DATE_WEIGHT * overlapRatio;
     }
 }
