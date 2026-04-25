@@ -16,6 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/compatibility")
@@ -25,6 +26,7 @@ public class CompatibilityController {
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={}";
     private static final String EVENT_EXIT = "event=controller_exit endpoint={} userId={} durationMs={} status={}";
     private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String USER_ID = "userId";
 
     private final CompatibilityMatchingService compatibilityMatchingService;
 
@@ -38,12 +40,23 @@ public class CompatibilityController {
             Authentication authentication,
             HttpServletRequest httpServletRequest) {
         long startNanos = System.nanoTime();
-        log.info(EVENT_ENTRY, httpServletRequest.getRequestURI(), MDC.get("userId"));
-        List<CompatibilityMatchResponse> matches = compatibilityMatchingService.findMatches(request, authentication.getName());
+        String path = safePath(httpServletRequest);
+        String principal = authenticatedUsername(authentication);
+        String userId = MDC.get(USER_ID);
+        log.info(EVENT_ENTRY, path, userId);
+        List<CompatibilityMatchResponse> matches = compatibilityMatchingService.findMatches(request, principal);
         log.info(EVENT_EXIT,
-                httpServletRequest.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
+                path, userId, (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.ok(
-                ApiResponse.success(HttpStatus.OK.value(), "Matches generated successfully", matches, httpServletRequest.getRequestURI())
+                ApiResponse.success(HttpStatus.OK.value(), "Matches generated successfully", matches, path)
         );
+    }
+
+    private String safePath(HttpServletRequest request) {
+        return request != null ? request.getRequestURI() : "";
+    }
+
+    private String authenticatedUsername(Authentication authentication) {
+        return Objects.requireNonNull(authentication, "authentication is required").getName();
     }
 }

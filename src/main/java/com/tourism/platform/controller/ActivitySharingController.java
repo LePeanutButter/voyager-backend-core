@@ -21,6 +21,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+
 @RestController
 @RequiredArgsConstructor
 @Validated
@@ -29,6 +31,7 @@ public class ActivitySharingController {
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={} resourceId={}";
     private static final String EVENT_EXIT = "event=controller_exit endpoint={} userId={} durationMs={} status={}";
     private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String USER_ID = "userId";
 
     private final SharedActivityService sharedActivityService;
     private final UserRepository userRepository;
@@ -40,23 +43,26 @@ public class ActivitySharingController {
             HttpServletRequest request,
             Authentication authentication) {
         long startNanos = System.nanoTime();
+        String path = safePath(request);
+        String userId = MDC.get(USER_ID);
+        String principal = authenticatedUsername(authentication);
         log.info(EVENT_ENTRY,
-                request.getRequestURI(), MDC.get("userId"), activityId);
+                path, userId, activityId);
 
         SharedActivityResponse responseData = sharedActivityService.shareActivity(
                 activityId,
                 requestBody.getReceiverId(),
-                authentication.getName()
+                principal
         );
 
         ApiResponse<SharedActivityResponse> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
                 "Activity shared successfully",
                 responseData,
-                request.getRequestURI()
+                path
         );
         log.info(EVENT_EXIT,
-                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
+                path, userId, (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -67,30 +73,41 @@ public class ActivitySharingController {
             HttpServletRequest request,
             Authentication authentication) {
         long startNanos = System.nanoTime();
+        String path = safePath(request);
+        String userId = MDC.get(USER_ID);
+        String principal = authenticatedUsername(authentication);
         log.info(EVENT_ENTRY,
-                request.getRequestURI(), MDC.get("userId"), id);
+                path, userId, id);
         resolveCurrentUserId(authentication);
         SharedActivityDecisionRequest decisionRequest = new SharedActivityDecisionRequest();
         decisionRequest.setAction(requestBody.getAction() == SharedActivityActionRequest.SharedActivityAction.ACCEPT
                 ? SharedActivityDecisionAction.ACCEPT
                 : SharedActivityDecisionAction.REJECT);
-        SharedActivityResponse responseData = sharedActivityService.resolveSharedActivity(id, decisionRequest, authentication.getName());
+        SharedActivityResponse responseData = sharedActivityService.resolveSharedActivity(id, decisionRequest, principal);
 
         ApiResponse<SharedActivityResponse> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Shared activity updated successfully",
                 responseData,
-                request.getRequestURI()
+                path
         );
         log.info(EVENT_EXIT,
-                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
+                path, userId, (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.ok(response);
     }
 
     private Long resolveCurrentUserId(Authentication authentication) {
-        String username = authentication.getName();
+        String username = authenticatedUsername(authentication);
         return userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found: " + username))
                 .getId();
+    }
+
+    private String safePath(HttpServletRequest request) {
+        return request != null ? request.getRequestURI() : "";
+    }
+
+    private String authenticatedUsername(Authentication authentication) {
+        return Objects.requireNonNull(authentication, "authentication is required").getName();
     }
 }

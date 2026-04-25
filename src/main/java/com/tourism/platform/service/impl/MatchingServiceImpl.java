@@ -100,7 +100,7 @@ public class MatchingServiceImpl implements MatchingService {
         );
         int interestPoints = computeInterestPoints(normalizedInterests, userInterests);
 
-        double totalScore = destinationPoints + datePoints + interestPoints;
+        double totalScore = (double) destinationPoints + datePoints + interestPoints;
 
         return MatchResponseDto.builder()
                 .userId(plan.getUser().getId())

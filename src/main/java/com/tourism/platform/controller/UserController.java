@@ -44,6 +44,7 @@ import java.util.Optional;
 @Validated
 public class UserController {
     private static final String USER_NOT_FOUND = "User not found";
+    private static final String USER_RETRIEVED_SUCCESSFULLY = "User retrieved successfully";
 
     private final UserService userService;
 
@@ -86,7 +87,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserById(
             @Parameter(description = "User ID") @PathVariable Long id,
             HttpServletRequest request) {
-        return toUserResponse(userService.getUserById(id), request.getRequestURI(), "User retrieved successfully");
+        return toUserResponse(userService.getUserById(id), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
     }
 
     @GetMapping("/username/{username}")
@@ -94,7 +95,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserByUsername(
             @Parameter(description = "Username") @PathVariable String username,
             HttpServletRequest request) {
-        return toUserResponse(userService.getUserByUsername(username), request.getRequestURI(), "User retrieved successfully");
+        return toUserResponse(userService.getUserByUsername(username), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
     }
 
     @GetMapping("/email/{email}")
@@ -102,7 +103,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserByEmail(
             @Parameter(description = "Email address") @PathVariable String email,
             HttpServletRequest request) {
-        return toUserResponse(userService.getUserByEmail(email), request.getRequestURI(), "User retrieved successfully");
+        return toUserResponse(userService.getUserByEmail(email), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
     }
 
     @PutMapping("/{id}")

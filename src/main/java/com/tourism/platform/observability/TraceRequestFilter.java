@@ -27,6 +27,9 @@ public class TraceRequestFilter extends OncePerRequestFilter {
     public static final String TRACE_ID = "traceId";
     public static final String REQUEST_ID = "requestId";
     public static final String USER_ID = "userId";
+    private static final String TAG_METHOD = "method";
+    private static final String TAG_PATH = "path";
+    private static final String TAG_STATUS = "status";
 
     private static final Logger log = LoggerFactory.getLogger(TraceRequestFilter.class);
     private final MeterRegistry meterRegistry;
@@ -62,18 +65,18 @@ public class TraceRequestFilter extends OncePerRequestFilter {
             String statusLabel = status >= 400 ? "ERROR" : "SUCCESS";
 
             meterRegistry.counter("http_requests_total_custom",
-                    "method", method,
-                    "path", path,
-                    "status", String.valueOf(status)).increment();
+                    TAG_METHOD, method,
+                    TAG_PATH, path,
+                    TAG_STATUS, String.valueOf(status)).increment();
             Timer.builder("http_request_duration_custom")
-                    .tag("method", method)
-                    .tag("path", path)
+                    .tag(TAG_METHOD, method)
+                    .tag(TAG_PATH, path)
                     .register(meterRegistry)
                     .record(durationMs, TimeUnit.MILLISECONDS);
             if (status >= 400) {
                 meterRegistry.counter("http_request_errors_total_custom",
-                        "method", method,
-                        "path", path).increment();
+                        TAG_METHOD, method,
+                        TAG_PATH, path).increment();
             }
 
             log.info("event=request_completed method={} path={} status={} durationMs={} endpoint={} statusLabel={}",

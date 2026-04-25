@@ -16,6 +16,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+
 @RestController
 @RequestMapping
 @Validated
@@ -24,6 +26,7 @@ public class SharedActivityController {
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={} resourceId={}";
     private static final String EVENT_EXIT = "event=controller_exit endpoint={} userId={} durationMs={} status={}";
     private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String USER_ID = "userId";
 
     private final SharedActivityService sharedActivityService;
 
@@ -38,17 +41,20 @@ public class SharedActivityController {
             Authentication authentication,
             HttpServletRequest httpServletRequest) {
         long startNanos = System.nanoTime();
+        String path = safePath(httpServletRequest);
+        String userId = MDC.get(USER_ID);
+        String principal = authenticatedUsername(authentication);
         log.info(EVENT_ENTRY,
-                httpServletRequest.getRequestURI(), MDC.get("userId"), activityId);
+                path, userId, activityId);
         SharedActivityResponse result = sharedActivityService.shareActivity(
                 activityId,
                 request.getReceiverId(),
-                authentication.getName()
+                principal
         );
         log.info(EVENT_EXIT,
-                httpServletRequest.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
+                path, userId, (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResponse.success(HttpStatus.CREATED.value(), "Activity shared successfully", result, httpServletRequest.getRequestURI())
+                ApiResponse.success(HttpStatus.CREATED.value(), "Activity shared successfully", result, path)
         );
     }
 
@@ -59,17 +65,28 @@ public class SharedActivityController {
             Authentication authentication,
             HttpServletRequest httpServletRequest) {
         long startNanos = System.nanoTime();
+        String path = safePath(httpServletRequest);
+        String userId = MDC.get(USER_ID);
+        String principal = authenticatedUsername(authentication);
         log.info(EVENT_ENTRY,
-                httpServletRequest.getRequestURI(), MDC.get("userId"), id);
+                path, userId, id);
         SharedActivityResponse result = sharedActivityService.resolveSharedActivity(
                 id,
                 request,
-                authentication.getName()
+                principal
         );
         log.info(EVENT_EXIT,
-                httpServletRequest.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
+                path, userId, (System.nanoTime() - startNanos) / 1_000_000, STATUS_SUCCESS);
         return ResponseEntity.ok(
-                ApiResponse.success(HttpStatus.OK.value(), "Shared activity updated successfully", result, httpServletRequest.getRequestURI())
+                ApiResponse.success(HttpStatus.OK.value(), "Shared activity updated successfully", result, path)
         );
+    }
+
+    private String safePath(HttpServletRequest request) {
+        return request != null ? request.getRequestURI() : "";
+    }
+
+    private String authenticatedUsername(Authentication authentication) {
+        return Objects.requireNonNull(authentication, "authentication is required").getName();
     }
 }

@@ -177,11 +177,11 @@ public class GlobalExceptionHandler {
         String traceId = MDC.get("traceId");
 
         if (withStacktrace) {
-            log.error("event=exception_handled status={} path={} message={} traceId={}",
-                    status.value(), path, ex.getMessage(), traceId, ex);
+            log.error("event=exception_handled status={} path={} exceptionType={} traceId={}",
+                    status.value(), path, ex.getClass().getSimpleName(), traceId, ex);
         } else {
-            log.warn("event=exception_handled status={} path={} message={} traceId={}",
-                    status.value(), path, message, traceId);
+            log.warn("event=exception_handled status={} path={} exceptionType={} traceId={}",
+                    status.value(), path, ex.getClass().getSimpleName(), traceId);
         }
 
         ErrorResponse errorResponse = new ErrorResponse(
