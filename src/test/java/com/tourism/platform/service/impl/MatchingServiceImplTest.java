@@ -5,9 +5,11 @@ import com.tourism.platform.model.TravelPlan;
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.model.User;
 import com.tourism.platform.repository.TravelPlanRepository;
+import com.tourism.platform.repository.UserInterestRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -18,7 +20,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,9 +27,15 @@ class MatchingServiceImplTest {
 
     @Mock
     private TravelPlanRepository travelPlanRepository;
+    @Mock
+    private UserInterestRepository userInterestRepository;
 
-    @InjectMocks
     private MatchingServiceImpl matchingService;
+
+    @BeforeEach
+    void setUp() {
+        matchingService = new MatchingServiceImpl(travelPlanRepository, userInterestRepository, new SimpleMeterRegistry());
+    }
 
     @Test
     void getMatches_shouldScoreAndSortDeterministically() {
@@ -42,9 +49,14 @@ class MatchingServiceImplTest {
                 LocalDateTime.of(2026, 5, 3, 10, 0),
                 Set.of("food"));
 
-        when(travelPlanRepository.findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
-                eq(TravelPlanStatus.ACTIVE), any(LocalDateTime.class), any(LocalDateTime.class)))
+        when(travelPlanRepository.findAll())
                 .thenReturn(List.of(lowCandidate, topCandidate));
+        when(userInterestRepository.findUserInterestsByUserIds(any()))
+                .thenReturn(List.of(
+                        new Object[]{2L, "food"},
+                        new Object[]{2L, "hiking"},
+                        new Object[]{1L, "food"}
+                ));
 
         List<MatchResponseDto> result = matchingService.getMatches(
                 "Paris",
@@ -66,9 +78,10 @@ class MatchingServiceImplTest {
                 LocalDateTime.of(2026, 5, 5, 10, 0),
                 Set.of("museum"));
 
-        when(travelPlanRepository.findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
-                eq(TravelPlanStatus.ACTIVE), any(LocalDateTime.class), any(LocalDateTime.class)))
+        when(travelPlanRepository.findAll())
                 .thenReturn(List.of(candidate));
+        when(userInterestRepository.findUserInterestsByUserIds(any()))
+                .thenReturn(List.<Object[]>of(new Object[]{10L, "museum"}));
 
         List<MatchResponseDto> result = matchingService.getMatches(
                 "Paris",
@@ -93,7 +106,6 @@ class MatchingServiceImplTest {
                 .password("pass")
                 .firstName("First")
                 .lastName("Last")
-                .interests(interests)
                 .build();
 
         TravelPlan plan = new TravelPlan();

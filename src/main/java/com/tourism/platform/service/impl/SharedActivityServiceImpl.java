@@ -5,9 +5,13 @@ import com.tourism.platform.dto.SharedActivityResponse;
 import com.tourism.platform.exception.BadRequestException;
 import com.tourism.platform.exception.ConflictException;
 import com.tourism.platform.exception.ResourceNotFoundException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import com.tourism.platform.model.*;
 import com.tourism.platform.repository.*;
 import com.tourism.platform.service.SharedActivityService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,28 +19,34 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class SharedActivityServiceImpl implements SharedActivityService {
+    private static final Logger log = LoggerFactory.getLogger(SharedActivityServiceImpl.class);
 
     private final TravelPlanActivityRepository activityRepository;
     private final UserRepository userRepository;
     private final SharedActivityRepository sharedActivityRepository;
     private final UserConnectionRepository connectionRepository;
     private final TravelPlanParticipantRepository participantRepository;
+    private final MeterRegistry meterRegistry;
 
     public SharedActivityServiceImpl(
             TravelPlanActivityRepository activityRepository,
             UserRepository userRepository,
             SharedActivityRepository sharedActivityRepository,
             UserConnectionRepository connectionRepository,
-            TravelPlanParticipantRepository participantRepository) {
+            TravelPlanParticipantRepository participantRepository,
+            MeterRegistry meterRegistry) {
         this.activityRepository = activityRepository;
         this.userRepository = userRepository;
         this.sharedActivityRepository = sharedActivityRepository;
         this.connectionRepository = connectionRepository;
         this.participantRepository = participantRepository;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
     public SharedActivityResponse shareActivity(Long activityId, Long receiverId, String senderUsername) {
+        log.info("event=shared_activity_share_start activityId={} receiverId={} sender={}",
+                activityId, receiverId, senderUsername);
         User sender = userRepository.findByUsername(senderUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
 
@@ -95,11 +105,18 @@ public class SharedActivityServiceImpl implements SharedActivityService {
         sharedActivity.setStatus(SharedActivityStatus.PENDING);
         sharedActivity.setSharedPlan(false);
 
-        return toResponse(sharedActivityRepository.save(sharedActivity));
+        SharedActivityResponse response = toResponse(sharedActivityRepository.save(sharedActivity));
+        Counter.builder("shared_activity_requests_total")
+                .description("Total shared activity requests")
+                .register(meterRegistry)
+                .increment();
+        log.info("event=shared_activity_share_end sharedActivityId={} status=SUCCESS", response.getId());
+        return response;
     }
 
     @Override
     public SharedActivityResponse resolveSharedActivity(Long sharedActivityId, SharedActivityDecisionRequest request, String receiverUsername) {
+        log.info("event=shared_activity_resolve_start sharedActivityId={} receiver={}", sharedActivityId, receiverUsername);
         User receiver = userRepository.findByUsername(receiverUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Receiver not found"));
 
@@ -122,7 +139,10 @@ public class SharedActivityServiceImpl implements SharedActivityService {
             sharedActivity.setSharedPlan(false);
         }
 
-        return toResponse(sharedActivityRepository.save(sharedActivity));
+        SharedActivityResponse response = toResponse(sharedActivityRepository.save(sharedActivity));
+        log.info("event=shared_activity_resolve_end sharedActivityId={} resultStatus={} status=SUCCESS",
+                response.getId(), response.getStatus());
+        return response;
     }
 
     private SharedActivityResponse toResponse(SharedActivity sharedActivity) {

@@ -3,21 +3,29 @@ package com.tourism.platform.controller;
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.ShareActivityRequest;
 import com.tourism.platform.dto.SharedActivityActionRequest;
+import com.tourism.platform.dto.SharedActivityDecisionRequest;
 import com.tourism.platform.dto.SharedActivityResponse;
 import com.tourism.platform.exception.ResourceNotFoundException;
+import com.tourism.platform.model.SharedActivityDecisionAction;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.SharedActivityService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@Validated
 public class ActivitySharingController {
+    private static final Logger log = LoggerFactory.getLogger(ActivitySharingController.class);
 
     private final SharedActivityService sharedActivityService;
     private final UserRepository userRepository;
@@ -28,12 +36,14 @@ public class ActivitySharingController {
             @Valid @RequestBody ShareActivityRequest requestBody,
             HttpServletRequest request,
             Authentication authentication) {
+        long startNanos = System.nanoTime();
+        log.info("event=controller_entry endpoint={} userId={} activityId={}",
+                request.getRequestURI(), MDC.get("userId"), activityId);
 
-        Long currentUserId = resolveCurrentUserId(authentication);
         SharedActivityResponse responseData = sharedActivityService.shareActivity(
                 activityId,
-                requestBody.getReceiverUserId(),
-                currentUserId
+                requestBody.getReceiverId(),
+                authentication.getName()
         );
 
         ApiResponse<SharedActivityResponse> response = ApiResponse.success(
@@ -42,6 +52,8 @@ public class ActivitySharingController {
                 responseData,
                 request.getRequestURI()
         );
+        log.info("event=controller_exit endpoint={} userId={} durationMs={} status=SUCCESS",
+                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -51,12 +63,15 @@ public class ActivitySharingController {
             @Valid @RequestBody SharedActivityActionRequest requestBody,
             HttpServletRequest request,
             Authentication authentication) {
-        Long currentUserId = resolveCurrentUserId(authentication);
-        SharedActivityResponse responseData = sharedActivityService.updateSharedActivity(
-                id,
-                requestBody.getAction(),
-                currentUserId
-        );
+        long startNanos = System.nanoTime();
+        log.info("event=controller_entry endpoint={} userId={} sharedActivityId={}",
+                request.getRequestURI(), MDC.get("userId"), id);
+        resolveCurrentUserId(authentication);
+        SharedActivityDecisionRequest decisionRequest = new SharedActivityDecisionRequest();
+        decisionRequest.setAction(requestBody.getAction() == SharedActivityActionRequest.SharedActivityAction.ACCEPT
+                ? SharedActivityDecisionAction.ACCEPT
+                : SharedActivityDecisionAction.REJECT);
+        SharedActivityResponse responseData = sharedActivityService.resolveSharedActivity(id, decisionRequest, authentication.getName());
 
         ApiResponse<SharedActivityResponse> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -64,6 +79,8 @@ public class ActivitySharingController {
                 responseData,
                 request.getRequestURI()
         );
+        log.info("event=controller_exit endpoint={} userId={} durationMs={} status=SUCCESS",
+                request.getRequestURI(), MDC.get("userId"), (System.nanoTime() - startNanos) / 1_000_000);
         return ResponseEntity.ok(response);
     }
 
