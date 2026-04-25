@@ -39,6 +39,12 @@ public interface TravelPlanRepository extends JpaRepository<TravelPlan, Long> {
      */
     Page<TravelPlan> findByStatus(TravelPlanStatus status, Pageable pageable);
 
+    List<TravelPlan> findByStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+            TravelPlanStatus status,
+            LocalDateTime endDate,
+            LocalDateTime startDate
+    );
+
     /**
      * Find travel plans by user and status
      * 
