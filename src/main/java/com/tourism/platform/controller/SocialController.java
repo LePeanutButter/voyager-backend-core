@@ -2,6 +2,8 @@ package com.tourism.platform.controller;
 
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.PagedResponse;
+import com.tourism.platform.dto.TravelerSummaryDto;
+import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +36,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Social Features", description = "APIs for traveler social interactions")
 public class SocialController {
+
+    private final SocialService socialService;
 
     // Traveler Connections
     @PostMapping("/connections")
@@ -136,6 +140,24 @@ public class SocialController {
                 request.getRequestURI()
         );
         
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/travelers/{id}/summary")
+    @Operation(summary = "Get traveler summary profile", description = "Retrieves the public summary profile for a compatible traveler")
+    public ResponseEntity<ApiResponse<TravelerSummaryDto>> getTravelerSummary(
+            @Parameter(description = "Traveler ID") @PathVariable("id") Long travelerId,
+            HttpServletRequest request) {
+
+        TravelerSummaryDto summary = socialService.getTravelerSummary(travelerId);
+
+        ApiResponse<TravelerSummaryDto> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Traveler summary retrieved successfully",
+                summary,
+                request.getRequestURI()
+        );
+
         return ResponseEntity.ok(response);
     }
 

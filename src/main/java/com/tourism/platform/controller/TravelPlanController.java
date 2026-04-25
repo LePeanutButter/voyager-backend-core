@@ -4,17 +4,18 @@ import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.TravelPlanDto;
 import com.tourism.platform.dto.TravelPlanActivityDto;
+import com.tourism.platform.dto.CreateTravelPlanActivityRequestDto;
+import com.tourism.platform.dto.UpdateTravelPlanActivityRequestDto;
 import com.tourism.platform.dto.ReservationDto;
+import com.tourism.platform.dto.TravelConnectionDto;
 import com.tourism.platform.dto.TravelerMatchDto;
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.model.TravelType;
-import com.tourism.platform.model.User;
-import com.tourism.platform.repository.UserRepository;
-import com.tourism.platform.service.TravelPlanService;
+import com.tourism.platform.service.TravelPlanActivityService;
+import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -50,8 +51,8 @@ import java.time.temporal.ChronoUnit;
 @Tag(name = "Travel Planning", description = "APIs for managing travel plans and itineraries")
 public class TravelPlanController {
 
-    private final TravelPlanService travelPlanService;
-    private final UserRepository userRepository;
+    private final TravelPlanActivityService travelPlanActivityService;
+    private final SocialService socialService;
     
     // Simple in-memory storage for testing
     private static final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
@@ -208,21 +209,9 @@ public class TravelPlanController {
     @Operation(summary = "Add activity to travel plan", description = "Adds a new activity to an existing travel plan")
     public ResponseEntity<ApiResponse<TravelPlanActivityDto>> addActivity(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
-            @Valid @RequestBody TravelPlanActivityDto activityDto,
+            @Valid @RequestBody CreateTravelPlanActivityRequestDto activityDto,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
-        TravelPlanActivityDto createdActivity = TravelPlanActivityDto.builder()
-                .id(1L)
-                .name(activityDto.getName())
-                .description(activityDto.getDescription())
-                .type(activityDto.getType())
-                .startTime(activityDto.getStartTime())
-                .endTime(activityDto.getEndTime())
-                .location(activityDto.getLocation())
-                .estimatedCost(activityDto.getEstimatedCost())
-                .isConfirmed(false)
-                .build();
+        TravelPlanActivityDto createdActivity = travelPlanActivityService.createActivity(id, activityDto);
         
         ApiResponse<TravelPlanActivityDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
@@ -239,13 +228,7 @@ public class TravelPlanController {
     public ResponseEntity<ApiResponse<List<TravelPlanActivityDto>>> getActivities(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
-        List<TravelPlanActivityDto> activities = List.of(
-                TravelPlanActivityDto.builder().id(1L).name("City Tour").build(),
-                TravelPlanActivityDto.builder().id(2L).name("Museum Visit").build(),
-                TravelPlanActivityDto.builder().id(3L).name("Dinner at Restaurant").build()
-        );
+        List<TravelPlanActivityDto> activities = travelPlanActivityService.getActivities(id);
         
         ApiResponse<List<TravelPlanActivityDto>> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -254,6 +237,47 @@ public class TravelPlanController {
                 request.getRequestURI()
         );
         
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/activities/{activityId}")
+    @Operation(summary = "Update activity in travel plan", description = "Updates an existing activity in an existing travel plan")
+    public ResponseEntity<ApiResponse<TravelPlanActivityDto>> updateActivity(
+            @Parameter(description = "Travel plan ID") @PathVariable Long id,
+            @Parameter(description = "Activity ID") @PathVariable Long activityId,
+            @Valid @RequestBody UpdateTravelPlanActivityRequestDto activityDto,
+            HttpServletRequest request) {
+
+        TravelPlanActivityDto updatedActivity = travelPlanActivityService.updateActivity(id, activityId, activityDto);
+
+        ApiResponse<TravelPlanActivityDto> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Activity updated successfully",
+                updatedActivity,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/connections")
+    @Operation(summary = "Get accepted connections by travel plan", description = "Retrieves accepted traveler connections in the context of a travel plan")
+    public ResponseEntity<ApiResponse<List<TravelConnectionDto>>> getTravelPlanConnections(
+            @Parameter(description = "Travel plan ID") @PathVariable Long id,
+            @Parameter(description = "Connection status filter") @RequestParam(defaultValue = "ACCEPTED") String status,
+            HttpServletRequest request) {
+
+        List<TravelConnectionDto> connections = "ACCEPTED".equalsIgnoreCase(status)
+                ? socialService.getAcceptedConnectionsByTravelPlan(id)
+                : List.of();
+
+        ApiResponse<List<TravelConnectionDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                connections.isEmpty() ? "No accepted connections found for this travel plan" : "Connections retrieved successfully",
+                connections,
+                request.getRequestURI()
+        );
+
         return ResponseEntity.ok(response);
     }
 
