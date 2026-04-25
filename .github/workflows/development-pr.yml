@@ -1,0 +1,123 @@
+# ===========================================
+# GitHub Actions Workflow: CI Build & Deploy
+# Environment: Development
+# Description:
+# - **Continuous Integration (CI)**: Executes **dynamic analysis** (unit tests), runs **static analysis** via **SonarCloud**.
+# - **Security**: Runs **Trivy FS scan** to detect vulnerabilities in dependencies and source.
+# - **Continuous Delivery Prep**: Publishes compiled backend artifact for manual deployment.
+# - **Trigger**: Runs automatically on every **pull request** targeting the 'development' branch, and can be run **manually** via `workflow_dispatch`.
+# ===========================================
+
+name: CI Build & Deploy (Java Backend - Development PR)
+
+# -------------------------------------------
+# Trigger: Run workflow on PR to 'development' branch
+# -------------------------------------------
+on:
+  pull_request:
+    branches:
+      - development
+  workflow_dispatch:
+
+# -------------------------------------------
+# Jobs Definition
+# -------------------------------------------
+jobs:
+  # =========================================
+  # Job: Security Scan (Trivy)
+  # Purpose: Scan filesystem and dependencies for vulnerabilities
+  # =========================================
+  trivy_scan:
+    name: Run Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Run Trivy filesystem scan
+      - name: Run Trivy FS Scan
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+  # =========================================
+  # Job: SonarCloud Scan
+  # Purpose: Run static code analysis with SonarCloud
+  # =========================================
+  sonar_scan:
+    name: SonarCloud Analysis (Java)
+    needs: trivy_scan
+    runs-on: ubuntu-latest
+    steps:
+    # Step 1: Checkout source code
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 0
+
+    # Step 2: Setup Java environment
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+    # Step 3: Build and run SonarCloud scan
+    - name: Build and SonarCloud Scan
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        mvn -B verify sonar:sonar \
+          -Dsonar.projectKey=voyager-backend-core \
+          -Dsonar.organization=voyager \
+          -Dsonar.host.url=https://sonarcloud.io
+
+  # =========================================
+  # Job: Build Stage
+  # Purpose: Build, test and package Java backend
+  # =========================================
+  build:
+    name: Build & Test (Java)
+    needs: sonar_scan
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # Step 3: Run tests
+      - name: Run unit tests
+        run: mvn -B test
+
+      # Step 4: Build package
+      - name: Build package
+        run: mvn -B -DskipTests package
+
+      # Step 5: Prepare artifact
+      - name: Prepare JAR artifact
+        run: |
+          mkdir -p release
+          JAR_FILE=$(find target -maxdepth 1 -name "*.jar" ! -name "*original*" | head -n 1)
+          cp "$JAR_FILE" release/backend-app.jar
+
+      # Step 6: Upload artifact
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: release/backend-app.jar

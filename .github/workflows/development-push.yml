@@ -1,0 +1,150 @@
+# ===========================================
+# GitHub Actions Workflow: CI Build & Deploy
+# Environment: Development
+# Description:
+#   - Restores, builds, and tests the Java backend
+#   - Performs security scan with Trivy and static analysis with SonarCloud
+#   - Publishes deployable artifact for manual deployment stage
+#   - Runs on every push to 'development'
+# ===========================================
+
+name: CI Build & Deploy (Java Backend - Development Push)
+
+# -------------------------------------------
+# Trigger: Run workflow on push to 'development' branch
+# -------------------------------------------
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+# -------------------------------------------
+# Jobs Definition
+# -------------------------------------------
+jobs:
+  # =========================================
+  # Job: Security Scan (Trivy)
+  # Purpose: Scan filesystem and dependencies for vulnerabilities
+  # =========================================
+  trivy_scan:
+    name: Run Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Run Trivy filesystem scan
+      - name: Run Trivy FS Scan
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+  # =========================================
+  # Job: SonarCloud Scan
+  # Purpose: Run static code analysis with SonarCloud
+  # =========================================
+  sonar_scan:
+    name: SonarCloud Analysis (Java)
+    needs: trivy_scan
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Step 2: Setup Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # Step 3: Build and SonarCloud scan
+      - name: Build and SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn -B verify sonar:sonar \
+            -Dsonar.projectKey=voyager-backend-core \
+            -Dsonar.organization=voyager \
+            -Dsonar.host.url=https://sonarcloud.io
+
+  # =========================================
+  # Job: Build & Test Stage
+  # Purpose: Build, test and package Java backend
+  # =========================================
+  build_and_test:
+    name: Build & Test (Java)
+    needs: sonar_scan
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Java environment
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # Step 3: Run unit tests
+      - name: Run unit tests
+        run: mvn -B test
+
+      # Step 4: Build package
+      - name: Build package
+        run: mvn -B -DskipTests package
+
+      # Step 5: Prepare artifact
+      - name: Prepare JAR artifact
+        run: |
+          mkdir -p release
+          JAR_FILE=$(find target -maxdepth 1 -name "*.jar" ! -name "*original*" | head -n 1)
+          cp "$JAR_FILE" release/backend-app.jar
+
+      # Step 6: Upload build artifact for deploy stage
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: release/backend-app.jar
+
+  # =========================================
+  # Job: Deploy Stage (Manual)
+  # Purpose: Provide manual deployment handoff for Learner Lab
+  # Depends on: build_and_test
+  # =========================================
+  deploy:
+    if: github.event_name == 'push'
+    name: Deploy Handoff (Manual Learner Lab)
+    needs: build_and_test
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Download artifact built in previous stage
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: release
+
+      # Step 2: Upload manual deployment instructions package
+      - name: Upload manual deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-manual-deploy
+          path: |
+            release/backend-app.jar
+            scripts/deploy-backend-manual.sh
