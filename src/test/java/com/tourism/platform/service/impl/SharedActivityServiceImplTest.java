@@ -1,6 +1,7 @@
 package com.tourism.platform.service.impl;
 
 import com.tourism.platform.dto.SharedActivityDecisionRequest;
+import com.tourism.platform.exception.BadRequestException;
 import com.tourism.platform.exception.ConflictException;
 import com.tourism.platform.model.*;
 import com.tourism.platform.repository.*;
@@ -66,7 +67,7 @@ class SharedActivityServiceImplTest {
         when(activityRepository.findById(7L)).thenReturn(Optional.of(activity));
         when(userRepository.findById(10L)).thenReturn(Optional.of(sender));
 
-        assertThrows(IllegalArgumentException.class, () -> service.shareActivity(7L, 10L, "sender"));
+        assertThrows(BadRequestException.class, () -> service.shareActivity(7L, 10L, "sender"));
     }
 
     @Test
@@ -88,7 +89,36 @@ class SharedActivityServiceImplTest {
         when(userRepository.findById(20L)).thenReturn(Optional.of(receiver));
         when(participantRepository.existsByTravelPlanIdAndUserId(99L, 20L)).thenReturn(true);
         when(connectionRepository.existsConnectionBetweenUsersWithStatus(10L, 20L, ConnectionStatus.ACCEPTED)).thenReturn(true);
-        when(sharedActivityRepository.existsByActivityIdAndReceiverIdAndStatus(7L, 20L, SharedActivityStatus.PENDING)).thenReturn(true);
+        SharedActivity existing = new SharedActivity();
+        existing.setStatus(SharedActivityStatus.PENDING);
+        when(sharedActivityRepository.findTopByActivityIdAndReceiverIdOrderByCreatedAtDesc(7L, 20L))
+                .thenReturn(Optional.of(existing));
+
+        assertThrows(ConflictException.class, () -> service.shareActivity(7L, 20L, "sender"));
+    }
+
+    @Test
+    void shareActivity_shouldRejectWhenConnectionIsNotAccepted() {
+        when(userRepository.findByUsername("sender")).thenReturn(Optional.of(sender));
+        when(activityRepository.findById(7L)).thenReturn(Optional.of(activity));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(receiver));
+        when(participantRepository.existsByTravelPlanIdAndUserId(99L, 20L)).thenReturn(true);
+        when(connectionRepository.existsConnectionBetweenUsersWithStatus(10L, 20L, ConnectionStatus.ACCEPTED)).thenReturn(false);
+
+        assertThrows(AccessDeniedException.class, () -> service.shareActivity(7L, 20L, "sender"));
+    }
+
+    @Test
+    void shareActivity_shouldRejectWhenAlreadyAccepted() {
+        when(userRepository.findByUsername("sender")).thenReturn(Optional.of(sender));
+        when(activityRepository.findById(7L)).thenReturn(Optional.of(activity));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(receiver));
+        when(participantRepository.existsByTravelPlanIdAndUserId(99L, 20L)).thenReturn(true);
+        when(connectionRepository.existsConnectionBetweenUsersWithStatus(10L, 20L, ConnectionStatus.ACCEPTED)).thenReturn(true);
+        SharedActivity existing = new SharedActivity();
+        existing.setStatus(SharedActivityStatus.ACCEPTED);
+        when(sharedActivityRepository.findTopByActivityIdAndReceiverIdOrderByCreatedAtDesc(7L, 20L))
+                .thenReturn(Optional.of(existing));
 
         assertThrows(ConflictException.class, () -> service.shareActivity(7L, 20L, "sender"));
     }

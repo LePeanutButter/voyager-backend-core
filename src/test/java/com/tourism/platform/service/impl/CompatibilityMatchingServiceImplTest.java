@@ -16,8 +16,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -60,16 +62,17 @@ class CompatibilityMatchingServiceImplTest {
 
         when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
         when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
-        when(travelPlanRepository.findByUserId(2L)).thenReturn(List.of(exactPlan));
-        when(userInterestRepository.findInterestValuesByUserId(2L)).thenReturn(List.of("food", "hiking"));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(List.of(exactPlan));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, "food"}, new Object[]{2L, "hiking"}));
 
         List<CompatibilityMatchResponse> result = service.findMatches(request, "requester");
         assertEquals(1, result.size());
         CompatibilityMatchResponse match = result.get(0);
         assertEquals(50.0, match.getDestinationScore());
         assertEquals(30.0, match.getDateProximityScore());
-        assertEquals(10.0, match.getInterestScore());
-        assertEquals(90.0, match.getTotalScore());
+        assertEquals(6.67, match.getInterestScore());
+        assertEquals(86.67, match.getTotalScore());
     }
 
     @Test
@@ -86,10 +89,9 @@ class CompatibilityMatchingServiceImplTest {
 
         when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
         when(userRepository.findAll()).thenReturn(List.of(requester, candidateB, candidateA));
-        when(travelPlanRepository.findByUserId(2L)).thenReturn(List.of(planA));
-        when(travelPlanRepository.findByUserId(3L)).thenReturn(List.of(planB));
-        when(userInterestRepository.findInterestValuesByUserId(2L)).thenReturn(List.of("food"));
-        when(userInterestRepository.findInterestValuesByUserId(3L)).thenReturn(List.of("food"));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L, 3L))).thenReturn(List.of(planA, planB));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L, 3L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, "food"}, new Object[]{3L, "food"}));
 
         List<CompatibilityMatchResponse> result = service.findMatches(request, "requester");
         assertEquals(2, result.size());
@@ -106,10 +108,29 @@ class CompatibilityMatchingServiceImplTest {
 
         when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
         when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
-        when(travelPlanRepository.findByUserId(2L)).thenReturn(List.of(exactPlan));
-        when(userInterestRepository.findInterestValuesByUserId(2L)).thenReturn(List.of("beaches"));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(List.of(exactPlan));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, "beaches"}));
 
         List<CompatibilityMatchResponse> result = service.findMatches(request, "requester");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldReturnEmptyWhenNoCandidatesMatchAnyRule() {
+        User candidate = user(2L, "candidate");
+        when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
+        when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(Collections.emptyList());
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L))).thenReturn(List.<Object[]>of());
+
+        CompatibilityMatchRequest noInterestFilterRequest = new CompatibilityMatchRequest();
+        noInterestFilterRequest.setDestination("Tokyo");
+        noInterestFilterRequest.setStartDate(LocalDate.of(2026, 7, 1));
+        noInterestFilterRequest.setEndDate(LocalDate.of(2026, 7, 5));
+        noInterestFilterRequest.setInterests(null);
+
+        List<CompatibilityMatchResponse> result = service.findMatches(noInterestFilterRequest, "requester");
         assertTrue(result.isEmpty());
     }
 

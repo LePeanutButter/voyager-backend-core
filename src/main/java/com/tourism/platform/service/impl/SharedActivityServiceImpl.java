@@ -2,6 +2,7 @@ package com.tourism.platform.service.impl;
 
 import com.tourism.platform.dto.SharedActivityDecisionRequest;
 import com.tourism.platform.dto.SharedActivityResponse;
+import com.tourism.platform.exception.BadRequestException;
 import com.tourism.platform.exception.ConflictException;
 import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.*;
@@ -46,7 +47,7 @@ public class SharedActivityServiceImpl implements SharedActivityService {
                 .orElseThrow(() -> new ResourceNotFoundException("Receiver not found"));
 
         if (sender.getId().equals(receiver.getId())) {
-            throw new IllegalArgumentException("Sender and receiver must be different users");
+            throw new BadRequestException("Sender and receiver must be different users");
         }
 
         if (activity.getTravelPlan() == null || activity.getTravelPlan().getId() == null) {
@@ -73,9 +74,18 @@ public class SharedActivityServiceImpl implements SharedActivityService {
             throw new AccessDeniedException("Users must have an accepted connection");
         }
 
-        if (sharedActivityRepository.existsByActivityIdAndReceiverIdAndStatus(
-                activity.getId(), receiver.getId(), SharedActivityStatus.PENDING)) {
-            throw new ConflictException("A pending share already exists for this receiver");
+        var latestShare = sharedActivityRepository.findTopByActivityIdAndReceiverIdOrderByCreatedAtDesc(
+                activity.getId(),
+                receiver.getId()
+        );
+        if (latestShare.isPresent()) {
+            SharedActivityStatus status = latestShare.get().getStatus();
+            if (status == SharedActivityStatus.PENDING) {
+                throw new ConflictException("A pending share already exists for this receiver");
+            }
+            if (status == SharedActivityStatus.ACCEPTED) {
+                throw new ConflictException("This activity is already accepted by the receiver");
+            }
         }
 
         SharedActivity sharedActivity = new SharedActivity();

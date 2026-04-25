@@ -2,6 +2,7 @@ package com.tourism.platform.service.impl;
 
 import com.tourism.platform.dto.CompatibilityMatchRequest;
 import com.tourism.platform.dto.CompatibilityMatchResponse;
+import com.tourism.platform.exception.BadRequestException;
 import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.TravelPlan;
 import com.tourism.platform.model.User;
@@ -47,12 +48,23 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
         List<User> candidates = userRepository.findAll().stream()
                 .filter(user -> !user.getId().equals(requester.getId()))
                 .toList();
+        Set<Long> candidateIds = candidates.stream().map(User::getId).collect(Collectors.toSet());
 
         Set<String> normalizedInputInterests = normalizeInterests(request.getInterests());
+        Map<Long, List<TravelPlan>> travelPlansByUserId = travelPlanRepository.findByUserIdIn(candidateIds)
+                .stream()
+                .collect(Collectors.groupingBy(plan -> plan.getUser().getId()));
+        Map<Long, Set<String>> interestsByUserId = buildInterestsByUserId(candidateIds);
 
         List<CompatibilityMatchResponse> matches = new ArrayList<>();
         for (User candidate : candidates) {
-            CompatibilityMatchResponse score = computeScore(candidate, request, normalizedInputInterests);
+            CompatibilityMatchResponse score = computeScore(
+                    candidate,
+                    request,
+                    normalizedInputInterests,
+                    travelPlansByUserId.getOrDefault(candidate.getId(), List.of()),
+                    interestsByUserId.getOrDefault(candidate.getId(), Set.of())
+            );
 
             if (!normalizedInputInterests.isEmpty() && score.getMatchedInterests().isEmpty()) {
                 continue;
@@ -73,13 +85,13 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     private CompatibilityMatchResponse computeScore(
             User candidate,
             CompatibilityMatchRequest request,
-            Set<String> normalizedInputInterests) {
+            Set<String> normalizedInputInterests,
+            List<TravelPlan> plans,
+            Set<String> candidateInterests) {
 
-        List<TravelPlan> plans = travelPlanRepository.findByUserId(candidate.getId());
         double destinationScore = hasDestinationMatch(plans, request.getDestination()) ? DESTINATION_WEIGHT : 0.0;
         double dateScore = computeDateProximityScore(plans, request.getStartDate(), request.getEndDate());
 
-        Set<String> candidateInterests = normalizeInterests(userInterestRepository.findInterestValuesByUserId(candidate.getId()));
         List<String> matchedInterests = candidateInterests.stream()
                 .filter(normalizedInputInterests::contains)
                 .sorted()
@@ -87,8 +99,8 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
 
         double interestScore = normalizedInputInterests.isEmpty()
                 ? 0.0
-                : INTEREST_WEIGHT * (matchedInterests.size() / (double) normalizedInputInterests.size());
-        interestScore = Math.min(INTEREST_WEIGHT, interestScore);
+                : INTEREST_WEIGHT * jaccardSimilarity(candidateInterests, normalizedInputInterests);
+        interestScore = round(Math.min(INTEREST_WEIGHT, interestScore));
 
         CompatibilityMatchResponse response = new CompatibilityMatchResponse();
         response.setUserId(candidate.getId());
@@ -135,8 +147,39 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     private void validateRequest(CompatibilityMatchRequest request) {
         if (request.getStartDate() != null && request.getEndDate() != null
                 && request.getStartDate().isAfter(request.getEndDate())) {
-            throw new IllegalArgumentException("startDate must be before or equal to endDate");
+            throw new BadRequestException("startDate must be before or equal to endDate");
         }
+    }
+
+    private Map<Long, Set<String>> buildInterestsByUserId(Set<Long> candidateIds) {
+        if (candidateIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Set<String>> result = new HashMap<>();
+        for (Object[] row : userInterestRepository.findUserInterestsByUserIds(candidateIds)) {
+            Long userId = (Long) row[0];
+            String interest = row[1] != null ? row[1].toString() : null;
+            if (interest == null || interest.isBlank()) {
+                continue;
+            }
+            result.computeIfAbsent(userId, ignored -> new TreeSet<>()).add(interest.trim().toLowerCase());
+        }
+        return result;
+    }
+
+    private double jaccardSimilarity(Set<String> first, Set<String> second) {
+        if (first.isEmpty() && second.isEmpty()) {
+            return 0.0;
+        }
+        Set<String> intersection = new HashSet<>(first);
+        intersection.retainAll(second);
+
+        Set<String> union = new HashSet<>(first);
+        union.addAll(second);
+        if (union.isEmpty()) {
+            return 0.0;
+        }
+        return intersection.size() / (double) union.size();
     }
 
     private Set<String> normalizeInterests(List<String> interests) {
