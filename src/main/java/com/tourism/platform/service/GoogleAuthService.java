@@ -2,7 +2,7 @@ package com.tourism.platform.service;
 
 import com.tourism.platform.dto.UserDto;
 
-public interface MicrosoftAuthService {
+public interface GoogleAuthService {
     UserDto authenticateWithAuthorizationCode(String code);
 }
 

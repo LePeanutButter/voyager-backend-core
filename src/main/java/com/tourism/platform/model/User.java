@@ -103,9 +103,9 @@ public class User implements UserDetails {
     @Column(name = "interest")
     private Set<String> interests;
 
-    @Column(name = "is_microsoft_user", nullable = false)
+    @Column(name = "is_google_user", nullable = false)
     @Builder.Default
-    private boolean microsoftUser = false;
+    private boolean googleUser = false;
 
     @Column(name = "date_of_birth")
     private LocalDateTime dateOfBirth;

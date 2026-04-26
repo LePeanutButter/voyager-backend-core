@@ -6,9 +6,8 @@ import org.springframework.context.annotation.Configuration;
 
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "microsoft.oauth2")
-public class MicrosoftOAuthProperties {
-    private String tenantId;
+@ConfigurationProperties(prefix = "google.oauth2")
+public class GoogleOAuthProperties {
     private String clientId;
     private String clientSecret;
     private String redirectUri;

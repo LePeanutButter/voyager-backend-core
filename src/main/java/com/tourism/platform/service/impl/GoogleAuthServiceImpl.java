@@ -2,7 +2,7 @@ package com.tourism.platform.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tourism.platform.config.MicrosoftOAuthProperties;
+import com.tourism.platform.config.GoogleOAuthProperties;
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.exception.BusinessException;
 import com.tourism.platform.exception.ExternalServiceException;
@@ -11,7 +11,7 @@ import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.security.JwtTokenProvider;
-import com.tourism.platform.service.MicrosoftAuthService;
+import com.tourism.platform.service.GoogleAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,9 +30,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
+public class GoogleAuthServiceImpl implements GoogleAuthService {
 
-    private final MicrosoftOAuthProperties properties;
+    private final GoogleOAuthProperties properties;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -47,9 +47,9 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
         }
 
         String accessToken = exchangeCodeForAccessToken(code);
-        MicrosoftProfile profile = fetchMicrosoftProfile(accessToken);
+        GoogleProfile profile = fetchGoogleProfile(accessToken);
 
-        User user = findOrCreateMicrosoftUser(profile);
+        User user = findOrCreateGoogleUser(profile);
 
         UserDto dto = toDto(user);
         dto.setToken(jwtTokenProvider.generateTokenFromUsername(dto.getUsername()));
@@ -58,17 +58,13 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
 
     private String exchangeCodeForAccessToken(String code) {
         if (properties.getClientId() == null || properties.getClientId().isBlank()) {
-            throw new BusinessException("Azure client-id is not configured");
+            throw new BusinessException("Google client-id is not configured");
         }
         if (properties.getClientSecret() == null || properties.getClientSecret().isBlank()) {
-            throw new BusinessException("Azure client-secret is not configured");
+            throw new BusinessException("Google client-secret is not configured");
         }
 
-        String tenant = (properties.getTenantId() == null || properties.getTenantId().isBlank())
-                ? "common"
-                : properties.getTenantId();
-
-        String tokenUrl = "https://login.microsoftonline.com/" + urlEncode(tenant) + "/oauth2/v2.0/token";
+        String tokenUrl = "https://oauth2.googleapis.com/token";
 
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("client_id", properties.getClientId());
@@ -76,7 +72,6 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
         form.add("code", code);
         form.add("redirect_uri", properties.getRedirectUri());
         form.add("grant_type", "authorization_code");
-        form.add("scope", properties.getScopes());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -90,60 +85,56 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
             );
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new ExternalServiceException("Microsoft token exchange failed");
+                throw new ExternalServiceException("Google token exchange failed");
             }
 
             JsonNode node = objectMapper.readTree(response.getBody());
             JsonNode accessToken = node.get("access_token");
             if (accessToken == null || accessToken.asText().isBlank()) {
-                throw new ExternalServiceException("Microsoft token response missing access_token");
+                throw new ExternalServiceException("Google token response missing access_token");
             }
             return accessToken.asText();
         } catch (RestClientException e) {
-            throw new ExternalServiceException("Microsoft token exchange failed: " + e.getMessage());
+            throw new ExternalServiceException("Google token exchange failed: " + e.getMessage());
         } catch (Exception e) {
-            throw new ExternalServiceException("Microsoft token exchange parse failed: " + e.getMessage());
+            throw new ExternalServiceException("Google token exchange parse failed: " + e.getMessage());
         }
     }
 
-    private MicrosoftProfile fetchMicrosoftProfile(String accessToken) {
+    private GoogleProfile fetchGoogleProfile(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(
-                    "https://graph.microsoft.com/v1.0/me",
+                    "https://www.googleapis.com/oauth2/v2/userinfo",
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
                     String.class
             );
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new ExternalServiceException("Microsoft Graph profile request failed");
+                throw new ExternalServiceException("Google userinfo request failed");
             }
 
             JsonNode node = objectMapper.readTree(response.getBody());
-
-            String email = textOrNull(node, "mail");
-            if (email == null || email.isBlank()) {
-                email = textOrNull(node, "userPrincipalName");
-            }
-            String displayName = textOrNull(node, "displayName");
+            String email = textOrNull(node, "email");
+            String name = textOrNull(node, "name");
 
             if (email == null || email.isBlank()) {
-                throw new ExternalServiceException("Microsoft Graph profile missing email");
+                throw new ExternalServiceException("Google userinfo missing email");
             }
 
-            return new MicrosoftProfile(email, displayName);
+            return new GoogleProfile(email, name);
         } catch (RestClientException e) {
-            throw new ExternalServiceException("Microsoft Graph profile request failed: " + e.getMessage());
+            throw new ExternalServiceException("Google userinfo request failed: " + e.getMessage());
         } catch (Exception e) {
-            throw new ExternalServiceException("Microsoft Graph profile parse failed: " + e.getMessage());
+            throw new ExternalServiceException("Google userinfo parse failed: " + e.getMessage());
         }
     }
 
-    private User findOrCreateMicrosoftUser(MicrosoftProfile profile) {
+    private User findOrCreateGoogleUser(GoogleProfile profile) {
         Optional<User> existing = userRepository.findByEmail(profile.email());
         if (existing.isPresent()) {
             return existing.get();
@@ -155,16 +146,18 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
         User user = new User();
         user.setUsername(username);
         user.setEmail(profile.email());
+
+        // Keep current constraints happy (password is required), but Google users won't use password login.
         user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
 
-        String[] names = splitName(profile.displayName());
+        String[] names = splitName(profile.name());
         user.setFirstName(names[0]);
         user.setLastName(names[1]);
         user.setPhoneNumber(null);
         user.setRole(UserRole.TRAVELER);
         user.setStatus(UserStatus.ACTIVE);
         user.setEnabled(true);
-        user.setMicrosoftUser(true);
+        user.setGoogleUser(true);
         user.setInterests(Set.of());
 
         return userRepository.save(user);
@@ -173,7 +166,7 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
     private String ensureUniqueUsername(String base) {
         String candidate = sanitizeUsername(base);
         if (candidate.isBlank()) {
-            candidate = "microsoft_user";
+            candidate = "google_user";
         }
         if (!userRepository.existsByUsername(candidate)) {
             return candidate;
@@ -191,10 +184,10 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
         return value == null ? "" : value.trim().replaceAll("[^a-zA-Z0-9_\\-.]", "_");
     }
 
-    private String[] splitName(String displayName) {
-        String safe = (displayName == null || displayName.isBlank()) ? "Microsoft User" : displayName.trim();
+    private String[] splitName(String name) {
+        String safe = (name == null || name.isBlank()) ? "Google User" : name.trim();
         String[] parts = safe.split("\\s+");
-        String first = parts.length > 0 ? parts[0] : "Microsoft";
+        String first = parts.length > 0 ? parts[0] : "Google";
         String last = parts.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(parts, 1, parts.length)) : "User";
         return new String[]{first, last};
     }
@@ -204,6 +197,7 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
         return v == null || v.isNull() ? null : v.asText();
     }
 
+    @SuppressWarnings("unused")
     private String urlEncode(String value) {
         return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
@@ -220,13 +214,15 @@ public class MicrosoftAuthServiceImpl implements MicrosoftAuthService {
         dto.setStatus(user.getStatus());
         dto.setProfileImageUrl(user.getProfileImageUrl());
         dto.setBio(user.getBio());
-        dto.setInterests(user.getInterests());
+        if (user.getInterests() != null) {
+            dto.setInterests(new java.util.HashSet<>(user.getInterests()));
+        }
         dto.setDateOfBirth(user.getDateOfBirth());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
         return dto;
     }
 
-    private record MicrosoftProfile(String email, String displayName) {}
+    private record GoogleProfile(String email, String name) {}
 }
 
