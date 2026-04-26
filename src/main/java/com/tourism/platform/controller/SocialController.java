@@ -1,11 +1,6 @@
 package com.tourism.platform.controller;
 
-import com.tourism.platform.dto.ApiResponse;
-import com.tourism.platform.dto.ConnectionRequestDto;
-import com.tourism.platform.dto.PagedResponse;
-import com.tourism.platform.dto.SendMessageRequest;
-import com.tourism.platform.dto.SendConnectionRequestDto;
-import com.tourism.platform.dto.TravelerSummaryDto;
+import com.tourism.platform.dto.*;
 import com.tourism.platform.model.Message;
 import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.SocialService;
@@ -85,23 +80,19 @@ public class SocialController {
 
     @GetMapping("/connections/{userId}")
     @Operation(summary = "Get user connections", description = "Retrieves all connections for a user")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserConnections(
+    public ResponseEntity<ApiResponse<List<TravelConnectionDto>>> getUserConnections(
             @Parameter(description = "User ID") @PathVariable Long userId,
             HttpServletRequest request) {
-        
-        List<Map<String, Object>> connections = List.of(
-                Map.of("id", 1L, "username", "john_doe", "status", "ACCEPTED"),
-                Map.of("id", 2L, "username", "jane_smith", "status", "ACCEPTED"),
-                Map.of("id", 3L, "username", "mike_johnson", "status", "PENDING")
-        );
-        
-        ApiResponse<List<Map<String, Object>>> response = ApiResponse.success(
+
+        List<TravelConnectionDto> connections = socialService.getUserConnections(userId);
+
+        ApiResponse<List<TravelConnectionDto>> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connections retrieved successfully",
                 connections,
                 request.getRequestURI()
         );
-        
+
         return ResponseEntity.ok(response);
     }
 
