@@ -2,7 +2,9 @@ package com.tourism.platform.controller;
 
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.PagedResponse;
+import com.tourism.platform.dto.SendMessageRequest;
 import com.tourism.platform.dto.TravelerSummaryDto;
+import com.tourism.platform.model.Message;
 import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -507,6 +509,45 @@ public class SocialController {
                 request.getRequestURI()
         );
         
+        return ResponseEntity.ok(response);
+    }
+
+    // Update sendMessage endpoint
+    @PostMapping("/messages")
+    @Operation(summary = "Send message", description = "Sends a message to a connected user")
+    public ResponseEntity<ApiResponse<Message>> sendMessage(
+            @Valid @RequestBody SendMessageRequest request,
+            HttpServletRequest request) {
+
+        Message message = socialService.sendMessage(request.getConnectionId(), request.getSenderId(), request.getContent());
+
+        ApiResponse<Message> response = ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                "Message sent successfully",
+                message,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    // Update getConversationMessages endpoint
+    @GetMapping("/connections/{connectionId}/messages")
+    @Operation(summary = "Get conversation messages", description = "Retrieves messages from a specific connection")
+    public ResponseEntity<ApiResponse<List<Message>>> getConversationMessages(
+            @Parameter(description = "Connection ID") @PathVariable Long connectionId,
+            @Parameter(description = "User ID") @RequestParam Long userId,
+            HttpServletRequest request) {
+
+        List<Message> messages = socialService.getConversationMessages(connectionId, userId);
+
+        ApiResponse<List<Message>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Messages retrieved successfully",
+                messages,
+                request.getRequestURI()
+        );
+
         return ResponseEntity.ok(response);
     }
 }

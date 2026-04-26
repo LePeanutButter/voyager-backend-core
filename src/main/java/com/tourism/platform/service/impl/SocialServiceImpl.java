@@ -3,13 +3,8 @@ package com.tourism.platform.service.impl;
 import com.tourism.platform.dto.TravelConnectionDto;
 import com.tourism.platform.dto.TravelerSummaryDto;
 import com.tourism.platform.exception.ResourceNotFoundException;
-import com.tourism.platform.model.Connection;
-import com.tourism.platform.model.SharedSpaceAccess;
-import com.tourism.platform.model.User;
-import com.tourism.platform.repository.ConnectionRepository;
-import com.tourism.platform.repository.SharedSpaceAccessRepository;
-import com.tourism.platform.repository.TravelPlanRepository;
-import com.tourism.platform.repository.UserRepository;
+import com.tourism.platform.model.*;
+import com.tourism.platform.repository.*;
 import com.tourism.platform.service.SocialService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +20,8 @@ public class SocialServiceImpl implements SocialService {
     private final TravelPlanRepository travelPlanRepository;
     private final ConnectionRepository connectionRepository;
     private final SharedSpaceAccessRepository sharedSpaceAccessRepository;
+    private final MessageRepository messageRepository;
+
 
     @Override
     @Transactional(readOnly = true)
@@ -75,5 +72,67 @@ public class SocialServiceImpl implements SocialService {
 
         // Delete the connection
         connectionRepository.deleteById(connectionId);
+    }
+
+    // Add these implementations to SocialServiceImpl
+    @Override
+    @Transactional
+    public Message sendMessage(Long connectionId, Long senderId, String content) {
+        // Validate connection exists and user is part of it
+        Connection connection = connectionRepository.findById(connectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+
+        if (!connection.getRequesterId().equals(senderId) && !connection.getRecipientId().equals(senderId)) {
+            throw new IllegalArgumentException("User is not part of this connection");
+        }
+
+        if (connection.getStatus() != ConnectionStatus.ACCEPTED) {
+            throw new IllegalArgumentException("Cannot send messages to unaccepted connections");
+        }
+
+        // Validate content is not empty
+        if (content == null || content.trim().isEmpty()) {
+            throw new IllegalArgumentException("Message content cannot be empty");
+        }
+
+        // Determine recipient
+        Long recipientId = connection.getRequesterId().equals(senderId) ?
+                connection.getRecipientId() : connection.getRequesterId();
+
+        Message message = new Message();
+        message.setConnectionId(connectionId);
+        message.setSenderId(senderId);
+        message.setRecipientId(recipientId);
+        message.setContent(content.trim());
+        message.setStatus(MessageStatus.SENT);
+
+        return messageRepository.save(message);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Message> getConversationMessages(Long connectionId, Long userId) {
+        Connection connection = connectionRepository.findById(connectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+
+        if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {
+            throw new IllegalArgumentException("User is not part of this connection");
+        }
+
+        return messageRepository.findByConnectionIdOrderByCreatedAtDesc(connectionId);
+    }
+
+    @Override
+    @Transactional
+    public void markMessageAsRead(Long messageId, Long userId) {
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+
+        if (!message.getRecipientId().equals(userId)) {
+            throw new IllegalArgumentException("Only message recipients can mark messages as read");
+        }
+
+        message.setStatus(MessageStatus.READ);
+        messageRepository.save(message);
     }
 }
