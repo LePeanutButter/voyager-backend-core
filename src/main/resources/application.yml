@@ -106,6 +106,7 @@ google:
     client-secret: ${GOOGLE_CLIENT_SECRET:}
     redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/auth/google/callback}
     scopes: ${GOOGLE_SCOPES:openid email profile}
+    frontend-redirect-uri: ${GOOGLE_FRONTEND_REDIRECT_URI:http://localhost:5173/auth/google/callback}
 
 ---
 # Development Profile

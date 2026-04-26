@@ -12,5 +12,6 @@ public class GoogleOAuthProperties {
     private String clientSecret;
     private String redirectUri;
     private String scopes;
+    private String frontendRedirectUri;
 }
 
