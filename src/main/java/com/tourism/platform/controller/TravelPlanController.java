@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
@@ -57,7 +56,6 @@ public class TravelPlanController {
     
     // Simple in-memory storage for testing
     private static final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
-    private static AtomicLong idCounter = new AtomicLong(1);
     
     // Constants for error messages
     private static final String TRAVEL_PLAN_NOT_FOUND_MSG = "Travel plan not found with ID: ";
@@ -90,18 +88,12 @@ public class TravelPlanController {
     public ResponseEntity<ApiResponse<TravelPlanDto>> getTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
-        
-        // Get from memory storage
-        TravelPlanDto travelPlan = travelPlans.get(id);
-        
-        if (travelPlan == null) {
-            ApiResponse<TravelPlanDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+
+        User user = getAuthenticatedUser();
+        TravelPlanDto travelPlan = travelPlanService.getTravelPlanDtosByUser(user.getId()).stream()
+                .filter(plan -> id.equals(plan.getId()))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException(TRAVEL_PLAN_NOT_FOUND_MSG + id));
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -110,6 +102,22 @@ public class TravelPlanController {
                 request.getRequestURI()
         );
         
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    @Operation(summary = "Get authenticated user travel plans", description = "Retrieves all travel plans for the authenticated user")
+    public ResponseEntity<ApiResponse<List<TravelPlanDto>>> getMyTravelPlans(HttpServletRequest request) {
+        User user = getAuthenticatedUser();
+        List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(user.getId());
+
+        ApiResponse<List<TravelPlanDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Travel plans retrieved successfully",
+                plans,
+                request.getRequestURI()
+        );
+
         return ResponseEntity.ok(response);
     }
 
@@ -143,22 +151,9 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
-        TravelPlanDto updatedPlan = TravelPlanDto.builder()
-                .id(id)
-                .title(travelPlanDto.getTitle())
-                .description(travelPlanDto.getDescription())
-                .status(travelPlanDto.getStatus())
-                .travelType(travelPlanDto.getTravelType())
-                .startDate(travelPlanDto.getStartDate())
-                .endDate(travelPlanDto.getEndDate())
-                .estimatedBudget(travelPlanDto.getEstimatedBudget())
-                .numberOfTravelers(travelPlanDto.getNumberOfTravelers())
-                .originLocation(travelPlanDto.getOriginLocation())
-                .destinationLocation(travelPlanDto.getDestinationLocation())
-                .isPublic(travelPlanDto.getIsPublic())
-                .build();
+
+        User user = getAuthenticatedUser();
+        TravelPlanDto updatedPlan = travelPlanService.updateTravelPlan(id, user.getId(), travelPlanDto);
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -175,8 +170,10 @@ public class TravelPlanController {
     public ResponseEntity<ApiResponse<Void>> deleteTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
+
+        User user = getAuthenticatedUser();
+        travelPlanService.deleteTravelPlan(id, user.getId());
+
         ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Travel plan deleted successfully",
@@ -548,5 +545,12 @@ public class TravelPlanController {
     
     private long getDaysBetween(LocalDateTime start, LocalDateTime end) {
         return ChronoUnit.DAYS.between(start, end);
+    }
+
+    private User getAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 }

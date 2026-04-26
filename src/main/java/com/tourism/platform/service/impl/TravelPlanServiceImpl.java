@@ -9,6 +9,7 @@ import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.repository.TravelPlanRepository;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.TravelPlanService;
+import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -142,6 +143,56 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         return travelPlanRepository.findByUserId(userId, org.springframework.data.domain.Pageable.unpaged())
                 .map(this::toDto)
                 .getContent();
+    }
+
+    @Override
+    @Transactional
+    public TravelPlanDto updateTravelPlan(Long travelPlanId, Long userId, TravelPlanDto dto) {
+        if (dto.getStartDate() != null && dto.getEndDate() != null && dto.getEndDate().isBefore(dto.getStartDate())) {
+            throw new BusinessException("Invalid date range: endDate cannot be before startDate");
+        }
+
+        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+
+        if (!existing.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("You are not allowed to update this travel plan");
+        }
+
+        existing.setTitle(dto.getTitle());
+        existing.setDescription(dto.getDescription());
+        existing.setDestinationLocation(dto.getDestinationLocation());
+        existing.setOriginLocation(dto.getOriginLocation());
+        existing.setStartDate(dto.getStartDate());
+        existing.setEndDate(dto.getEndDate());
+        existing.setEstimatedBudget(dto.getEstimatedBudget());
+        existing.setActualCost(dto.getActualCost());
+        existing.setNumberOfTravelers(dto.getNumberOfTravelers());
+        if (dto.getStatus() != null) {
+            existing.setStatus(dto.getStatus());
+        }
+        if (dto.getTravelType() != null) {
+            existing.setTravelType(dto.getTravelType());
+        }
+        if (dto.getIsPublic() != null) {
+            existing.setIsPublic(dto.getIsPublic());
+        }
+
+        TravelPlan saved = travelPlanRepository.save(existing);
+        return toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTravelPlan(Long travelPlanId, Long userId) {
+        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+
+        if (!existing.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("You are not allowed to delete this travel plan");
+        }
+
+        travelPlanRepository.delete(existing);
     }
 
     private TravelPlanDto toDto(TravelPlan plan) {

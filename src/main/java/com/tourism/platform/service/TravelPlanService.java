@@ -69,4 +69,8 @@ public interface TravelPlanService {
     TravelPlanDto createTravelPlan(TravelPlanDto dto, Long userId);
 
     List<TravelPlanDto> getTravelPlanDtosByUser(Long userId);
+
+    TravelPlanDto updateTravelPlan(Long travelPlanId, Long userId, TravelPlanDto dto);
+
+    void deleteTravelPlan(Long travelPlanId, Long userId);
 }
