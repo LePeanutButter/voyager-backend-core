@@ -3,19 +3,23 @@ package com.tourism.platform.exception;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.stream.Collectors;
 
 /**
  * Global Exception Handler for the Tourism Platform
@@ -25,6 +29,7 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
      * Handle resource not found exceptions
@@ -35,14 +40,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
             ResourceNotFoundException ex, WebRequest request) {
         
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false)
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, ex, false);
     }
 
     /**
@@ -54,22 +52,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationExceptions(
             MethodArgumentNotValidException ex, WebRequest request) {
         
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "Validation failed",
-                LocalDateTime.now(),
-                request.getDescription(false),
-                errors
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(field -> field.getField() + ": " + field.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        return buildResponse(HttpStatus.BAD_REQUEST, message.isBlank() ? "Validation failed" : message, request, ex, false);
     }
 
     /**
@@ -81,14 +67,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
             IllegalArgumentException ex, WebRequest request) {
         
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false)
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request, ex, false);
+    }
+
+    /**
+     * Handle domain bad request exceptions.
+     */
+    @ExceptionHandler(BadRequestException.class)
+    @ApiResponse(responseCode = "400", description = "Bad request",
+                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public ResponseEntity<ErrorResponse> handleBadRequestException(
+            BadRequestException ex, WebRequest request) {
+
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request, ex, false);
     }
 
     /**
@@ -100,14 +91,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
             AuthenticationException ex, WebRequest request) {
         
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                "Authentication failed: " + ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false)
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication failed", request, ex, false);
     }
 
     /**
@@ -119,14 +103,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(
             AccessDeniedException ex, WebRequest request) {
         
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                "Access denied: " + ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false)
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+        return buildResponse(HttpStatus.FORBIDDEN, "Access denied", request, ex, false);
     }
 
     /**
@@ -138,14 +115,31 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusinessException(
             BusinessException ex, WebRequest request) {
         
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false)
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request, ex, false);
+    }
+
+    /**
+     * Handle conflict exceptions.
+     */
+    @ExceptionHandler(ConflictException.class)
+    @ApiResponse(responseCode = "409", description = "Conflict",
+                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public ResponseEntity<ErrorResponse> handleConflictException(
+            ConflictException ex, WebRequest request) {
+
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request, ex, false);
+    }
+
+    /**
+     * Handle optimistic locking conflicts.
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    @ApiResponse(responseCode = "409", description = "Optimistic locking conflict",
+                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public ResponseEntity<ErrorResponse> handleOptimisticLockException(
+            ObjectOptimisticLockingFailureException ex, WebRequest request) {
+
+        return buildResponse(HttpStatus.CONFLICT, "Concurrent update detected. Please retry your request.", request, ex, false);
     }
 
     /**
@@ -157,14 +151,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleExternalServiceException(
             ExternalServiceException ex, WebRequest request) {
         
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_GATEWAY.value(),
-                "External service error: " + ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false)
-        );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_GATEWAY);
+        return buildResponse(HttpStatus.BAD_GATEWAY, "External service error", request, ex, false);
     }
 
     /**
@@ -176,14 +163,36 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(
             Exception ex, WebRequest request) {
         
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request, ex, true);
+    }
+
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status,
+                                                        String message,
+                                                        WebRequest request,
+                                                        Exception ex,
+                                                        boolean withStacktrace) {
+        String path = request instanceof ServletWebRequest servletWebRequest
+                ? servletWebRequest.getRequest().getRequestURI()
+                : request.getDescription(false);
+        String traceId = MDC.get("traceId");
+
+        if (withStacktrace) {
+            log.error("event=exception_handled status={} exceptionType={} traceId={}",
+                    status.value(), ex.getClass().getSimpleName(), traceId, ex);
+        } else {
+            log.warn("event=exception_handled status={} exceptionType={} traceId={}",
+                    status.value(), ex.getClass().getSimpleName(), traceId);
+        }
+
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "An unexpected error occurred: " + ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false)
+                OffsetDateTime.now(ZoneOffset.UTC),
+                status.value(),
+                status.getReasonPhrase(),
+                message,
+                path,
+                traceId
         );
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(errorResponse, status);
     }
 
     /**
@@ -191,37 +200,44 @@ public class GlobalExceptionHandler {
      */
     @Schema(description = "Standard error response format")
     public static class ErrorResponse {
+        @Schema(description = "Timestamp of the error")
+        private OffsetDateTime timestamp;
+
         @Schema(description = "HTTP status code")
         private int status;
-        
+
+        @Schema(description = "Reason phrase")
+        private String error;
+
         @Schema(description = "Error message")
         private String message;
-        
-        @Schema(description = "Timestamp of the error")
-        private LocalDateTime timestamp;
-        
-        @Schema(description = "Request description")
+
+        @Schema(description = "Request path")
         private String path;
-        
-        @Schema(description = "Validation errors (if any)")
-        private Map<String, String> validationErrors;
+
+        @Schema(description = "Trace id")
+        private String traceId;
 
         public ErrorResponse() {}
 
-        public ErrorResponse(int status, String message, LocalDateTime timestamp, String path) {
-            this.status = status;
-            this.message = message;
+        public ErrorResponse(OffsetDateTime timestamp, int status, String error, String message, String path, String traceId) {
             this.timestamp = timestamp;
+            this.status = status;
+            this.error = error;
+            this.message = message;
             this.path = path;
-        }
-
-        public ErrorResponse(int status, String message, LocalDateTime timestamp, String path, 
-                           Map<String, String> validationErrors) {
-            this(status, message, timestamp, path);
-            this.validationErrors = validationErrors;
+            this.traceId = traceId;
         }
 
         // Getters and Setters
+        public OffsetDateTime getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(OffsetDateTime timestamp) {
+            this.timestamp = timestamp;
+        }
+
         public int getStatus() {
             return status;
         }
@@ -238,12 +254,12 @@ public class GlobalExceptionHandler {
             this.message = message;
         }
 
-        public LocalDateTime getTimestamp() {
-            return timestamp;
+        public String getError() {
+            return error;
         }
 
-        public void setTimestamp(LocalDateTime timestamp) {
-            this.timestamp = timestamp;
+        public void setError(String error) {
+            this.error = error;
         }
 
         public String getPath() {
@@ -254,12 +270,12 @@ public class GlobalExceptionHandler {
             this.path = path;
         }
 
-        public Map<String, String> getValidationErrors() {
-            return validationErrors;
+        public String getTraceId() {
+            return traceId;
         }
 
-        public void setValidationErrors(Map<String, String> validationErrors) {
-            this.validationErrors = validationErrors;
+        public void setTraceId(String traceId) {
+            this.traceId = traceId;
         }
     }
 }

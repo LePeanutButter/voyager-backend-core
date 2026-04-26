@@ -1,0 +1,32 @@
+package com.tourism.platform.exception;
+
+import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
+import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class GlobalExceptionHandlerTest {
+
+    @Test
+    void shouldMapOptimisticLockToConflict() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        MockHttpServletRequest servletRequest = new MockHttpServletRequest();
+        servletRequest.setRequestURI("/shared-activities/1");
+        WebRequest request = new ServletWebRequest(servletRequest);
+        ObjectOptimisticLockingFailureException ex =
+                new ObjectOptimisticLockingFailureException("shared_activities", 1L);
+        MDC.put("traceId", "test-trace");
+
+        ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
+                handler.handleOptimisticLockException(ex, request);
+
+        assertEquals(409, response.getStatusCode().value());
+        assertEquals("test-trace", response.getBody().getTraceId());
+        MDC.clear();
+    }
+}

@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Service implementation for user management operations
@@ -66,16 +65,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Optional<UserDto> authenticateUser(String usernameOrEmail, String password) {
-        Optional<User> userOpt = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail);
-        
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (passwordEncoder.matches(password, user.getPassword()) && user.isEnabled()) {
-                return Optional.of(convertToDto(user));
-            }
-        }
-        
-        return Optional.empty();
+        return userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+                .filter(user -> passwordEncoder.matches(password, user.getPassword()) && user.isEnabled())
+                .map(this::convertToDto);
     }
 
     @Override
