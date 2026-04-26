@@ -23,4 +23,6 @@ public interface SocialService {
     ConnectionRequestDto rejectConnectionRequest(Long requestId, Long recipientId);
     List<ConnectionRequestDto> getPendingRequestsForUser(Long userId);
     List<ConnectionRequestDto> getSentRequestsForUser(Long userId);
+    List<TravelConnectionDto> getUserConnections(Long userId);
+
 }

@@ -298,4 +298,31 @@ public class SocialServiceImpl implements SocialService {
 
         return dto;
     }
+    @Override
+    @Transactional(readOnly = true)
+    public List<TravelConnectionDto> getUserConnections(Long userId) {
+        // Get all connections where user is either requester or recipient and status is ACCEPTED
+        List<Connection> connections = connectionRepository.findByRequesterIdAndStatus(userId, ConnectionStatus.ACCEPTED);
+        connections.addAll(connectionRepository.findByRecipientIdAndStatus(userId, ConnectionStatus.ACCEPTED));
+
+        return connections.stream()
+                .map(connection -> {
+                    Long otherUserId = connection.getRequesterId().equals(userId) ?
+                            connection.getRecipientId() : connection.getRequesterId();
+                    User otherUser = userRepository.findById(otherUserId).orElse(null);
+
+                    if (otherUser != null) {
+                        return TravelConnectionDto.builder()
+                                .userId(otherUser.getId())
+                                .username(otherUser.getUsername())
+                                .firstName(otherUser.getFirstName())
+                                .lastName(otherUser.getLastName())
+                                .status(connection.getStatus().toString())
+                                .build();
+                    }
+                    return null;
+                })
+                .filter(dto -> dto != null)
+                .toList();
+    }
 }
