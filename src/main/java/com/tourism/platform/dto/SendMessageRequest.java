@@ -3,8 +3,13 @@ package com.tourism.platform.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 
+@Setter
+@Getter
 public class SendMessageRequest {
+    // Getters and Setters
     @NotNull
     private Long connectionId;
 
@@ -24,28 +29,4 @@ public class SendMessageRequest {
         this.content = content;
     }
 
-    // Getters and Setters
-    public Long getConnectionId() {
-        return connectionId;
-    }
-
-    public void setConnectionId(Long connectionId) {
-        this.connectionId = connectionId;
-    }
-
-    public Long getSenderId() {
-        return senderId;
-    }
-
-    public void setSenderId(Long senderId) {
-        this.senderId = senderId;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
 }

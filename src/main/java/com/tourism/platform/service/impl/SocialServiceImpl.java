@@ -10,7 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -63,11 +65,17 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional
     public void deleteConnection(Long connectionId, Long requestingUserId) {
-        Connection connection = connectionRepository.findByIdAndRequesterIdOrRecipientId(connectionId, requestingUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found or access denied"));
+        Connection connection = connectionRepository.findById(connectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+
+        if (!connection.getRequesterId().equals(requestingUserId) && !connection.getRecipientId().equals(requestingUserId)) {
+            throw new ResourceNotFoundException("Connection not found or access denied");
+        }
+
+        // Delete related messages first
+        messageRepository.deleteByConnectionId(connectionId);
 
         // Revoke shared space access
-        List<SharedSpaceAccess> sharedAccesses = sharedSpaceAccessRepository.findByConnectionId(connectionId);
         sharedSpaceAccessRepository.deleteByConnectionId(connectionId);
 
         // Delete the connection
@@ -119,7 +127,16 @@ public class SocialServiceImpl implements SocialService {
             throw new IllegalArgumentException("User is not part of this connection");
         }
 
-        return messageRepository.findByConnectionIdOrderByCreatedAtDesc(connectionId);
+        // Get messages in both directions
+        List<Message> messagesFromUser1 = messageRepository.findBySenderIdAndRecipientIdOrderByCreatedAtDesc(
+                connection.getRequesterId(), connection.getRecipientId());
+        List<Message> messagesFromUser2 = messageRepository.findBySenderIdAndRecipientIdOrderByCreatedAtDesc(
+                connection.getRecipientId(), connection.getRequesterId());
+
+        // Combine and sort by timestamp
+        return Stream.concat(messagesFromUser1.stream(), messagesFromUser2.stream())
+                .sorted(Comparator.comparing(Message::getCreatedAt).reversed())
+                .toList();
     }
 
     @Override

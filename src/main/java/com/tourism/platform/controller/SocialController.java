@@ -263,31 +263,6 @@ public class SocialController {
         return ResponseEntity.ok(response);
     }
 
-    // Messaging System
-    @PostMapping("/messages")
-    @Operation(summary = "Send message", description = "Sends a message to another user")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> sendMessage(
-            @Valid @RequestBody Map<String, Object> messageData,
-            HttpServletRequest request) {
-        
-        Map<String, Object> responseData = Map.of(
-                "messageId", 1L,
-                "recipientId", messageData.get("recipientId"),
-                "content", messageData.get("content"),
-                "status", "SENT",
-                "sentAt", java.time.LocalDateTime.now()
-        );
-        
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
-                HttpStatus.CREATED.value(),
-                "Message sent successfully",
-                responseData,
-                request.getRequestURI()
-        );
-        
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
     @GetMapping("/conversations/{userId}")
     @Operation(summary = "Get conversations", description = "Retrieves all conversations for a user")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getConversations(
@@ -310,54 +285,43 @@ public class SocialController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/messages/{conversationId}")
-    @Operation(summary = "Get conversation messages", description = "Retrieves messages from a specific conversation")
-    public ResponseEntity<PagedResponse<Map<String, Object>>> getConversationMessages(
-            @Parameter(description = "Conversation ID") @PathVariable Long conversationId,
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+    // Update getConversationMessages endpoint
+    @GetMapping("/connections/{connectionId}/messages")
+    @Operation(summary = "Get conversation messages", description = "Retrieves messages from a specific connection")
+    public ResponseEntity<ApiResponse<List<Message>>> getConversationMessages(
+            @Parameter(description = "Connection ID") @PathVariable Long connectionId,
+            @Parameter(description = "User ID") @RequestParam Long userId,
             HttpServletRequest request) {
-        
-        List<Map<String, Object>> messages = List.of(
-                Map.of("id", 1L, "sender", "John Doe", "content", "Hi there!", "timestamp", java.time.LocalDateTime.now()),
-                Map.of("id", 2L, "sender", "Jane Smith", "content", "How are you?", "timestamp", java.time.LocalDateTime.now()),
-                Map.of("id", 3L, "sender", "John Doe", "content", "Great thanks!", "timestamp", java.time.LocalDateTime.now())
-        );
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
-        Page<Map<String, Object>> pageResult = new org.springframework.data.domain.PageImpl<>(
-                messages, pageable, messages.size()
-        );
-        
-        PagedResponse<Map<String, Object>> response = PagedResponse.fromPage(
-                pageResult,
-                "Messages retrieved successfully",
+
+        List<Message> messages = socialService.getConversationMessages(connectionId, userId);
+
+        ApiResponse<List<Message>> response = ApiResponse.success(
                 HttpStatus.OK.value(),
+                "Messages retrieved successfully",
+                messages,
                 request.getRequestURI()
         );
-        
+
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/messages/{messageId}/read")
     @Operation(summary = "Mark message as read", description = "Marks a message as read")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> markMessageAsRead(
+    public ResponseEntity<ApiResponse<Void>> markMessageAsRead(
             @Parameter(description = "Message ID") @PathVariable Long messageId,
             HttpServletRequest request) {
-        
-        Map<String, Object> responseData = Map.of(
-                "messageId", messageId,
-                "status", "READ",
-                "readAt", java.time.LocalDateTime.now()
-        );
-        
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+
+        // TODO: Get current user ID from security context
+        Long currentUserId = 1L; // Placeholder - should get from authentication
+
+        socialService.markMessageAsRead(messageId, currentUserId);
+
+        ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Message marked as read",
-                responseData,
                 request.getRequestURI()
         );
-        
+
         return ResponseEntity.ok(response);
     }
 
@@ -516,38 +480,24 @@ public class SocialController {
     @PostMapping("/messages")
     @Operation(summary = "Send message", description = "Sends a message to a connected user")
     public ResponseEntity<ApiResponse<Message>> sendMessage(
-            @Valid @RequestBody SendMessageRequest request,
-            HttpServletRequest request) {
+            @Valid @RequestBody SendMessageRequest messageRequest,
+            HttpServletRequest httpRequest) {
 
-        Message message = socialService.sendMessage(request.getConnectionId(), request.getSenderId(), request.getContent());
+        Message message = socialService.sendMessage(
+                messageRequest.getConnectionId(),
+                messageRequest.getSenderId(),
+                messageRequest.getContent()
+        );
 
         ApiResponse<Message> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
                 "Message sent successfully",
                 message,
-                request.getRequestURI()
+                httpRequest.getRequestURI()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // Update getConversationMessages endpoint
-    @GetMapping("/connections/{connectionId}/messages")
-    @Operation(summary = "Get conversation messages", description = "Retrieves messages from a specific connection")
-    public ResponseEntity<ApiResponse<List<Message>>> getConversationMessages(
-            @Parameter(description = "Connection ID") @PathVariable Long connectionId,
-            @Parameter(description = "User ID") @RequestParam Long userId,
-            HttpServletRequest request) {
 
-        List<Message> messages = socialService.getConversationMessages(connectionId, userId);
-
-        ApiResponse<List<Message>> response = ApiResponse.success(
-                HttpStatus.OK.value(),
-                "Messages retrieved successfully",
-                messages,
-                request.getRequestURI()
-        );
-
-        return ResponseEntity.ok(response);
-    }
 }

@@ -11,6 +11,7 @@ import java.util.List;
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findByConnectionIdOrderByCreatedAtDesc(Long connectionId);
-    List<Message> findBySenderIdAndRecipientIdOrRecipientIdAndSenderIdOrderByCreatedAtDesc(Long user1Id, Long user2Id);
+    List<Message> findBySenderIdAndRecipientIdOrderByCreatedAtDesc(Long senderId, Long recipientId);
     Page<Message> findByConnectionIdOrderByCreatedAtDesc(Long connectionId, Pageable pageable);
+    void deleteByConnectionId(Long connectionId);
 }

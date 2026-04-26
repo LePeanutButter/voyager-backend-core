@@ -9,7 +9,10 @@ import java.util.List;
 
 @Repository
 public interface ConnectionRepository extends JpaRepository<Connection, Long> {
-    Optional<Connection> findByIdAndRequesterIdOrRecipientId(Long connectionId, Long userId);
-    List<Connection> findByRequesterIdOrRecipientId(Long userId);
-    void deleteByIdAndRequesterIdOrRecipientId(Long connectionId, Long userId);
+    Optional<Connection> findByIdAndRequesterId(Long connectionId, Long requesterId);
+    Optional<Connection> findByIdAndRecipientId(Long connectionId, Long recipientId);
+    List<Connection> findByRequesterId(Long requesterId);
+    List<Connection> findByRecipientId(Long recipientId);
+    void deleteByIdAndRequesterId(Long connectionId, Long requesterId);
+    void deleteByIdAndRecipientId(Long connectionId, Long recipientId);
 }
