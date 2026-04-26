@@ -8,4 +8,5 @@ import java.util.List;
 public interface SocialService {
     TravelerSummaryDto getTravelerSummary(Long travelerId);
     List<TravelConnectionDto> getAcceptedConnectionsByTravelPlan(Long travelPlanId);
+    void deleteConnection(Long connectionId, Long requestingUserId);
 }

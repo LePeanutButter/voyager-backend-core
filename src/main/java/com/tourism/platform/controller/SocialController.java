@@ -133,13 +133,18 @@ public class SocialController {
     public ResponseEntity<ApiResponse<Void>> removeConnection(
             @Parameter(description = "Connection ID") @PathVariable Long connectionId,
             HttpServletRequest request) {
-        
+
+        // TODO: Get current user ID from security context
+        Long currentUserId = 1L; // Placeholder - should get from authentication
+
+        socialService.deleteConnection(connectionId, currentUserId);
+
         ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connection removed successfully",
                 request.getRequestURI()
         );
-        
+
         return ResponseEntity.ok(response);
     }
 
