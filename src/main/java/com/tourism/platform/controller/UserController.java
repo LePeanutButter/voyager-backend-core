@@ -86,8 +86,11 @@ public class UserController {
                 loginDto.getUsernameOrEmail(), loginDto.getPassword());
         
         if (userOpt.isPresent()) {
-            // Generate JWT token
-            String token = tokenProvider.generateTokenFromUsername(userOpt.get().getUsername());
+            // Generate JWT token with userId
+            String token = tokenProvider.generateTokenFromUsernameAndUserId(
+                    userOpt.get().getUsername(), 
+                    userOpt.get().getId()
+            );
             Long expiresIn = 86400L; // 24 hours in seconds
             
             LoginResponseDto loginResponse = LoginResponseDto.fromUserDto(token, expiresIn, userOpt.get());

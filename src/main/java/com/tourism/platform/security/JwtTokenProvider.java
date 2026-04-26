@@ -44,7 +44,7 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Generate JWT token from username
+     * Generate token from username
      * 
      * @param username user username
      * @return JWT token string
@@ -55,6 +55,26 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .setSubject(username)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .compact();
+    }
+
+    /**
+     * Generate token from username and userId
+     * 
+     * @param username user username
+     * @param userId user ID
+     * @return JWT token string
+     */
+    public String generateTokenFromUsernameAndUserId(String username, Long userId) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("userId", userId)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS512)
@@ -93,6 +113,22 @@ public class JwtTokenProvider {
                 .getBody();
 
         return claims.getSubject();
+    }
+
+    /**
+     * Get user ID from JWT token
+     * 
+     * @param token JWT token
+     * @return user ID as Long
+     */
+    public Long getUserIdFromJWT(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.get("userId", Long.class);
     }
 
     /**

@@ -3,10 +3,12 @@ package com.tourism.platform.model;
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "connections")
 public class Connection {
     @Id
@@ -22,6 +24,9 @@ public class Connection {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ConnectionStatus status;
+
+    @Column(name = "message", length = 500)
+    private String message;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -71,6 +76,14 @@ public class Connection {
 
     public void setStatus(ConnectionStatus status) {
         this.status = status;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     public LocalDateTime getCreatedAt() {

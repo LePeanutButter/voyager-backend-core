@@ -1,10 +1,13 @@
 package com.tourism.platform.controller;
 
 import com.tourism.platform.dto.ApiResponse;
+import com.tourism.platform.dto.ConnectionRequestDto;
 import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.SendMessageRequest;
+import com.tourism.platform.dto.SendConnectionRequestDto;
 import com.tourism.platform.dto.TravelerSummaryDto;
 import com.tourism.platform.model.Message;
+import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,31 +37,47 @@ import java.util.Map;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/api/v1/social")
+@RequestMapping("/social")
 @RequiredArgsConstructor
 @Tag(name = "Social Features", description = "APIs for traveler social interactions")
 public class SocialController {
 
     private final SocialService socialService;
+    private final JwtTokenProvider tokenProvider;
+
+    // Helper method to extract userId from JWT token
+    private Long getCurrentUserId(HttpServletRequest request) {
+        String token = extractTokenFromRequest(request);
+        if (token != null && tokenProvider.validateToken(token)) {
+            return tokenProvider.getUserIdFromJWT(token);
+        }
+        throw new IllegalArgumentException("Invalid or missing authentication token");
+    }
+
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
 
     // Traveler Connections
     @PostMapping("/connections")
     @Operation(summary = "Send connection request", description = "Sends a connection request to another traveler")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> sendConnectionRequest(
-            @Valid @RequestBody Map<String, Object> requestData,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<ConnectionRequestDto>> sendConnectionRequest(
+            @Valid @RequestBody SendConnectionRequestDto request,
+            HttpServletRequest httpRequest) {
         
-        Map<String, Object> responseData = Map.of(
-                "requestId", 1L,
-                "recipientId", requestData.get("recipientId"),
-                "status", "PENDING"
-        );
+        Long currentUserId = getCurrentUserId(httpRequest);
         
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+        ConnectionRequestDto connectionRequest = socialService.sendConnectionRequest(request, currentUserId);
+        
+        ApiResponse<ConnectionRequestDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
                 "Connection request sent successfully",
-                responseData,
-                request.getRequestURI()
+                connectionRequest,
+                httpRequest.getRequestURI()
         );
         
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -88,21 +107,19 @@ public class SocialController {
 
     @PutMapping("/connections/{requestId}/accept")
     @Operation(summary = "Accept connection request", description = "Accepts a pending connection request")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> acceptConnectionRequest(
+    public ResponseEntity<ApiResponse<ConnectionRequestDto>> acceptConnectionRequest(
             @Parameter(description = "Connection request ID") @PathVariable Long requestId,
-            HttpServletRequest request) {
+            HttpServletRequest httpRequest) {
         
-        Map<String, Object> responseData = Map.of(
-                "requestId", requestId,
-                "status", "ACCEPTED",
-                "acceptedAt", java.time.LocalDateTime.now()
-        );
+        Long currentUserId = getCurrentUserId(httpRequest);
         
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+        ConnectionRequestDto connectionRequest = socialService.acceptConnectionRequest(requestId, currentUserId);
+        
+        ApiResponse<ConnectionRequestDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connection request accepted",
-                responseData,
-                request.getRequestURI()
+                connectionRequest,
+                httpRequest.getRequestURI()
         );
         
         return ResponseEntity.ok(response);
@@ -110,21 +127,57 @@ public class SocialController {
 
     @PutMapping("/connections/{requestId}/reject")
     @Operation(summary = "Reject connection request", description = "Rejects a pending connection request")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> rejectConnectionRequest(
+    public ResponseEntity<ApiResponse<ConnectionRequestDto>> rejectConnectionRequest(
             @Parameter(description = "Connection request ID") @PathVariable Long requestId,
-            HttpServletRequest request) {
+            HttpServletRequest httpRequest) {
         
-        Map<String, Object> responseData = Map.of(
-                "requestId", requestId,
-                "status", "REJECTED",
-                "rejectedAt", java.time.LocalDateTime.now()
-        );
+        Long currentUserId = getCurrentUserId(httpRequest);
         
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+        ConnectionRequestDto connectionRequest = socialService.rejectConnectionRequest(requestId, currentUserId);
+        
+        ApiResponse<ConnectionRequestDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connection request rejected",
-                responseData,
-                request.getRequestURI()
+                connectionRequest,
+                httpRequest.getRequestURI()
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/connections/pending")
+    @Operation(summary = "Get pending connection requests", description = "Retrieves all pending connection requests received by the user")
+    public ResponseEntity<ApiResponse<List<ConnectionRequestDto>>> getPendingRequests(
+            HttpServletRequest httpRequest) {
+        
+        Long currentUserId = getCurrentUserId(httpRequest);
+        
+        List<ConnectionRequestDto> pendingRequests = socialService.getPendingRequestsForUser(currentUserId);
+        
+        ApiResponse<List<ConnectionRequestDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Pending requests retrieved successfully",
+                pendingRequests,
+                httpRequest.getRequestURI()
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/connections/sent")
+    @Operation(summary = "Get sent connection requests", description = "Retrieves all pending connection requests sent by the user")
+    public ResponseEntity<ApiResponse<List<ConnectionRequestDto>>> getSentRequests(
+            HttpServletRequest httpRequest) {
+        
+        Long currentUserId = getCurrentUserId(httpRequest);
+        
+        List<ConnectionRequestDto> sentRequests = socialService.getSentRequestsForUser(currentUserId);
+        
+        ApiResponse<List<ConnectionRequestDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Sent requests retrieved successfully",
+                sentRequests,
+                httpRequest.getRequestURI()
         );
         
         return ResponseEntity.ok(response);
