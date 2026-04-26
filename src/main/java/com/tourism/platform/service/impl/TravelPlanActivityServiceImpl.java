@@ -72,6 +72,17 @@ public class TravelPlanActivityServiceImpl implements TravelPlanActivityService 
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public void deleteActivity(Long travelPlanId, Long activityId) {
+        getTravelPlanOrThrow(travelPlanId);
+
+        TravelPlanActivity activity = activityRepository.findByIdAndTravelPlanId(activityId, travelPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Activity not found with ID: " + activityId));
+
+        activityRepository.delete(activity);
+    }
+
     private void validateTimeRange(java.time.LocalDateTime startTime, java.time.LocalDateTime endTime) {
         if (endTime.isBefore(startTime)) {
             throw new IllegalArgumentException("endTime must be greater than or equal to startTime");

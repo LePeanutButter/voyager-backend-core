@@ -10,4 +10,5 @@ public interface TravelPlanActivityService {
     TravelPlanActivityDto createActivity(Long travelPlanId, CreateTravelPlanActivityRequestDto request);
     TravelPlanActivityDto updateActivity(Long travelPlanId, Long activityId, UpdateTravelPlanActivityRequestDto request);
     List<TravelPlanActivityDto> getActivities(Long travelPlanId);
+    void deleteActivity(Long travelPlanId, Long activityId);
 }
