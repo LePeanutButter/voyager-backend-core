@@ -65,21 +65,43 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/register")
+    @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
+    public ResponseEntity<ApiResponse<UserDto>> registerUserAlias(
+            @Valid @RequestBody UserRegistrationDto registrationDto,
+            HttpServletRequest request) {
+        return registerUser(registrationDto, request);
+    }
+
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information")
+    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information with JWT token")
     public ResponseEntity<ApiResponse<UserDto>> loginUser(
             @Valid @RequestBody UserLoginDto loginDto,
             HttpServletRequest request) {
-        return userService.authenticateUser(loginDto.getUsernameOrEmail(), loginDto.getPassword())
-                .map(user -> ResponseEntity.ok(ApiResponse.success(
-                        HttpStatus.OK.value(),
-                        "Authentication successful",
-                        user,
-                        request.getRequestURI()
-                )))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                        ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Invalid credentials", request.getRequestURI())
-                ));
+        
+        Optional<UserDto> userOpt = userService.authenticateUser(
+                loginDto.getUsernameOrEmail(), loginDto.getPassword());
+        
+        if (userOpt.isPresent()) {
+            UserDto userDto = userOpt.get();
+            String token = tokenProvider.generateTokenFromUsername(userDto.getUsername());
+            userDto.setToken(token);
+            
+            ApiResponse<UserDto> response = ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Authentication successful",
+                    userDto,
+                    request.getRequestURI()
+            );
+            return ResponseEntity.ok(response);
+        } else {
+            ApiResponse<UserDto> response = ApiResponse.error(
+                    HttpStatus.UNAUTHORIZED.value(),
+                    "Invalid credentials",
+                    request.getRequestURI()
+            );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
     }
 
     @GetMapping("/{id}")

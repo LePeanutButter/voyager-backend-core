@@ -95,6 +95,13 @@ public class UserServiceImpl implements UserService {
     public Optional<UserDto> updateUser(Long userId, UserUpdateDto updateDto) {
         return userRepository.findById(userId)
                 .map(user -> {
+                    if (updateDto.getFirstName() == null || updateDto.getFirstName().trim().isEmpty()) {
+                        throw new IllegalArgumentException("firstName is required");
+                    }
+                    if (updateDto.getBio() == null || updateDto.getBio().trim().isEmpty()) {
+                        throw new IllegalArgumentException("bio is required");
+                    }
+
                     // Update fields if provided
                     if (updateDto.getFirstName() != null) {
                         user.setFirstName(updateDto.getFirstName());
@@ -110,6 +117,9 @@ public class UserServiceImpl implements UserService {
                     }
                     if (updateDto.getBio() != null) {
                         user.setBio(updateDto.getBio());
+                    }
+                    if (updateDto.getInterests() != null) {
+                        user.setInterests(new java.util.HashSet<>(updateDto.getInterests()));
                     }
 
                     User updatedUser = userRepository.save(user);
@@ -233,6 +243,11 @@ public class UserServiceImpl implements UserService {
         dto.setStatus(user.getStatus());
         dto.setProfileImageUrl(user.getProfileImageUrl());
         dto.setBio(user.getBio());
+        if (user.getInterests() != null) {
+            dto.setInterests(new java.util.HashSet<>(user.getInterests()));
+        } else {
+            dto.setInterests(null);
+        }
         dto.setDateOfBirth(user.getDateOfBirth());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());

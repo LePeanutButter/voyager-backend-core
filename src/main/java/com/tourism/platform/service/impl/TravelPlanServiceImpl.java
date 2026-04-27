@@ -1,10 +1,15 @@
 package com.tourism.platform.service.impl;
 
 import com.tourism.platform.dto.TravelerMatchDto;
+import com.tourism.platform.dto.TravelPlanDto;
+import com.tourism.platform.exception.BusinessException;
+import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.TravelPlan;
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.repository.TravelPlanRepository;
+import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.TravelPlanService;
+import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,6 +36,7 @@ import java.util.stream.Collectors;
 public class TravelPlanServiceImpl implements TravelPlanService {
 
     private final TravelPlanRepository travelPlanRepository;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -96,6 +102,118 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     @Override
     public Page<TravelPlan> getActiveTravelPlansByUser(Long userId, Pageable pageable) {
         return travelPlanRepository.findByUserIdAndStatus(userId, TravelPlanStatus.ACTIVE, pageable);
+    }
+
+    @Override
+    @Transactional
+    public TravelPlanDto createTravelPlan(TravelPlanDto dto, Long userId) {
+        if (dto.getStartDate() != null && dto.getEndDate() != null && dto.getEndDate().isBefore(dto.getStartDate())) {
+            throw new BusinessException("Invalid date range: endDate cannot be before startDate");
+        }
+
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        TravelPlan plan = new TravelPlan();
+        plan.setUser(user);
+        plan.setTitle(dto.getTitle());
+        plan.setDescription(dto.getDescription());
+        plan.setDestinationLocation(dto.getDestinationLocation());
+        plan.setOriginLocation(dto.getOriginLocation());
+        plan.setStartDate(dto.getStartDate());
+        plan.setEndDate(dto.getEndDate());
+        plan.setEstimatedBudget(dto.getEstimatedBudget());
+        plan.setNumberOfTravelers(dto.getNumberOfTravelers());
+        if (dto.getStatus() != null) {
+            plan.setStatus(dto.getStatus());
+        }
+        if (dto.getTravelType() != null) {
+            plan.setTravelType(dto.getTravelType());
+        }
+        if (dto.getIsPublic() != null) {
+            plan.setIsPublic(dto.getIsPublic());
+        }
+
+        TravelPlan saved = travelPlanRepository.save(plan);
+        return toDto(saved);
+    }
+
+    @Override
+    public List<TravelPlanDto> getTravelPlanDtosByUser(Long userId) {
+        return travelPlanRepository.findByUserId(userId, org.springframework.data.domain.Pageable.unpaged())
+                .map(this::toDto)
+                .getContent();
+    }
+
+    @Override
+    @Transactional
+    public TravelPlanDto updateTravelPlan(Long travelPlanId, Long userId, TravelPlanDto dto) {
+        if (dto.getStartDate() != null && dto.getEndDate() != null && dto.getEndDate().isBefore(dto.getStartDate())) {
+            throw new BusinessException("Invalid date range: endDate cannot be before startDate");
+        }
+
+        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+
+        if (!existing.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("You are not allowed to update this travel plan");
+        }
+
+        existing.setTitle(dto.getTitle());
+        existing.setDescription(dto.getDescription());
+        existing.setDestinationLocation(dto.getDestinationLocation());
+        existing.setOriginLocation(dto.getOriginLocation());
+        existing.setStartDate(dto.getStartDate());
+        existing.setEndDate(dto.getEndDate());
+        existing.setEstimatedBudget(dto.getEstimatedBudget());
+        existing.setActualCost(dto.getActualCost());
+        existing.setNumberOfTravelers(dto.getNumberOfTravelers());
+        if (dto.getStatus() != null) {
+            existing.setStatus(dto.getStatus());
+        }
+        if (dto.getTravelType() != null) {
+            existing.setTravelType(dto.getTravelType());
+        }
+        if (dto.getIsPublic() != null) {
+            existing.setIsPublic(dto.getIsPublic());
+        }
+
+        TravelPlan saved = travelPlanRepository.save(existing);
+        return toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTravelPlan(Long travelPlanId, Long userId) {
+        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+
+        if (!existing.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("You are not allowed to delete this travel plan");
+        }
+
+        travelPlanRepository.delete(existing);
+    }
+
+    private TravelPlanDto toDto(TravelPlan plan) {
+        return TravelPlanDto.builder()
+                .id(plan.getId())
+                .title(plan.getTitle())
+                .description(plan.getDescription())
+                .status(plan.getStatus())
+                .travelType(plan.getTravelType())
+                .startDate(plan.getStartDate())
+                .endDate(plan.getEndDate())
+                .estimatedBudget(plan.getEstimatedBudget())
+                .actualCost(plan.getActualCost())
+                .numberOfTravelers(plan.getNumberOfTravelers())
+                .originLocation(plan.getOriginLocation())
+                .destinationLocation(plan.getDestinationLocation())
+                .isPublic(plan.getIsPublic())
+                .shareToken(plan.getShareToken())
+                .createdAt(plan.getCreatedAt())
+                .updatedAt(plan.getUpdatedAt())
+                .build();
     }
 
     /**

@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * User entity representing platform users
@@ -96,6 +97,15 @@ public class User implements UserDetails {
     @Column(name = "bio")
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;
+
+    @ElementCollection
+    @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "interest")
+    private Set<String> interests;
+
+    @Column(name = "is_google_user", nullable = false)
+    @Builder.Default
+    private boolean googleUser = false;
 
     @Column(name = "date_of_birth")
     private LocalDateTime dateOfBirth;

@@ -23,8 +23,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Security Configuration for the Tourism Platform
@@ -39,7 +39,7 @@ public class SecurityConfig {
 
 
     @Value("${app.cors.allowed-origins}")
-    private String[] allowedOrigins;
+    private String allowedOrigins;
 
     /**
      * Password encoder bean for hashing passwords
@@ -71,13 +71,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedOrigins(parseAllowedOrigins(allowedOrigins));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Request-Id"));
         configuration.setExposedHeaders(List.of("X-Trace-Id", "X-Request-Id"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // With server.servlet.context-path=/api/v1, Spring matches CORS paths relative to the app context.
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
@@ -104,12 +106,16 @@ public class SecurityConfig {
             
             // Configure authorization rules
             .authorizeHttpRequests(authz -> authz
-                // Public endpoints
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/api/v1/users/register").permitAll()
-                .requestMatchers("/api/v1/users/login").permitAll()
-                .requestMatchers("/api/v1/users/check-username").permitAll()
-                .requestMatchers("/api/v1/users/check-email").permitAll()
+                // CORS preflight requests
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Public endpoints - MOST SPECIFIC FIRST
+                .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                .requestMatchers("/users/register").permitAll()
+                .requestMatchers("/users/login").permitAll()
+                .requestMatchers("/users/check-username").permitAll()
+                .requestMatchers("/users/check-email").permitAll()
+                .requestMatchers("/auth/**").permitAll()
                 
                 // Swagger/OpenAPI endpoints
                 .requestMatchers("/api-docs/**").permitAll()
@@ -152,5 +158,12 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private List<String> parseAllowedOrigins(String originsProperty) {
+        return java.util.Arrays.stream(originsProperty.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toList());
     }
 }

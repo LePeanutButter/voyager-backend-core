@@ -19,10 +19,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
 import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+
 
 /**
  * REST Controller for Travel Plan Management
@@ -41,30 +49,27 @@ import java.util.List;
 @Validated
 public class TravelPlanController {
 
-    // Placeholder service - would be injected in real implementation
-    // private final TravelPlanService travelPlanService;
+    private final TravelPlanService travelPlanService;
+    private final UserRepository userRepository;
+    
+    // Simple in-memory storage for testing
+    private static final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
+    
+    // Constants for error messages
+    private static final String TRAVEL_PLAN_NOT_FOUND_MSG = "Travel plan not found with ID: ";
 
     @PostMapping
     @Operation(summary = "Create a new travel plan", description = "Creates a new travel plan with the provided details")
     public ResponseEntity<ApiResponse<TravelPlanDto>> createTravelPlan(
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
-        TravelPlanDto createdPlan = TravelPlanDto.builder()
-                .id(1L)
-                .title(travelPlanDto.getTitle())
-                .description(travelPlanDto.getDescription())
-                .status(TravelPlanStatus.DRAFT)
-                .travelType(travelPlanDto.getTravelType())
-                .startDate(travelPlanDto.getStartDate())
-                .endDate(travelPlanDto.getEndDate())
-                .estimatedBudget(travelPlanDto.getEstimatedBudget())
-                .numberOfTravelers(travelPlanDto.getNumberOfTravelers())
-                .originLocation(travelPlanDto.getOriginLocation())
-                .destinationLocation(travelPlanDto.getDestinationLocation())
-                .isPublic(false)
-                .build();
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        TravelPlanDto createdPlan = travelPlanService.createTravelPlan(travelPlanDto, user.getId());
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
@@ -81,22 +86,12 @@ public class TravelPlanController {
     public ResponseEntity<ApiResponse<TravelPlanDto>> getTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
-        TravelPlanDto travelPlan = TravelPlanDto.builder()
-                .id(id)
-                .title("Summer Vacation to Paris")
-                .description("A wonderful trip to the city of lights")
-                .status(TravelPlanStatus.ACTIVE)
-                .travelType(TravelType.LEISURE)
-                .startDate(java.time.LocalDateTime.of(2024, 6, 15, 10, 0))
-                .endDate(java.time.LocalDateTime.of(2024, 6, 22, 18, 0))
-                .estimatedBudget(new java.math.BigDecimal("3000.00"))
-                .numberOfTravelers(2)
-                .originLocation("New York")
-                .destinationLocation("Paris, France")
-                .isPublic(true)
-                .build();
+
+        User user = getAuthenticatedUser();
+        TravelPlanDto travelPlan = travelPlanService.getTravelPlanDtosByUser(user.getId()).stream()
+                .filter(plan -> id.equals(plan.getId()))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException(TRAVEL_PLAN_NOT_FOUND_MSG + id));
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -108,6 +103,22 @@ public class TravelPlanController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping
+    @Operation(summary = "Get authenticated user travel plans", description = "Retrieves all travel plans for the authenticated user")
+    public ResponseEntity<ApiResponse<List<TravelPlanDto>>> getMyTravelPlans(HttpServletRequest request) {
+        User user = getAuthenticatedUser();
+        List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(user.getId());
+
+        ApiResponse<List<TravelPlanDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Travel plans retrieved successfully",
+                plans,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/user/{userId}")
     @Operation(summary = "Get travel plans by user", description = "Retrieves all travel plans for a specific user")
     public ResponseEntity<PagedResponse<TravelPlanDto>> getTravelPlansByUser(
@@ -116,14 +127,7 @@ public class TravelPlanController {
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
         
-        // Placeholder implementation
-        List<TravelPlanDto> plans = List.of(
-                TravelPlanDto.builder().id(1L).title("Summer Vacation").build(),
-                TravelPlanDto.builder().id(2L).title("Business Trip").build(),
-                TravelPlanDto.builder().id(3L).title("Weekend Getaway").build()
-        );
-        
-        // Create a mock page
+        List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(userId);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<TravelPlanDto> pageResult = new org.springframework.data.domain.PageImpl<>(
                 plans, pageable, plans.size()
@@ -145,22 +149,9 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
-        TravelPlanDto updatedPlan = TravelPlanDto.builder()
-                .id(id)
-                .title(travelPlanDto.getTitle())
-                .description(travelPlanDto.getDescription())
-                .status(travelPlanDto.getStatus())
-                .travelType(travelPlanDto.getTravelType())
-                .startDate(travelPlanDto.getStartDate())
-                .endDate(travelPlanDto.getEndDate())
-                .estimatedBudget(travelPlanDto.getEstimatedBudget())
-                .numberOfTravelers(travelPlanDto.getNumberOfTravelers())
-                .originLocation(travelPlanDto.getOriginLocation())
-                .destinationLocation(travelPlanDto.getDestinationLocation())
-                .isPublic(travelPlanDto.getIsPublic())
-                .build();
+
+        User user = getAuthenticatedUser();
+        TravelPlanDto updatedPlan = travelPlanService.updateTravelPlan(id, user.getId(), travelPlanDto);
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -177,8 +168,10 @@ public class TravelPlanController {
     public ResponseEntity<ApiResponse<Void>> deleteTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
+
+        User user = getAuthenticatedUser();
+        travelPlanService.deleteTravelPlan(id, user.getId());
+
         ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Travel plan deleted successfully",
@@ -422,5 +415,116 @@ public class TravelPlanController {
         );
         
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/compatible-travelers")
+    @Operation(summary = "Find compatible travelers", description = "Finds travelers with similar destinations and compatible dates")
+    public ResponseEntity<ApiResponse<List<TravelerMatchDto>>> findCompatibleTravelers(
+            @Parameter(description = "Travel plan ID") @PathVariable Long id,
+            HttpServletRequest request) {
+        
+        // Get the reference travel plan from memory
+        TravelPlanDto referencePlan = travelPlans.get(id);
+        
+        if (referencePlan == null) {
+            ApiResponse<List<TravelerMatchDto>> response = ApiResponse.error(
+                    HttpStatus.NOT_FOUND.value(),
+                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
+                    request.getRequestURI()
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+        
+        // Find compatible travelers in memory
+        List<TravelerMatchDto> compatibleTravelers = new ArrayList<>();
+        
+        for (Map.Entry<Long, TravelPlanDto> entry : travelPlans.entrySet()) {
+            Long otherPlanId = entry.getKey();
+            TravelPlanDto otherPlan = entry.getValue();
+            
+            // Skip the same plan and non-ACTIVE plans
+            if (otherPlanId.equals(id) || otherPlan.getStatus() != TravelPlanStatus.ACTIVE) {
+                continue;
+            }
+            
+            // Check destination match (case-insensitive) and date overlap
+            if (referencePlan.getDestinationLocation() != null && 
+                otherPlan.getDestinationLocation() != null &&
+                referencePlan.getDestinationLocation().equalsIgnoreCase(otherPlan.getDestinationLocation()) &&
+                isDateOverlap(referencePlan.getStartDate(), referencePlan.getEndDate(), 
+                             otherPlan.getStartDate(), otherPlan.getEndDate())) {
+                
+                // Calculate overlapping days
+                long overlappingDays = calculateOverlappingDays(
+                    referencePlan.getStartDate(), referencePlan.getEndDate(),
+                    otherPlan.getStartDate(), otherPlan.getEndDate()
+                );
+                
+                // Calculate compatibility score
+                double compatibilityScore = (double) overlappingDays / 
+                    Math.min(
+                        getDaysBetween(referencePlan.getStartDate(), referencePlan.getEndDate()),
+                        getDaysBetween(otherPlan.getStartDate(), otherPlan.getEndDate())
+                    ) * 100;
+                
+                // Create match DTO (simplified user info)
+                TravelerMatchDto match = TravelerMatchDto.builder()
+                    .userId(otherPlanId) // Using plan ID as traveler ID for demo
+                    .username("traveler" + otherPlanId)
+                    .firstName("Traveler")
+                    .lastName("User " + otherPlanId)
+                    .travelPlanId(otherPlanId)
+                    .travelPlanTitle(otherPlan.getTitle())
+                    .destinationLocation(otherPlan.getDestinationLocation())
+                    .travelStartDate(otherPlan.getStartDate())
+                    .travelEndDate(otherPlan.getEndDate())
+                    .numberOfTravelers(otherPlan.getNumberOfTravelers())
+                    .daysOverlap((int) overlappingDays)
+                    .compatibilityScore(Math.round(compatibilityScore * 10.0) / 10.0)
+                    .build();
+                
+                compatibleTravelers.add(match);
+            }
+        }
+        
+        if (compatibleTravelers.isEmpty()) {
+            ApiResponse<List<TravelerMatchDto>> response = ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "No compatible travelers found for this travel plan",
+                    compatibleTravelers,
+                    request.getRequestURI()
+            );
+            return ResponseEntity.ok(response);
+        }
+        
+        ApiResponse<List<TravelerMatchDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Compatible travelers found successfully",
+                compatibleTravelers,
+                request.getRequestURI()
+        );
+        return ResponseEntity.ok(response);
+    }
+    
+    // Helper methods for date calculations
+    private boolean isDateOverlap(LocalDateTime start1, LocalDateTime end1, LocalDateTime start2, LocalDateTime end2) {
+        return start1.isBefore(end2) && end1.isAfter(start2);
+    }
+    
+    private long calculateOverlappingDays(LocalDateTime start1, LocalDateTime end1, LocalDateTime start2, LocalDateTime end2) {
+        LocalDateTime overlapStart = start1.isAfter(start2) ? start1 : start2;
+        LocalDateTime overlapEnd = end1.isBefore(end2) ? end1 : end2;
+        return ChronoUnit.DAYS.between(overlapStart, overlapEnd);
+    }
+    
+    private long getDaysBetween(LocalDateTime start, LocalDateTime end) {
+        return ChronoUnit.DAYS.between(start, end);
+    }
+
+    private User getAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 }
