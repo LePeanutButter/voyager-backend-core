@@ -5,16 +5,11 @@ import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.TravelPlanDto;
 import com.tourism.platform.dto.TravelPlanActivityDto;
 import com.tourism.platform.dto.ReservationDto;
-import com.tourism.platform.dto.TravelerMatchDto;
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.model.TravelType;
-import com.tourism.platform.model.User;
-import com.tourism.platform.repository.UserRepository;
-import com.tourism.platform.service.TravelPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,16 +19,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+
 
 /**
  * REST Controller for Travel Plan Management
@@ -46,9 +43,10 @@ import java.time.temporal.ChronoUnit;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/travel-plans")
+@RequestMapping("/api/v1/travel-plans")
 @RequiredArgsConstructor
 @Tag(name = "Travel Planning", description = "APIs for managing travel plans and itineraries")
+@Validated
 public class TravelPlanController {
 
     private final TravelPlanService travelPlanService;
@@ -402,36 +400,12 @@ public class TravelPlanController {
             @Parameter(description = "New status") @RequestParam TravelPlanStatus status,
             HttpServletRequest request) {
         
-        // Get travel plan from memory storage
-        TravelPlanDto existingPlan = travelPlans.get(id);
-        
-        if (existingPlan == null) {
-            ApiResponse<TravelPlanDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
-        
-        // Update status
+        // Placeholder implementation
         TravelPlanDto updatedPlan = TravelPlanDto.builder()
-                .id(existingPlan.getId())
-                .title(existingPlan.getTitle())
-                .description(existingPlan.getDescription())
+                .id(id)
+                .title("Updated Travel Plan")
                 .status(status)
-                .travelType(existingPlan.getTravelType())
-                .startDate(existingPlan.getStartDate())
-                .endDate(existingPlan.getEndDate())
-                .estimatedBudget(existingPlan.getEstimatedBudget())
-                .numberOfTravelers(existingPlan.getNumberOfTravelers())
-                .originLocation(existingPlan.getOriginLocation())
-                .destinationLocation(existingPlan.getDestinationLocation())
-                .isPublic(existingPlan.getIsPublic())
                 .build();
-        
-        // Update in memory
-        travelPlans.put(id, updatedPlan);
         
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
