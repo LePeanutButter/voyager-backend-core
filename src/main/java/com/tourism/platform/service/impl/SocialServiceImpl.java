@@ -9,6 +9,10 @@ import com.tourism.platform.model.*;
 import com.tourism.platform.repository.*;
 import com.tourism.platform.service.SocialService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,6 +120,7 @@ public class SocialServiceImpl implements SocialService {
         message.setRecipientId(recipientId);
         message.setContent(content.trim());
         message.setStatus(MessageStatus.SENT);
+
 
         return messageRepository.save(message);
     }
@@ -324,5 +329,18 @@ public class SocialServiceImpl implements SocialService {
                 })
                 .filter(dto -> dto != null)
                 .toList();
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Message> getConversationMessagesPaginated(Long connectionId, Long userId, int page, int size) {
+        Connection connection = connectionRepository.findById(connectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+
+        if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {
+            throw new IllegalArgumentException("User is not part of this connection");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return messageRepository.findConversationMessages(connectionId, pageable);
     }
 }

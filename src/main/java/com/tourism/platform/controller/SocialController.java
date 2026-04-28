@@ -331,18 +331,20 @@ public class SocialController {
 
     // Update getConversationMessages endpoint
     @GetMapping("/connections/{connectionId}/messages")
-    @Operation(summary = "Get conversation messages", description = "Retrieves messages from a specific connection")
-    public ResponseEntity<ApiResponse<List<Message>>> getConversationMessages(
+    @Operation(summary = "Get conversation messages", description = "Retrieves paginated messages from a specific connection")
+    public ResponseEntity<PagedResponse<Message>> getConversationMessages(
             @Parameter(description = "Connection ID") @PathVariable Long connectionId,
             @Parameter(description = "User ID") @RequestParam Long userId,
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "50") int size,
             HttpServletRequest request) {
 
-        List<Message> messages = socialService.getConversationMessages(connectionId, userId);
+        Page<Message> messagesPage = socialService.getConversationMessagesPaginated(connectionId, userId, page, size);
 
-        ApiResponse<List<Message>> response = ApiResponse.success(
-                HttpStatus.OK.value(),
+        PagedResponse<Message> response = PagedResponse.fromPage(
+                messagesPage,
                 "Messages retrieved successfully",
-                messages,
+                HttpStatus.OK.value(),
                 request.getRequestURI()
         );
 

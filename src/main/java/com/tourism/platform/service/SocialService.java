@@ -5,6 +5,7 @@ import com.tourism.platform.dto.SendConnectionRequestDto;
 import com.tourism.platform.dto.TravelConnectionDto;
 import com.tourism.platform.dto.TravelerSummaryDto;
 import com.tourism.platform.model.Message;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -16,7 +17,8 @@ public interface SocialService {
     Message sendMessage(Long connectionId, Long senderId, String content);
     List<Message> getConversationMessages(Long connectionId, Long userId);
     void markMessageAsRead(Long messageId, Long userId);
-    
+    Page<Message> getConversationMessagesPaginated(Long connectionId, Long userId, int page, int size);
+
     // Connection request management methods
     ConnectionRequestDto sendConnectionRequest(SendConnectionRequestDto request, Long requesterId);
     ConnectionRequestDto acceptConnectionRequest(Long requestId, Long recipientId);
