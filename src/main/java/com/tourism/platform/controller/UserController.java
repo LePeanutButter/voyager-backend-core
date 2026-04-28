@@ -1,7 +1,6 @@
 package com.tourism.platform.controller;
 
 import com.tourism.platform.dto.ApiResponse;
-import com.tourism.platform.dto.LoginResponseDto;
 import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.dto.UserLoginDto;
@@ -9,7 +8,6 @@ import com.tourism.platform.dto.UserRegistrationDto;
 import com.tourism.platform.dto.UserUpdateDto;
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
-import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,11 +22,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * REST Controller for user management operations
@@ -41,14 +38,15 @@ import org.slf4j.LoggerFactory;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Tag(name = "User Management", description = "APIs for managing user accounts and authentication")
+@Validated
 public class UserController {
+    private static final String USER_NOT_FOUND = "User not found";
+    private static final String USER_RETRIEVED_SUCCESSFULLY = "User retrieved successfully";
 
     private final UserService userService;
-    private final JwtTokenProvider tokenProvider;
-    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @PostMapping
     @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
@@ -56,29 +54,28 @@ public class UserController {
             @Valid @RequestBody UserRegistrationDto registrationDto,
             HttpServletRequest request) {
         
-        logger.debug("=== DEBUG: registerUser called ===");
-        logger.debug("Registration DTO: {}", registrationDto);
-        logger.debug("UserService: {}", userService);
+        UserDto createdUser = userService.registerUser(registrationDto);
+        ApiResponse<UserDto> response = ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                "User registered successfully",
+                createdUser,
+                request.getRequestURI()
+        );
         
-        try {
-            UserDto createdUser = userService.registerUser(registrationDto);
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.CREATED.value(),
-                    "User registered successfully",
-                    createdUser,
-                    request.getRequestURI()
-            );
-            
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (Exception e) {
-            logger.error("=== ERROR: {}", e.getMessage(), e);
-            throw e;
-        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/register")
+    @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
+    public ResponseEntity<ApiResponse<UserDto>> registerUserAlias(
+            @Valid @RequestBody UserRegistrationDto registrationDto,
+            HttpServletRequest request) {
+        return registerUser(registrationDto, request);
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns JWT token")
-    public ResponseEntity<ApiResponse<LoginResponseDto>> loginUser(
+    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information with JWT token")
+    public ResponseEntity<ApiResponse<UserDto>> loginUser(
             @Valid @RequestBody UserLoginDto loginDto,
             HttpServletRequest request) {
         
@@ -86,24 +83,19 @@ public class UserController {
                 loginDto.getUsernameOrEmail(), loginDto.getPassword());
         
         if (userOpt.isPresent()) {
-            // Generate JWT token with userId
-            String token = tokenProvider.generateTokenFromUsernameAndUserId(
-                    userOpt.get().getUsername(), 
-                    userOpt.get().getId()
-            );
-            Long expiresIn = 86400L; // 24 hours in seconds
+            UserDto userDto = userOpt.get();
+            String token = tokenProvider.generateTokenFromUsername(userDto.getUsername());
+            userDto.setToken(token);
             
-            LoginResponseDto loginResponse = LoginResponseDto.fromUserDto(token, expiresIn, userOpt.get());
-            
-            ApiResponse<LoginResponseDto> response = ApiResponse.success(
+            ApiResponse<UserDto> response = ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Authentication successful",
-                    loginResponse,
+                    userDto,
                     request.getRequestURI()
             );
             return ResponseEntity.ok(response);
         } else {
-            ApiResponse<LoginResponseDto> response = ApiResponse.error(
+            ApiResponse<UserDto> response = ApiResponse.error(
                     HttpStatus.UNAUTHORIZED.value(),
                     "Invalid credentials",
                     request.getRequestURI()
@@ -117,25 +109,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserById(
             @Parameter(description = "User ID") @PathVariable Long id,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.getUserById(id);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User retrieved successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.getUserById(id), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
     }
 
     @GetMapping("/username/{username}")
@@ -143,25 +117,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserByUsername(
             @Parameter(description = "Username") @PathVariable String username,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.getUserByUsername(username);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User retrieved successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.getUserByUsername(username), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
     }
 
     @GetMapping("/email/{email}")
@@ -169,25 +125,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserDto>> getUserByEmail(
             @Parameter(description = "Email address") @PathVariable String email,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.getUserByEmail(email);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User retrieved successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.getUserByEmail(email), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
     }
 
     @PutMapping("/{id}")
@@ -196,25 +134,7 @@ public class UserController {
             @Parameter(description = "User ID") @PathVariable Long id,
             @Valid @RequestBody UserUpdateDto updateDto,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.updateUser(id, updateDto);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User updated successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.updateUser(id, updateDto), request.getRequestURI(), "User updated successfully");
     }
 
     @PutMapping("/{id}/password")
@@ -339,25 +259,7 @@ public class UserController {
             @Parameter(description = "User ID") @PathVariable Long id,
             @Parameter(description = "New role") @RequestParam UserRole role,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.updateUserRole(id, role);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User role updated successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.updateUserRole(id, role), request.getRequestURI(), "User role updated successfully");
     }
 
     @PutMapping("/{id}/status")
@@ -367,25 +269,7 @@ public class UserController {
             @Parameter(description = "User ID") @PathVariable Long id,
             @Parameter(description = "New status") @RequestParam UserStatus status,
             HttpServletRequest request) {
-        
-        Optional<UserDto> userOpt = userService.updateUserStatus(id, status);
-        
-        if (userOpt.isPresent()) {
-            ApiResponse<UserDto> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User status updated successfully",
-                    userOpt.get(),
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<UserDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    "User not found",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return toUserResponse(userService.updateUserStatus(id, status), request.getRequestURI(), "User status updated successfully");
     }
 
     @DeleteMapping("/{id}")
@@ -412,6 +296,13 @@ public class UserController {
             );
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
+    }
+
+    private ResponseEntity<ApiResponse<UserDto>> toUserResponse(Optional<UserDto> userOpt, String path, String successMessage) {
+        return userOpt
+                .map(user -> ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), successMessage, user, path)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), USER_NOT_FOUND, path)));
     }
 
     @GetMapping("/statistics")

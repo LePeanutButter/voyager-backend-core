@@ -28,15 +28,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+
 
 /**
  * REST Controller for Travel Plan Management
@@ -49,20 +52,17 @@ import java.time.temporal.ChronoUnit;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/travel-plans")
+@RequestMapping("/api/v1/travel-plans")
 @RequiredArgsConstructor
 @Tag(name = "Travel Planning", description = "APIs for managing travel plans and itineraries")
+@Validated
 public class TravelPlanController {
 
     private final TravelPlanActivityService travelPlanActivityService;
     private final SocialService socialService;
     private final TravelPlanRepository travelPlanRepository;
     private final UserRepository userRepository;
-
-    // Simple in-memory storage for testing
-    private static final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
-    private static AtomicLong idCounter = new AtomicLong(1);
-
+    
     // Constants for error messages
     private static final String TRAVEL_PLAN_NOT_FOUND_MSG = "Travel plan not found with ID: ";
 
@@ -72,48 +72,13 @@ public class TravelPlanController {
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
 
-        // Get authenticated user from JWT
-        String username = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        com.tourism.platform.model.User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Save to database
-        TravelPlan travelPlan = new TravelPlan();
-        travelPlan.setUser(user);
-        travelPlan.setTitle(travelPlanDto.getTitle());
-        travelPlan.setDescription(travelPlanDto.getDescription());
-        travelPlan.setStatus(TravelPlanStatus.DRAFT);
-        travelPlan.setTravelType(travelPlanDto.getTravelType());
-        travelPlan.setStartDate(travelPlanDto.getStartDate());
-        travelPlan.setEndDate(travelPlanDto.getEndDate());
-        travelPlan.setEstimatedBudget(travelPlanDto.getEstimatedBudget());
-        travelPlan.setNumberOfTravelers(travelPlanDto.getNumberOfTravelers());
-        travelPlan.setOriginLocation(travelPlanDto.getOriginLocation());
-        travelPlan.setDestinationLocation(travelPlanDto.getDestinationLocation());
-        travelPlan.setIsPublic(false);
-
-        TravelPlan saved = travelPlanRepository.save(travelPlan);
-
-        TravelPlanDto createdPlan = TravelPlanDto.builder()
-                .id(saved.getId())
-                .title(saved.getTitle())
-                .description(saved.getDescription())
-                .status(saved.getStatus())
-                .travelType(saved.getTravelType())
-                .startDate(saved.getStartDate())
-                .endDate(saved.getEndDate())
-                .estimatedBudget(saved.getEstimatedBudget())
-                .numberOfTravelers(saved.getNumberOfTravelers())
-                .originLocation(saved.getOriginLocation())
-                .destinationLocation(saved.getDestinationLocation())
-                .isPublic(saved.getIsPublic())
-                .build();
-
-        // Also keep in memory for other endpoints
-        travelPlans.put(saved.getId(), createdPlan);
-
+        TravelPlanDto createdPlan = travelPlanService.createTravelPlan(travelPlanDto, user.getId());
+        
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
                 "Travel plan created successfully",
@@ -130,22 +95,32 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
 
-        // Get from memory storage
-        TravelPlanDto travelPlan = travelPlans.get(id);
-
-        if (travelPlan == null) {
-            ApiResponse<TravelPlanDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
-
+        User user = getAuthenticatedUser();
+        TravelPlanDto travelPlan = travelPlanService.getTravelPlanDtosByUser(user.getId()).stream()
+                .filter(plan -> id.equals(plan.getId()))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException(TRAVEL_PLAN_NOT_FOUND_MSG + id));
+        
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Travel plan retrieved successfully",
                 travelPlan,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    @Operation(summary = "Get authenticated user travel plans", description = "Retrieves all travel plans for the authenticated user")
+    public ResponseEntity<ApiResponse<List<TravelPlanDto>>> getMyTravelPlans(HttpServletRequest request) {
+        User user = getAuthenticatedUser();
+        List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(user.getId());
+
+        ApiResponse<List<TravelPlanDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Travel plans retrieved successfully",
+                plans,
                 request.getRequestURI()
         );
 
@@ -159,15 +134,8 @@ public class TravelPlanController {
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
-
-        // Placeholder implementation
-        List<TravelPlanDto> plans = List.of(
-                TravelPlanDto.builder().id(1L).title("Summer Vacation").build(),
-                TravelPlanDto.builder().id(2L).title("Business Trip").build(),
-                TravelPlanDto.builder().id(3L).title("Weekend Getaway").build()
-        );
-
-        // Create a mock page
+        
+        List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(userId);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<TravelPlanDto> pageResult = new org.springframework.data.domain.PageImpl<>(
                 plans, pageable, plans.size()
@@ -190,22 +158,9 @@ public class TravelPlanController {
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
 
-        // Placeholder implementation
-        TravelPlanDto updatedPlan = TravelPlanDto.builder()
-                .id(id)
-                .title(travelPlanDto.getTitle())
-                .description(travelPlanDto.getDescription())
-                .status(travelPlanDto.getStatus())
-                .travelType(travelPlanDto.getTravelType())
-                .startDate(travelPlanDto.getStartDate())
-                .endDate(travelPlanDto.getEndDate())
-                .estimatedBudget(travelPlanDto.getEstimatedBudget())
-                .numberOfTravelers(travelPlanDto.getNumberOfTravelers())
-                .originLocation(travelPlanDto.getOriginLocation())
-                .destinationLocation(travelPlanDto.getDestinationLocation())
-                .isPublic(travelPlanDto.getIsPublic())
-                .build();
-
+        User user = getAuthenticatedUser();
+        TravelPlanDto updatedPlan = travelPlanService.updateTravelPlan(id, user.getId(), travelPlanDto);
+        
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Travel plan updated successfully",
@@ -222,7 +177,9 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
 
-        // Placeholder implementation
+        User user = getAuthenticatedUser();
+        travelPlanService.deleteTravelPlan(id, user.getId());
+
         ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Travel plan deleted successfully",
@@ -473,38 +430,14 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Parameter(description = "New status") @RequestParam TravelPlanStatus status,
             HttpServletRequest request) {
-
-        // Get travel plan from memory storage
-        TravelPlanDto existingPlan = travelPlans.get(id);
-
-        if (existingPlan == null) {
-            ApiResponse<TravelPlanDto> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
-
-        // Update status
+        
+        // Placeholder implementation
         TravelPlanDto updatedPlan = TravelPlanDto.builder()
-                .id(existingPlan.getId())
-                .title(existingPlan.getTitle())
-                .description(existingPlan.getDescription())
+                .id(id)
+                .title("Updated Travel Plan")
                 .status(status)
-                .travelType(existingPlan.getTravelType())
-                .startDate(existingPlan.getStartDate())
-                .endDate(existingPlan.getEndDate())
-                .estimatedBudget(existingPlan.getEstimatedBudget())
-                .numberOfTravelers(existingPlan.getNumberOfTravelers())
-                .originLocation(existingPlan.getOriginLocation())
-                .destinationLocation(existingPlan.getDestinationLocation())
-                .isPublic(existingPlan.getIsPublic())
                 .build();
-
-        // Update in memory
-        travelPlans.put(id, updatedPlan);
-
+        
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Travel plan status updated successfully",
@@ -635,5 +568,12 @@ public class TravelPlanController {
 
     private long getDaysBetween(LocalDateTime start, LocalDateTime end) {
         return ChronoUnit.DAYS.between(start, end);
+    }
+
+    private User getAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 }

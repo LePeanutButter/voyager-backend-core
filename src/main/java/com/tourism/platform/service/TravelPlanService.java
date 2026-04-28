@@ -1,6 +1,7 @@
 package com.tourism.platform.service;
 
 import com.tourism.platform.dto.TravelerMatchDto;
+import com.tourism.platform.dto.TravelPlanDto;
 import com.tourism.platform.model.TravelPlan;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -64,4 +65,12 @@ public interface TravelPlanService {
      * @return Page of active travel plans for the user
      */
     Page<TravelPlan> getActiveTravelPlansByUser(Long userId, Pageable pageable);
+
+    TravelPlanDto createTravelPlan(TravelPlanDto dto, Long userId);
+
+    List<TravelPlanDto> getTravelPlanDtosByUser(Long userId);
+
+    TravelPlanDto updateTravelPlan(Long travelPlanId, Long userId, TravelPlanDto dto);
+
+    void deleteTravelPlan(Long travelPlanId, Long userId);
 }
