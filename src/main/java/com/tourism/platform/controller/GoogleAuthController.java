@@ -8,6 +8,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,15 +21,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/auth/google")
+@RequestMapping("/api/v1/auth/google")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "OAuth2 login with Google")
+@Slf4j
 public class GoogleAuthController {
+
+    private static final String LOCATION_HEADER = "Location";
 
     private final GoogleOAuthProperties properties;
     private final GoogleAuthService googleAuthService;
 
-    @GetMapping("/login")
     @Operation(summary = "Start Google OAuth2 login", description = "Redirects the user to Google authorization endpoint")
     public void login(HttpServletResponse response) {
         if (properties.getClientId() == null || properties.getClientId().isBlank()) {
@@ -46,7 +50,7 @@ public class GoogleAuthController {
                 "&state=" + url(state);
 
         response.setStatus(HttpServletResponse.SC_FOUND);
-        response.setHeader("Location", authorizeUrl);
+        response.setHeader(LOCATION_HEADER, authorizeUrl);
     }
 
     @GetMapping("/callback")
@@ -71,7 +75,7 @@ public class GoogleAuthController {
             UserDto userDto = googleAuthService.authenticateWithAuthorizationCode(code);
             String redirect = frontendCallbackBase() + "?token=" + url(userDto.getToken());
             response.setStatus(HttpServletResponse.SC_FOUND);
-            response.setHeader("Location", redirect);
+            response.setHeader(LOCATION_HEADER, redirect);
         } catch (BusinessException ex) {
             redirectWithError(response, "business_error", ex.getMessage());
         } catch (Exception ex) {

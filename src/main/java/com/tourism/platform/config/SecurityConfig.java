@@ -24,7 +24,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Security Configuration for the Tourism Platform
@@ -164,6 +163,6 @@ public class SecurityConfig {
         return java.util.Arrays.stream(originsProperty.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
-                .collect(Collectors.toList());
+                .toList();
     }
 }
