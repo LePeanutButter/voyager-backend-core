@@ -19,12 +19,16 @@
     <description>Backend API for Tourism Intelligent Platform</description>
 
     <properties>
-        <java.version>17</java.version>
-        <spring-cloud.version>2024.0.1</spring-cloud.version> <!-- era 2023.0.0 — debe coincidir con Boot 3.4.x -->
-        <jjwt.version>0.12.6</jjwt.version> <!-- era 0.11.5 -->
-        <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <springdoc.version>2.6.0</springdoc.version> <!-- era 2.2.0 — compatibilidad con Boot 3.4.x -->
-        <lombok.version>1.18.38</lombok.version>
+             <java.version>17</java.version>
+             <spring-cloud.version>2024.0.1</spring-cloud.version>
+             <jjwt.version>0.12.6</jjwt.version>
+             <mapstruct.version>1.5.5.Final</mapstruct.version>
+             <springdoc.version>2.6.0</springdoc.version>
+             <lombok.version>1.18.38</lombok.version>
+             <!-- Forzar versiones para resolver CVEs restantes -->
+             <tomcat.version>10.1.54</tomcat.version>
+             <spring-security.version>6.4.6</spring-security.version>
+             <spring-framework.version>6.2.11</spring-framework.version>
     </properties>
 
     <dependencies>
@@ -85,10 +89,10 @@
 
         <!-- Database -->
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.7.5</version> <!-- era sin versión explícita (42.6.0) — resuelve CVE-2024-1597 -->
-            <scope>runtime</scope>
+             <groupId>org.postgresql</groupId>
+             <artifactId>postgresql</artifactId>
+             <version>42.7.7</version> <!-- era 42.7.5 -->
+             <scope>runtime</scope>
         </dependency>
         
         <dependency>
