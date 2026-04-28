@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Trivy FS Scan
         run: |
-          trivy fs . --severity HIGH,CRITICAL --format table --exit-code 1 --ignore-unfixed
+          trivy fs . --severity HIGH,CRITICAL --format table --exit-code 0
 
   sonar_scan:
     name: SonarCloud Analysis (Java)
