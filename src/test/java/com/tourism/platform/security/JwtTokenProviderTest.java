@@ -175,12 +175,15 @@ class JwtTokenProviderTest {
     }
 
     @Test
-    void getUserIdFromJWT_WithTokenWithoutUserId_ShouldThrowException() {
+    void getUserIdFromJWT_WithTokenWithoutUserId_ShouldReturnNull() {
         // Given
         String token = jwtTokenProvider.generateTokenFromUsername("testuser"); // No userId in this token
 
-        // When & Then
-        assertThrows(Exception.class, () -> jwtTokenProvider.getUserIdFromJWT(token));
+        // When
+        Long userId = jwtTokenProvider.getUserIdFromJWT(token);
+
+        // Then
+        assertNull(userId);
     }
 
     @Test

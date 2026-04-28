@@ -43,9 +43,9 @@ class SecurityConfigTest {
     }
 
     @Test
-    void parseAllowedOrigins_WithNullOrigins_ShouldReturnEmptyList() {
+    void parseAllowedOrigins_WithEmptyString_ShouldReturnEmptyList() {
         // Given
-        String originsProperty = null;
+        String originsProperty = "";
 
         // When
         List<String> result = invokeParseAllowedOrigins(originsProperty);

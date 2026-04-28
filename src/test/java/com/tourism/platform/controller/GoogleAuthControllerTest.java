@@ -109,7 +109,7 @@ class GoogleAuthControllerTest {
         // Then
         verify(response).setStatus(HttpServletResponse.SC_FOUND);
         verify(response).setHeader(eq("Location"), contains("error=oauth_error&message=Google+OAuth2+error%3A+access_denied+-+User+denied+access"));
-        verify(response).setHeader(eq("Location"), contains("message=User denied access"));
+        verify(response).setHeader(eq("Location"), contains("message=User+denied+access"));
         verify(googleAuthService, never()).authenticateWithAuthorizationCode(anyString());
     }
 

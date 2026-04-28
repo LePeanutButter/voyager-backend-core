@@ -45,6 +45,8 @@ class SocialServiceImplTest {
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testuser");
+        testUser.setFirstName("Test");
+        testUser.setLastName("User");
         testUser.setBio("Test bio");
 
         testConnection = new Connection();
