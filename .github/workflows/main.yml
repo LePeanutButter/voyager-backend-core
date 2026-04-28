@@ -78,10 +78,23 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        mvn -B verify sonar:sonar \
-          -Dsonar.projectKey=voyager-backend-core \
-          -Dsonar.organization=voyager \
-          -Dsonar.host.url=https://sonarcloud.io
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          mvn -B verify sonar:sonar \
+            -Dsonar.projectKey=voyager-backend-core \
+            -Dsonar.organization=voyager \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.pullrequest.key=${{ github.event.number }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref }} \
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+        else
+          mvn -B verify sonar:sonar \
+            -Dsonar.projectKey=voyager-backend-core \
+            -Dsonar.organization=voyager \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.branch.name=main \
+            -Dsonar.branch.target=development
+        fi
 
   # =========================================
   # Job: Build Stage

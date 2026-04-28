@@ -60,7 +60,11 @@ jobs:
           mvn -B verify sonar:sonar \
             -Dsonar.projectKey=voyager-backend-core \
             -Dsonar.organization=voyager \
-            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.pullrequest.key=${{ github.event.number }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref }} \
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
 
   build:
     name: Build & Test (Java)
