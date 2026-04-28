@@ -58,6 +58,7 @@ jobs:
             -Dsonar.projectKey=${{ secrets.PROJECT_KEY }} \
             -Dsonar.organization=${{ secrets.ORGANIZATION_KEY }} \
             -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.scm.disabled=true \
             -Dsonar.branch.name=development \
             -Dsonar.branch.target=main
 
