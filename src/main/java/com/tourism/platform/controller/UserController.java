@@ -8,6 +8,7 @@ import com.tourism.platform.dto.UserRegistrationDto;
 import com.tourism.platform.dto.UserUpdateDto;
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
+import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -47,6 +48,7 @@ public class UserController {
     private static final String USER_RETRIEVED_SUCCESSFULLY = "User retrieved successfully";
 
     private final UserService userService;
+    private final JwtTokenProvider tokenProvider;
 
     @PostMapping
     @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")

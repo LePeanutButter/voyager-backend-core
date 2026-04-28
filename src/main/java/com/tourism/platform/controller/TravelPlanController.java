@@ -15,6 +15,7 @@ import com.tourism.platform.model.TravelType;
 import com.tourism.platform.repository.TravelPlanRepository;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.TravelPlanActivityService;
+import com.tourism.platform.service.TravelPlanService;
 import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -63,6 +64,10 @@ public class TravelPlanController {
     private final SocialService socialService;
     private final TravelPlanRepository travelPlanRepository;
     private final UserRepository userRepository;
+    private final TravelPlanService travelPlanService;
+    
+    // In-memory storage for demo purposes
+    private final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
     
     // Constants for error messages
     private static final String TRAVEL_PLAN_NOT_FOUND_MSG = "Travel plan not found with ID: ";

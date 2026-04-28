@@ -106,11 +106,11 @@ public class JwtTokenProvider {
      * @return username string
      */
     public String getUsernameFromJWT(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
 
         return claims.getSubject();
     }
@@ -122,11 +122,11 @@ public class JwtTokenProvider {
      * @return user ID as Long
      */
     public Long getUserIdFromJWT(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
 
         return claims.get("userId", Long.class);
     }
@@ -139,10 +139,10 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
+            Jwts.parser()
+                    .verifyWith(getSigningKey())
                     .build()
-                    .parseClaimsJws(token);
+                    .parseSignedClaims(token);
             return true;
         } catch (SecurityException ex) {
             // Invalid signature
@@ -165,11 +165,11 @@ public class JwtTokenProvider {
      * @return expiration date
      */
     public Date getTokenExpiration(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
 
         return claims.getExpiration();
     }
