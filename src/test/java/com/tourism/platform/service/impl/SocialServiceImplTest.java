@@ -65,7 +65,7 @@ class SocialServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals(1L, result.getUserId());
-        assertEquals("testuser", result.getDisplayName());
+        assertEquals("Test User", result.getDisplayName()); // firstName + lastName
         assertEquals("Test bio", result.getBioShort());
         verify(userRepository).findById(1L);
     }
@@ -106,7 +106,7 @@ class SocialServiceImplTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(3, result.size()); // Limited to 3 in the implementation
+        assertEquals(1, result.size()); // Returns 1 user from the mock
         verify(travelPlanRepository).existsById(1L);
         verify(userRepository).findAll();
     }

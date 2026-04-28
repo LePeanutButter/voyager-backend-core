@@ -16,8 +16,8 @@ class JwtTokenProviderTest {
 
     private JwtTokenProvider jwtTokenProvider;
     private String testSecret = "testSecretKeyThatIsLongEnoughForHS512AlgorithmAndMeetsRequirements";
-    private long jwtExpirationInMs = 3600000; // 1 hour
-    private long jwtRefreshExpirationInMs = 7200000; // 2 hours
+    private int jwtExpirationInMs = 3600000; // 1 hour
+    private int jwtRefreshExpirationInMs = 7200000; // 2 hours
 
     @BeforeEach
     void setUp() {

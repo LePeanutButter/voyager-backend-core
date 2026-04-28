@@ -51,6 +51,7 @@ class SecurityConfigTest {
         List<String> result = invokeParseAllowedOrigins(originsProperty);
 
         // Then
+        assertNotNull(result);
         assertTrue(result.isEmpty());
     }
 

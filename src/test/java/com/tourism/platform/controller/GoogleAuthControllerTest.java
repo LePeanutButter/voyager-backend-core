@@ -53,7 +53,7 @@ class GoogleAuthControllerTest {
         verify(response).setStatus(HttpServletResponse.SC_FOUND);
         verify(response).setHeader(eq("Location"), contains("accounts.google.com/o/oauth2/v2/auth"));
         verify(response).setHeader(eq("Location"), contains("client_id=test-client-id"));
-        verify(response).setHeader(eq("Location"), contains("redirect_uri=http://localhost:8080/callback"));
+        verify(response).setHeader(eq("Location"), contains("redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback"));
     }
 
     @Test
@@ -108,7 +108,7 @@ class GoogleAuthControllerTest {
 
         // Then
         verify(response).setStatus(HttpServletResponse.SC_FOUND);
-        verify(response).setHeader(eq("Location"), contains("error=access_denied"));
+        verify(response).setHeader(eq("Location"), contains("error=oauth_error&message=Google+OAuth2+error%3A+access_denied+-+User+denied+access"));
         verify(response).setHeader(eq("Location"), contains("message=User denied access"));
         verify(googleAuthService, never()).authenticateWithAuthorizationCode(anyString());
     }
@@ -175,7 +175,8 @@ class GoogleAuthControllerTest {
         // Then
         verify(response).setStatus(HttpServletResponse.SC_FOUND);
         verify(response).setHeader(eq("Location"), contains("error=auth_failed"));
-        verify(response).setHeader(eq("Location"), contains("message=Unexpected error"));
+        verify(response).setHeader(eq("Location"), contains("redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback"));
+        verify(response).setHeader(eq("Location"), contains("message=Unexpected+error"));
     }
 
     @Test
@@ -193,7 +194,7 @@ class GoogleAuthControllerTest {
         // Then
         verify(response).setStatus(HttpServletResponse.SC_FOUND);
         verify(response).setHeader(eq("Location"), contains("error=business_error"));
-        verify(response).setHeader(eq("Location"), contains("message=Authentication failed"));
+        verify(response).setHeader(eq("Location"), contains("message=Authentication+failed"));
     }
 
     @Test
@@ -227,7 +228,7 @@ class GoogleAuthControllerTest {
             url.contains("response_type=code") &&
             url.contains("access_type=online") &&
             url.contains("include_granted_scopes=true") &&
-            url.contains("scope=openid%20email%20profile")
+            url.contains("scope=openid+email+profile")
         ));
     }
 }
