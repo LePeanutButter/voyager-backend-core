@@ -25,11 +25,12 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class SocialServiceImpl implements SocialService {
 
+    private static final String CONNECTION_NOT_FOUND = "Connection not found";
+    private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final TravelPlanRepository travelPlanRepository;
     private final ConnectionRepository connectionRepository;
     private final SharedSpaceAccessRepository sharedSpaceAccessRepository;
-    private final MessageRepository messageRepository;
 
 
     @Override
@@ -73,7 +74,7 @@ public class SocialServiceImpl implements SocialService {
     @Transactional
     public void deleteConnection(Long connectionId, Long requestingUserId) {
         Connection connection = connectionRepository.findById(connectionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(requestingUserId) && !connection.getRecipientId().equals(requestingUserId)) {
             throw new ResourceNotFoundException("Connection not found or access denied");
@@ -95,7 +96,7 @@ public class SocialServiceImpl implements SocialService {
     public Message sendMessage(Long connectionId, Long senderId, String content) {
         // Validate connection exists and user is part of it
         Connection connection = connectionRepository.findById(connectionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(senderId) && !connection.getRecipientId().equals(senderId)) {
             throw new IllegalArgumentException("User is not part of this connection");
@@ -129,7 +130,7 @@ public class SocialServiceImpl implements SocialService {
     @Transactional(readOnly = true)
     public List<Message> getConversationMessages(Long connectionId, Long userId) {
         Connection connection = connectionRepository.findById(connectionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {
             throw new IllegalArgumentException("User is not part of this connection");
@@ -334,7 +335,7 @@ public class SocialServiceImpl implements SocialService {
     @Transactional(readOnly = true)
     public Page<Message> getConversationMessagesPaginated(Long connectionId, Long userId, int page, int size) {
         Connection connection = connectionRepository.findById(connectionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {
             throw new IllegalArgumentException("User is not part of this connection");
