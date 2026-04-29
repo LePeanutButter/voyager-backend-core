@@ -170,3 +170,4 @@ javadoc/
 application-local.yml
 application-dev.yml
 application-test.yml
+src/main/resources/application.yml.example

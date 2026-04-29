@@ -2,6 +2,7 @@ package com.tourism.platform.controller;
 
 import com.tourism.platform.dto.*;
 import com.tourism.platform.model.Message;
+import com.tourism.platform.model.User;
 import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,11 +45,18 @@ public class SocialController {
     private final SocialService socialService;
     private final JwtTokenProvider tokenProvider;
 
-    // Helper method to extract userId from JWT token
+    /** Prefer Spring Security principal (JWT filter loads {@link User} by username); fallback to userId claim if present. */
     private Long getCurrentUserId(HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User user) {
+            return user.getId();
+        }
         String token = extractTokenFromRequest(request);
         if (token != null && tokenProvider.validateToken(token)) {
-            return tokenProvider.getUserIdFromJWT(token);
+            Long userId = tokenProvider.getUserIdFromJWT(token);
+            if (userId != null) {
+                return userId;
+            }
         }
         throw new IllegalArgumentException("Invalid or missing authentication token");
     }

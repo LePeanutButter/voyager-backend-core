@@ -85,7 +85,7 @@ class ActivitySharingControllerTest {
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
             mdcMock.when(() -> MDC.get("userId")).thenReturn("1");
 
-            mockMvc.perform(post("/activities/{activityId}/share", activityId)
+            mockMvc.perform(post("/legacy/activities/{activityId}/share", activityId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(shareRequest))
                             .principal(authentication))
@@ -118,7 +118,7 @@ class ActivitySharingControllerTest {
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
             mdcMock.when(() -> MDC.get("userId")).thenReturn("1");
 
-            mockMvc.perform(patch("/shared-activities/{id}", sharedActivityId)
+            mockMvc.perform(patch("/legacy/shared-activities/{id}", sharedActivityId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(actionRequest))
                             .principal(authentication))
@@ -153,7 +153,7 @@ class ActivitySharingControllerTest {
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
             mdcMock.when(() -> MDC.get("userId")).thenReturn("1");
 
-            mockMvc.perform(patch("/shared-activities/{id}", sharedActivityId)
+            mockMvc.perform(patch("/legacy/shared-activities/{id}", sharedActivityId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(actionRequest))
                             .principal(authentication))

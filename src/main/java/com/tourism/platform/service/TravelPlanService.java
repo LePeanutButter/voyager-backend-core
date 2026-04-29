@@ -3,6 +3,7 @@ package com.tourism.platform.service;
 import com.tourism.platform.dto.TravelerMatchDto;
 import com.tourism.platform.dto.TravelPlanDto;
 import com.tourism.platform.model.TravelPlan;
+import com.tourism.platform.model.TravelPlanStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -73,4 +74,9 @@ public interface TravelPlanService {
     TravelPlanDto updateTravelPlan(Long travelPlanId, Long userId, TravelPlanDto dto);
 
     void deleteTravelPlan(Long travelPlanId, Long userId);
+
+    /**
+     * Updates only the status of a travel plan (persisted).
+     */
+    TravelPlanDto updateTravelPlanStatus(Long travelPlanId, Long userId, TravelPlanStatus status);
 }

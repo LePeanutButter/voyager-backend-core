@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/auth/google")
+@RequestMapping("/auth/google")
 @RequiredArgsConstructor
 @Slf4j
 public class GoogleAuthController {
@@ -28,6 +28,7 @@ public class GoogleAuthController {
     private final GoogleOAuthProperties properties;
     private final GoogleAuthService googleAuthService;
 
+    @GetMapping("/login")
     @Operation(summary = "Start Google OAuth2 login", description = "Redirects the user to Google authorization endpoint")
     public void login(HttpServletResponse response) {
         if (properties.getClientId() == null || properties.getClientId().isBlank()) {

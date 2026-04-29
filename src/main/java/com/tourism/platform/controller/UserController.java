@@ -39,7 +39,7 @@ import java.util.Optional;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 @Tag(name = "User Management", description = "APIs for managing user accounts and authentication")
 @Validated
@@ -86,7 +86,8 @@ public class UserController {
         
         if (userOpt.isPresent()) {
             UserDto userDto = userOpt.get();
-            String token = tokenProvider.generateTokenFromUsername(userDto.getUsername());
+            String token = tokenProvider.generateTokenFromUsernameAndUserId(
+                    userDto.getUsername(), userDto.getId());
             userDto.setToken(token);
             
             ApiResponse<UserDto> response = ApiResponse.success(

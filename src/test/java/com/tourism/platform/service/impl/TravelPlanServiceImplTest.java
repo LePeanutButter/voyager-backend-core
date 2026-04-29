@@ -108,7 +108,7 @@ class TravelPlanServiceImplTest {
         compatiblePlan.setNumberOfTravelers(3);
 
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(testTravelPlan));
-        when(travelPlanRepository.findCompatibleTravelPlans(anyString(), any(), any(), eq(1L)))
+        when(travelPlanRepository.findCompatibleTravelPlans(anyString(), any(), any(), eq(1L), eq(TravelPlanStatus.ACTIVE)))
                 .thenReturn(List.of(compatiblePlan));
 
         // When
@@ -129,7 +129,7 @@ class TravelPlanServiceImplTest {
         assertTrue(match.getCompatibilityScore() > 0.0);
 
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository).findCompatibleTravelPlans(anyString(), any(), any(), eq(1L));
+        verify(travelPlanRepository).findCompatibleTravelPlans(anyString(), any(), any(), eq(1L), eq(TravelPlanStatus.ACTIVE));
     }
 
     @Test
@@ -142,7 +142,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.findCompatibleTravelers(999L, 1L));
 
         verify(travelPlanRepository).findById(999L);
-        verify(travelPlanRepository, never()).findCompatibleTravelPlans(anyString(), any(), any(), anyLong());
+        verify(travelPlanRepository, never()).findCompatibleTravelPlans(anyString(), any(), any(), anyLong(), any());
     }
 
     @Test
@@ -151,11 +151,11 @@ class TravelPlanServiceImplTest {
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(testTravelPlan));
 
         // When & Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(AccessDeniedException.class,
                 () -> travelPlanService.findCompatibleTravelers(1L, 2L));
 
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository, never()).findCompatibleTravelPlans(anyString(), any(), any(), anyLong());
+        verify(travelPlanRepository, never()).findCompatibleTravelPlans(anyString(), any(), any(), anyLong(), any());
     }
 
     @Test

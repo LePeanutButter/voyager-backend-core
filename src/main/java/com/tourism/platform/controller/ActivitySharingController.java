@@ -26,6 +26,7 @@ import java.util.Objects;
 @RestController
 @RequiredArgsConstructor
 @Validated
+@RequestMapping("/legacy")
 public class ActivitySharingController {
     private static final Logger log = LoggerFactory.getLogger(ActivitySharingController.class);
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={} resourceId={}";

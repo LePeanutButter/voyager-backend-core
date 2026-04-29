@@ -106,7 +106,7 @@ class TravelPlanControllerTest {
                 .thenReturn(testTravelPlan);
 
         // When & Then
-        mockMvc.perform(post("/api/v1/travel-plans")
+        mockMvc.perform(post("/travel-plans")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testTravelPlan)))
                 .andExpect(status().isCreated())
@@ -126,7 +126,7 @@ class TravelPlanControllerTest {
                 .thenReturn(List.of(testTravelPlan));
 
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans"))
+        mockMvc.perform(get("/travel-plans"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Travel plans retrieved successfully"))
@@ -143,7 +143,7 @@ class TravelPlanControllerTest {
                 .thenReturn(List.of(testTravelPlan));
 
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/user/{userId}", 2L)
+        mockMvc.perform(get("/travel-plans/user/{userId}", 2L)
                         .param("page", "0")
                         .param("size", "20"))
                 .andExpect(status().isOk())
@@ -161,7 +161,7 @@ class TravelPlanControllerTest {
                 .thenReturn(testTravelPlan);
 
         // When & Then
-        mockMvc.perform(put("/api/v1/travel-plans/{id}", 1L)
+        mockMvc.perform(put("/travel-plans/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testTravelPlan)))
                 .andExpect(status().isOk())
@@ -175,7 +175,7 @@ class TravelPlanControllerTest {
     @Test
     void deleteTravelPlan_WithValidId_ShouldReturnSuccess() throws Exception {
         // When & Then
-        mockMvc.perform(delete("/api/v1/travel-plans/{id}", 1L))
+        mockMvc.perform(delete("/travel-plans/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Travel plan deleted successfully"));
@@ -196,7 +196,7 @@ class TravelPlanControllerTest {
                 .thenReturn(List.of(activityDto));
 
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/{id}/activities", 1L))
+        mockMvc.perform(get("/travel-plans/{id}/activities", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Activities retrieved successfully"))
@@ -211,7 +211,7 @@ class TravelPlanControllerTest {
     @Test
     void deleteActivity_ShouldReturnSuccess() throws Exception {
         // When & Then
-        mockMvc.perform(delete("/api/v1/travel-plans/{id}/activities/{activityId}", 1L, 1L))
+        mockMvc.perform(delete("/travel-plans/{id}/activities/{activityId}", 1L, 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Activity deleted successfully"));
@@ -223,7 +223,7 @@ class TravelPlanControllerTest {
     @Test
     void getTravelPlanConnections_WithNonAcceptedStatus_ShouldReturnEmptyList() throws Exception {
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/{id}/connections", 1L)
+        mockMvc.perform(get("/travel-plans/{id}/connections", 1L)
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
@@ -243,7 +243,7 @@ class TravelPlanControllerTest {
                 .build();
 
         // When & Then
-        mockMvc.perform(post("/api/v1/travel-plans/{id}/reservations", 1L)
+        mockMvc.perform(post("/travel-plans/{id}/reservations", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(reservationRequest)))
                 .andExpect(status().isCreated())
@@ -256,7 +256,7 @@ class TravelPlanControllerTest {
     @Test
     void getReservations_ShouldReturnReservationList() throws Exception {
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/{id}/reservations", 1L))
+        mockMvc.perform(get("/travel-plans/{id}/reservations", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Reservations retrieved successfully"))
@@ -267,7 +267,7 @@ class TravelPlanControllerTest {
     @Test
     void shareTravelPlan_ShouldReturnShareUrl() throws Exception {
         // When & Then
-        mockMvc.perform(post("/api/v1/travel-plans/{id}/share", 1L))
+        mockMvc.perform(post("/travel-plans/{id}/share", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Share link generated successfully"))
@@ -277,7 +277,7 @@ class TravelPlanControllerTest {
     @Test
     void getSharedTravelPlan_ShouldReturnSharedPlan() throws Exception {
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/shared/{shareToken}", "abc123xyz789"))
+        mockMvc.perform(get("/travel-plans/shared/{shareToken}", "abc123xyz789"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Shared travel plan retrieved successfully"))
@@ -289,7 +289,7 @@ class TravelPlanControllerTest {
     @Test
     void getTravelPlansByStatus_ShouldReturnPagedPlans() throws Exception {
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/status/{status}", TravelPlanStatus.ACTIVE)
+        mockMvc.perform(get("/travel-plans/status/{status}", TravelPlanStatus.ACTIVE)
                         .param("page", "0")
                         .param("size", "20"))
                 .andExpect(status().isOk())
@@ -301,7 +301,7 @@ class TravelPlanControllerTest {
     @Test
     void getTravelPlansByType_ShouldReturnPagedPlans() throws Exception {
         // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/type/{type}", TravelType.LEISURE)
+        mockMvc.perform(get("/travel-plans/type/{type}", TravelType.LEISURE)
                         .param("page", "0")
                         .param("size", "20"))
                 .andExpect(status().isOk())
@@ -312,59 +312,60 @@ class TravelPlanControllerTest {
 
     @Test
     void updateTravelPlanStatus_ShouldReturnUpdatedPlan() throws Exception {
-        // When & Then
-        mockMvc.perform(put("/api/v1/travel-plans/{id}/status", 1L)
+        TravelPlanDto completed = TravelPlanDto.builder()
+                .id(1L)
+                .title(testTravelPlan.getTitle())
+                .description(testTravelPlan.getDescription())
+                .status(TravelPlanStatus.COMPLETED)
+                .travelType(testTravelPlan.getTravelType())
+                .destinationLocation(testTravelPlan.getDestinationLocation())
+                .startDate(testTravelPlan.getStartDate())
+                .endDate(testTravelPlan.getEndDate())
+                .estimatedBudget(testTravelPlan.getEstimatedBudget())
+                .numberOfTravelers(testTravelPlan.getNumberOfTravelers())
+                .isPublic(testTravelPlan.getIsPublic())
+                .build();
+
+        when(travelPlanService.updateTravelPlanStatus(eq(1L), eq(1L), eq(TravelPlanStatus.COMPLETED)))
+                .thenReturn(completed);
+
+        mockMvc.perform(put("/travel-plans/{id}/status", 1L)
                         .param("status", "COMPLETED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Travel plan status updated successfully"))
                 .andExpect(jsonPath("$.data.id").value(1))
-                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.title").value(testTravelPlan.getTitle()));
+
+        verify(travelPlanService).updateTravelPlanStatus(1L, 1L, TravelPlanStatus.COMPLETED);
     }
 
     @Test
     void findCompatibleTravelers_WithExistingPlan_ShouldReturnMatches() throws Exception {
-        // Given - Add a plan to the in-memory map
-        TravelPlanDto referencePlan = TravelPlanDto.builder()
-                .id(1L)
-                .title("Paris Trip")
+        TravelerMatchDto match = TravelerMatchDto.builder()
+                .userId(2L)
+                .username("otheruser")
+                .firstName("Other")
+                .lastName("User")
+                .travelPlanId(2L)
+                .travelPlanTitle("Another Paris Trip")
                 .destinationLocation("Paris")
-                .startDate(LocalDateTime.now().plusDays(1))
-                .endDate(LocalDateTime.now().plusDays(7))
-                .status(TravelPlanStatus.ACTIVE)
+                .daysOverlap(4)
+                .compatibilityScore(75.0)
                 .build();
 
-        // Use reflection to add to the map
-        try {
-            var travelPlansField = TravelPlanController.class.getDeclaredField("travelPlans");
-            travelPlansField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            var travelPlans = (java.util.Map<Long, TravelPlanDto>) travelPlansField.get(travelPlanController);
-            travelPlans.put(1L, referencePlan);
-            
-            // Add another compatible plan
-            TravelPlanDto otherPlan = TravelPlanDto.builder()
-                    .id(2L)
-                    .title("Another Paris Trip")
-                    .destinationLocation("Paris")
-                    .startDate(LocalDateTime.now().plusDays(3))
-                    .endDate(LocalDateTime.now().plusDays(10))
-                    .status(TravelPlanStatus.ACTIVE)
-                    .build();
-            travelPlans.put(2L, otherPlan);
-        } catch (Exception e) {
-            // Skip test if reflection fails
-            return;
-        }
+        when(travelPlanService.findCompatibleTravelers(1L, 1L)).thenReturn(List.of(match));
 
-        // When & Then
-        mockMvc.perform(get("/api/v1/travel-plans/{id}/compatible-travelers", 1L))
+        mockMvc.perform(get("/travel-plans/{id}/compatible-travelers", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Compatible travelers found successfully"))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data[0].userId").value(2))
                 .andExpect(jsonPath("$.data[0].destinationLocation").value("Paris"));
+
+        verify(travelPlanService).findCompatibleTravelers(1L, 1L);
     }
 
 

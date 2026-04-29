@@ -52,7 +52,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         User user = findOrCreateGoogleUser(profile);
 
         UserDto dto = toDto(user);
-        dto.setToken(jwtTokenProvider.generateTokenFromUsername(dto.getUsername()));
+        dto.setToken(jwtTokenProvider.generateTokenFromUsernameAndUserId(dto.getUsername(), user.getId()));
         return dto;
     }
 

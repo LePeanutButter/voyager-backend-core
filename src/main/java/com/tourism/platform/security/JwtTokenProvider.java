@@ -128,7 +128,20 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
 
-        return claims.get("userId", Long.class);
+        Object raw = claims.get("userId");
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Long l) {
+            return l;
+        }
+        if (raw instanceof Integer i) {
+            return i.longValue();
+        }
+        if (raw instanceof Number n) {
+            return n.longValue();
+        }
+        return null;
     }
 
     /**

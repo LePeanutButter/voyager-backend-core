@@ -36,11 +36,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 import java.util.List;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 
 
 /**
@@ -54,7 +49,7 @@ import java.time.temporal.ChronoUnit;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/api/v1/travel-plans")
+@RequestMapping("/travel-plans")
 @RequiredArgsConstructor
 @Tag(name = "Travel Planning", description = "APIs for managing travel plans and itineraries")
 @Validated
@@ -65,10 +60,7 @@ public class TravelPlanController {
     private final TravelPlanRepository travelPlanRepository;
     private final UserRepository userRepository;
     private final TravelPlanService travelPlanService;
-    
-    // In-memory storage for demo purposes
-    private final Map<Long, TravelPlanDto> travelPlans = new ConcurrentHashMap<>();
-    
+
     // Constants for error messages
     private static final String TRAVEL_PLAN_NOT_FOUND_MSG = "Travel plan not found with ID: ";
 
@@ -436,14 +428,10 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Parameter(description = "New status") @RequestParam TravelPlanStatus status,
             HttpServletRequest request) {
-        
-        // Placeholder implementation
-        TravelPlanDto updatedPlan = TravelPlanDto.builder()
-                .id(id)
-                .title("Updated Travel Plan")
-                .status(status)
-                .build();
-        
+
+        User user = getAuthenticatedUser();
+        TravelPlanDto updatedPlan = travelPlanService.updateTravelPlanStatus(id, user.getId(), status);
+
         ApiResponse<TravelPlanDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Travel plan status updated successfully",
@@ -460,83 +448,16 @@ public class TravelPlanController {
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
 
-        // Get the reference travel plan from memory
-        TravelPlanDto referencePlan = travelPlans.get(id);
+        User user = getAuthenticatedUser();
+        List<TravelerMatchDto> compatibleTravelers = travelPlanService.findCompatibleTravelers(id, user.getId());
 
-        if (referencePlan == null) {
-            ApiResponse<List<TravelerMatchDto>> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    TRAVEL_PLAN_NOT_FOUND_MSG + id,
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
-
-        // Find compatible travelers in memory
-        List<TravelerMatchDto> compatibleTravelers = new ArrayList<>();
-
-        for (Map.Entry<Long, TravelPlanDto> entry : travelPlans.entrySet()) {
-            Long otherPlanId = entry.getKey();
-            TravelPlanDto otherPlan = entry.getValue();
-
-            // Skip the same plan and non-ACTIVE plans
-            if (otherPlanId.equals(id) || otherPlan.getStatus() != TravelPlanStatus.ACTIVE) {
-                continue;
-            }
-
-            // Check destination match (case-insensitive) and date overlap
-            if (referencePlan.getDestinationLocation() != null &&
-                    otherPlan.getDestinationLocation() != null &&
-                    referencePlan.getDestinationLocation().equalsIgnoreCase(otherPlan.getDestinationLocation()) &&
-                    isDateOverlap(referencePlan.getStartDate(), referencePlan.getEndDate(),
-                            otherPlan.getStartDate(), otherPlan.getEndDate())) {
-
-                // Calculate overlapping days
-                long overlappingDays = calculateOverlappingDays(
-                        referencePlan.getStartDate(), referencePlan.getEndDate(),
-                        otherPlan.getStartDate(), otherPlan.getEndDate()
-                );
-
-                // Calculate compatibility score
-                double compatibilityScore = (double) overlappingDays /
-                        Math.min(
-                                getDaysBetween(referencePlan.getStartDate(), referencePlan.getEndDate()),
-                                getDaysBetween(otherPlan.getStartDate(), otherPlan.getEndDate())
-                        ) * 100;
-
-                // Create match DTO (simplified user info)
-                TravelerMatchDto match = TravelerMatchDto.builder()
-                        .userId(otherPlanId) // Using plan ID as traveler ID for demo
-                        .username("traveler" + otherPlanId)
-                        .firstName("Traveler")
-                        .lastName("User " + otherPlanId)
-                        .travelPlanId(otherPlanId)
-                        .travelPlanTitle(otherPlan.getTitle())
-                        .destinationLocation(otherPlan.getDestinationLocation())
-                        .travelStartDate(otherPlan.getStartDate())
-                        .travelEndDate(otherPlan.getEndDate())
-                        .numberOfTravelers(otherPlan.getNumberOfTravelers())
-                        .daysOverlap((int) overlappingDays)
-                        .compatibilityScore(Math.round(compatibilityScore * 10.0) / 10.0)
-                        .build();
-
-                compatibleTravelers.add(match);
-            }
-        }
-
-        if (compatibleTravelers.isEmpty()) {
-            ApiResponse<List<TravelerMatchDto>> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "No compatible travelers found for this travel plan",
-                    compatibleTravelers,
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        }
+        String message = compatibleTravelers.isEmpty()
+                ? "No compatible travelers found for this travel plan"
+                : "Compatible travelers found successfully";
 
         ApiResponse<List<TravelerMatchDto>> response = ApiResponse.success(
                 HttpStatus.OK.value(),
-                "Compatible travelers found successfully",
+                message,
                 compatibleTravelers,
                 request.getRequestURI()
         );
@@ -559,21 +480,6 @@ public class TravelPlanController {
         );
 
         return ResponseEntity.ok(response);
-    }
-
-    // Helper methods for date calculations
-    private boolean isDateOverlap(LocalDateTime start1, LocalDateTime end1, LocalDateTime start2, LocalDateTime end2) {
-        return start1.isBefore(end2) && end1.isAfter(start2);
-    }
-
-    private long calculateOverlappingDays(LocalDateTime start1, LocalDateTime end1, LocalDateTime start2, LocalDateTime end2) {
-        LocalDateTime overlapStart = start1.isAfter(start2) ? start1 : start2;
-        LocalDateTime overlapEnd = end1.isBefore(end2) ? end1 : end2;
-        return ChronoUnit.DAYS.between(overlapStart, overlapEnd);
-    }
-
-    private long getDaysBetween(LocalDateTime start, LocalDateTime end) {
-        return ChronoUnit.DAYS.between(start, end);
     }
 
     private User getAuthenticatedUser() {
