@@ -25,4 +25,12 @@ class SendMessageRequestTest {
         SendMessageRequest request = new SendMessageRequest();
         assertNotNull(request);
     }
+
+    @Test
+    void allArgsConstructor_SetsFields() {
+        SendMessageRequest request = new SendMessageRequest(5L, 9L, "hi");
+        assertEquals(5L, request.getConnectionId());
+        assertEquals(9L, request.getSenderId());
+        assertEquals("hi", request.getContent());
+    }
 }

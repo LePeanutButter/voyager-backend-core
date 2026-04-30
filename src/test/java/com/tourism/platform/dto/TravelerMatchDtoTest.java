@@ -257,6 +257,30 @@ class TravelerMatchDtoTest {
     }
 
     @Test
+    void createSimpleMatch_FromTravelerMatchData_DelegatesToBuilder() {
+        LocalDateTime start = LocalDateTime.of(2024, 6, 1, 10, 0);
+        LocalDateTime end = LocalDateTime.of(2024, 6, 7, 18, 0);
+        TravelerMatchDto.TravelerMatchData data = new TravelerMatchDto.TravelerMatchData.Builder()
+                .userId(3L)
+                .username("u")
+                .firstName("F")
+                .lastName("L")
+                .destinationLocation("Tokyo")
+                .travelStartDate(start)
+                .travelEndDate(end)
+                .daysOverlap(4)
+                .build();
+
+        TravelerMatchDto dto = TravelerMatchDto.createSimpleMatch(data);
+
+        assertEquals(3L, dto.getUserId());
+        assertEquals("Tokyo", dto.getDestinationLocation());
+        assertEquals(4, dto.getDaysOverlap());
+        assertEquals(start, data.getTravelStartDate());
+        assertEquals("u", data.getUsername());
+    }
+
+    @Test
     void createSimpleMatch_MultipleCalls_ShouldCreateIndependentInstances() {
         // Given
         Long userId1 = 1L;
