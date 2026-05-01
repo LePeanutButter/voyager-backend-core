@@ -1,6 +1,7 @@
 package com.tourism.platform.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.ShareActivityRequest;
 import com.tourism.platform.dto.SharedActivityDecisionRequest;
 import com.tourism.platform.dto.SharedActivityResponse;
@@ -13,11 +14,14 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -142,6 +146,46 @@ class SharedActivityControllerTest {
                             .content(objectMapper.writeValueAsString(body))
                             .principal(authentication))
                     .andExpect(status().isCreated());
+        }
+    }
+
+    @Test
+    void shareActivity_WithNullHttpServletRequest_UsesSafePath() {
+        Long activityId = 100L;
+        ShareActivityRequest body = new ShareActivityRequest();
+        body.setReceiverId(200L);
+
+        when(sharedActivityService.shareActivity(eq(activityId), eq(200L), eq("testuser")))
+                .thenReturn(sharedActivityResponse);
+
+        try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
+            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+
+            ResponseEntity<ApiResponse<SharedActivityResponse>> response =
+                    controller.shareActivity(activityId, body, authentication, null);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getPath()).isEmpty(); // safePath returns "" for null
+        }
+    }
+
+    @Test
+    void updateSharedActivityStatus_WithNullHttpServletRequest_UsesSafePath() {
+        Long sharedActivityId = 1L;
+
+        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(SharedActivityDecisionRequest.class), eq("testuser")))
+                .thenReturn(sharedActivityResponse);
+
+        try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
+            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+
+            ResponseEntity<ApiResponse<SharedActivityResponse>> response =
+                    controller.updateSharedActivityStatus(sharedActivityId, decisionRequest, authentication, null);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getPath()).isEmpty(); // safePath returns "" for null
         }
     }
 }
