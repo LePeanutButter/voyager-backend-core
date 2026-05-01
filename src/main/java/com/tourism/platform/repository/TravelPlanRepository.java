@@ -26,11 +26,13 @@ public interface TravelPlanRepository extends JpaRepository<TravelPlan, Long> {
             FROM TravelPlan tp
             WHERE tp.destinationLocation = :destination
               AND tp.user.id <> :requestingUserId
+              AND tp.status = :activeStatus
               AND tp.startDate <= :endDate
               AND tp.endDate >= :startDate
             """)
     List<TravelPlan> findCompatibleTravelPlans(@Param("destination") String destination,
                                                @Param("startDate") java.time.LocalDateTime startDate,
                                                @Param("endDate") java.time.LocalDateTime endDate,
-                                               @Param("requestingUserId") Long requestingUserId);
+                                               @Param("requestingUserId") Long requestingUserId,
+                                               @Param("activeStatus") TravelPlanStatus activeStatus);
 }

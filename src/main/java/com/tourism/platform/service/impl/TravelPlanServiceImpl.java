@@ -48,15 +48,16 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         
         // Validate that the requesting user owns this travel plan
         if (!referenceTravelPlan.getUser().getId().equals(requestingUserId)) {
-            throw new IllegalArgumentException("User does not own this travel plan");
+            throw new AccessDeniedException("User does not own this travel plan");
         }
 
-        // Find compatible travel plans from other users
+        // Find compatible travel plans from other users (only ACTIVE plans)
         List<TravelPlan> compatiblePlans = travelPlanRepository.findCompatibleTravelPlans(
                 referenceTravelPlan.getDestinationLocation(),
                 referenceTravelPlan.getStartDate(),
                 referenceTravelPlan.getEndDate(),
-                requestingUserId
+                requestingUserId,
+                TravelPlanStatus.ACTIVE
         );
 
         log.info("Found {} compatible travel plans", compatiblePlans.size());
@@ -193,6 +194,18 @@ public class TravelPlanServiceImpl implements TravelPlanService {
         }
 
         travelPlanRepository.delete(existing);
+    }
+
+    @Override
+    @Transactional
+    public TravelPlanDto updateTravelPlanStatus(Long travelPlanId, Long userId, TravelPlanStatus status) {
+        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+        if (!existing.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("You are not allowed to update this travel plan");
+        }
+        existing.setStatus(status);
+        return toDto(travelPlanRepository.save(existing));
     }
 
     private TravelPlanDto toDto(TravelPlan plan) {

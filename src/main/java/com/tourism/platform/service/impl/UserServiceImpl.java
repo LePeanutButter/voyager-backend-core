@@ -95,36 +95,38 @@ public class UserServiceImpl implements UserService {
     public Optional<UserDto> updateUser(Long userId, UserUpdateDto updateDto) {
         return userRepository.findById(userId)
                 .map(user -> {
-                    if (updateDto.getFirstName() == null || updateDto.getFirstName().trim().isEmpty()) {
-                        throw new IllegalArgumentException("firstName is required");
-                    }
-                    if (updateDto.getBio() == null || updateDto.getBio().trim().isEmpty()) {
-                        throw new IllegalArgumentException("bio is required");
-                    }
-
-                    // Update fields if provided
-                    if (updateDto.getFirstName() != null) {
-                        user.setFirstName(updateDto.getFirstName());
-                    }
-                    if (updateDto.getLastName() != null) {
-                        user.setLastName(updateDto.getLastName());
-                    }
-                    if (updateDto.getPhoneNumber() != null) {
-                        user.setPhoneNumber(updateDto.getPhoneNumber());
-                    }
-                    if (updateDto.getProfileImageUrl() != null) {
-                        user.setProfileImageUrl(updateDto.getProfileImageUrl());
-                    }
-                    if (updateDto.getBio() != null) {
-                        user.setBio(updateDto.getBio());
-                    }
-                    if (updateDto.getInterests() != null) {
-                        user.setInterests(new java.util.HashSet<>(updateDto.getInterests()));
-                    }
-
+                    validateUpdateDto(updateDto);
+                    updateUserFields(user, updateDto);
                     User updatedUser = userRepository.save(user);
                     return convertToDto(updatedUser);
                 });
+    }
+
+    private void validateUpdateDto(UserUpdateDto updateDto) {
+        if (updateDto.getFirstName() == null || updateDto.getFirstName().trim().isEmpty()) {
+            throw new IllegalArgumentException("firstName is required");
+        }
+        if (updateDto.getBio() == null || updateDto.getBio().trim().isEmpty()) {
+            throw new IllegalArgumentException("bio is required");
+        }
+    }
+
+    private void updateUserFields(User user, UserUpdateDto updateDto) {
+        updateOptionalField(user::setFirstName, updateDto.getFirstName());
+        updateOptionalField(user::setLastName, updateDto.getLastName());
+        updateOptionalField(user::setPhoneNumber, updateDto.getPhoneNumber());
+        updateOptionalField(user::setProfileImageUrl, updateDto.getProfileImageUrl());
+        updateOptionalField(user::setBio, updateDto.getBio());
+        
+        if (updateDto.getInterests() != null) {
+            user.setInterests(new java.util.HashSet<>(updateDto.getInterests()));
+        }
+    }
+
+    private <T> void updateOptionalField(java.util.function.Consumer<T> setter, T value) {
+        if (value != null) {
+            setter.accept(value);
+        }
     }
 
     @Override

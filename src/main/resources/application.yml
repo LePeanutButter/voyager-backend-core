@@ -16,9 +16,9 @@ spring:
   
   # Database Configuration
   datasource:
-    url: jdbc:postgresql://localhost:5433/tourism_platform
-    username: ${DB_USERNAME:tourism_user}
-    password: ${DB_PASSWORD:tourism_pass}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/tourism_platform}
+    username: ${DB_USERNAME:SWNT_user}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -43,11 +43,6 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-  
-  # H2 Database (for testing)
-  h2:
-    console:
-      enabled: false
   
   # Security Configuration
   security:
@@ -141,21 +136,10 @@ spring:
     activate:
       on-profile: dev
   
-  datasource:
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password: 
-    driver-class-name: org.h2.Driver
-  
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
-  
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
 
 logging:
   level:

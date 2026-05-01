@@ -97,17 +97,70 @@ public class TravelerMatchDto {
         private final LocalDateTime travelEndDate;
         private final Integer daysOverlap;
         
-        public TravelerMatchData(Long userId, String username, String firstName, String lastName,
-                               String destinationLocation, LocalDateTime travelStartDate,
-                               LocalDateTime travelEndDate, Integer daysOverlap) {
-            this.userId = userId;
-            this.username = username;
-            this.firstName = firstName;
-            this.lastName = lastName;
-            this.destinationLocation = destinationLocation;
-            this.travelStartDate = travelStartDate;
-            this.travelEndDate = travelEndDate;
-            this.daysOverlap = daysOverlap;
+        private TravelerMatchData(Builder builder) {
+            this.userId = builder.userId;
+            this.username = builder.username;
+            this.firstName = builder.firstName;
+            this.lastName = builder.lastName;
+            this.destinationLocation = builder.destinationLocation;
+            this.travelStartDate = builder.travelStartDate;
+            this.travelEndDate = builder.travelEndDate;
+            this.daysOverlap = builder.daysOverlap;
+        }
+        
+        public static class Builder {
+            private Long userId;
+            private String username;
+            private String firstName;
+            private String lastName;
+            private String destinationLocation;
+            private LocalDateTime travelStartDate;
+            private LocalDateTime travelEndDate;
+            private Integer daysOverlap;
+            
+            public Builder userId(Long userId) {
+                this.userId = userId;
+                return this;
+            }
+            
+            public Builder username(String username) {
+                this.username = username;
+                return this;
+            }
+            
+            public Builder firstName(String firstName) {
+                this.firstName = firstName;
+                return this;
+            }
+            
+            public Builder lastName(String lastName) {
+                this.lastName = lastName;
+                return this;
+            }
+            
+            public Builder destinationLocation(String destinationLocation) {
+                this.destinationLocation = destinationLocation;
+                return this;
+            }
+            
+            public Builder travelStartDate(LocalDateTime travelStartDate) {
+                this.travelStartDate = travelStartDate;
+                return this;
+            }
+            
+            public Builder travelEndDate(LocalDateTime travelEndDate) {
+                this.travelEndDate = travelEndDate;
+                return this;
+            }
+            
+            public Builder daysOverlap(Integer daysOverlap) {
+                this.daysOverlap = daysOverlap;
+                return this;
+            }
+            
+            public TravelerMatchData build() {
+                return new TravelerMatchData(this);
+            }
         }
         
         // Getters

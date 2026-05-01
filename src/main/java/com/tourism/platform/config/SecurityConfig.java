@@ -24,7 +24,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Security Configuration for the Tourism Platform
@@ -128,27 +127,24 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/info").permitAll()
                 .requestMatchers("/actuator/metrics").hasRole("ADMIN")
                 
-                // Public GET endpoints for browsing
-                .requestMatchers(HttpMethod.GET, "/api/v1/destinations/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/activities/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/services/**").permitAll()
+                // Public GET endpoints for browsing (paths are servlet-relative; context-path is /api/v1)
+                .requestMatchers(HttpMethod.GET, "/destinations/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/activities/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/services/**").permitAll()
                 
                 // Travel planning endpoints (authenticated)
-                .requestMatchers("/api/v1/travel-plans/**").authenticated()
-                .requestMatchers("/api/v1/reservations/**").authenticated()
+                .requestMatchers("/travel-plans/**").authenticated()
                 
-                // Social features endpoints (authenticated)
-                .requestMatchers("/api/v1/connections/**").authenticated()
-                .requestMatchers("/api/v1/reviews/**").authenticated()
-                .requestMatchers("/api/v1/messages/**").authenticated()
-                
+                // Social features (SocialController lives under /social)
+                .requestMatchers("/social/**").authenticated()
+
                 // User management endpoints
-                .requestMatchers(HttpMethod.GET, "/api/v1/users/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/v1/users/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/v1/users/**").hasRole("SUPER_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/users/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("SUPER_ADMIN")
                 
                 // Admin endpoints
-                .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 
                 // All other requests require authentication
                 .anyRequest().authenticated()
@@ -164,6 +160,6 @@ public class SecurityConfig {
         return java.util.Arrays.stream(originsProperty.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
-                .collect(Collectors.toList());
+                .toList();
     }
 }

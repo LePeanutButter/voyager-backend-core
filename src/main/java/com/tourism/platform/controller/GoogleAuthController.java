@@ -5,9 +5,9 @@ import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.exception.BusinessException;
 import com.tourism.platform.service.GoogleAuthService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,8 +20,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/auth/google")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "OAuth2 login with Google")
+@Slf4j
 public class GoogleAuthController {
+
+    private static final String LOCATION_HEADER = "Location";
 
     private final GoogleOAuthProperties properties;
     private final GoogleAuthService googleAuthService;
@@ -46,7 +48,7 @@ public class GoogleAuthController {
                 "&state=" + url(state);
 
         response.setStatus(HttpServletResponse.SC_FOUND);
-        response.setHeader("Location", authorizeUrl);
+        response.setHeader(LOCATION_HEADER, authorizeUrl);
     }
 
     @GetMapping("/callback")
@@ -71,7 +73,7 @@ public class GoogleAuthController {
             UserDto userDto = googleAuthService.authenticateWithAuthorizationCode(code);
             String redirect = frontendCallbackBase() + "?token=" + url(userDto.getToken());
             response.setStatus(HttpServletResponse.SC_FOUND);
-            response.setHeader("Location", redirect);
+            response.setHeader(LOCATION_HEADER, redirect);
         } catch (BusinessException ex) {
             redirectWithError(response, "business_error", ex.getMessage());
         } catch (Exception ex) {
@@ -84,7 +86,7 @@ public class GoogleAuthController {
                 "?error=" + url(error) +
                 "&message=" + url(message != null ? message : "Authentication failed");
         response.setStatus(HttpServletResponse.SC_FOUND);
-        response.setHeader("Location", redirect);
+        response.setHeader(LOCATION_HEADER, redirect);
     }
 
     private String frontendCallbackBase() {

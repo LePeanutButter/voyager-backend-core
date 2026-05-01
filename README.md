@@ -53,7 +53,7 @@ The API follows REST best practices and implements the Richardson Maturity Model
 2. **Set up the database**
    ```bash
    # Create PostgreSQL database
-   createdb tourism_platform
+   createdb -U postgres tourism_platform
    
    # Update application.yml with your database credentials
    cp src/main/resources/application.yml.example src/main/resources/application.yml

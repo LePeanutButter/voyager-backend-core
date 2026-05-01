@@ -1,7 +1,10 @@
 package com.tourism.platform.controller;
 
-import com.tourism.platform.dto.ApiResponse;
-import com.tourism.platform.dto.PagedResponse;
+import com.tourism.platform.dto.*;
+import com.tourism.platform.model.Message;
+import com.tourism.platform.model.User;
+import com.tourism.platform.security.JwtTokenProvider;
+import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +17,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,30 +36,55 @@ import java.util.Map;
  * - Content negotiation
  */
 @RestController
-@RequestMapping("/api/v1/social")
+@RequestMapping("/social")
 @RequiredArgsConstructor
 @Tag(name = "Social Features", description = "APIs for traveler social interactions")
 @Validated
 public class SocialController {
 
+    private final SocialService socialService;
+    private final JwtTokenProvider tokenProvider;
+
+    /** Prefer Spring Security principal (JWT filter loads {@link User} by username); fallback to userId claim if present. */
+    private Long getCurrentUserId(HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User user) {
+            return user.getId();
+        }
+        String token = extractTokenFromRequest(request);
+        if (token != null && tokenProvider.validateToken(token)) {
+            Long userId = tokenProvider.getUserIdFromJWT(token);
+            if (userId != null) {
+                return userId;
+            }
+        }
+        throw new IllegalArgumentException("Invalid or missing authentication token");
+    }
+
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+
     // Traveler Connections
     @PostMapping("/connections")
     @Operation(summary = "Send connection request", description = "Sends a connection request to another traveler")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> sendConnectionRequest(
-            @Valid @RequestBody Map<String, Object> requestData,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<ConnectionRequestDto>> sendConnectionRequest(
+            @Valid @RequestBody SendConnectionRequestDto request,
+            HttpServletRequest httpRequest) {
         
-        Map<String, Object> responseData = Map.of(
-                "requestId", 1L,
-                "recipientId", requestData.get("recipientId"),
-                "status", "PENDING"
-        );
+        Long currentUserId = getCurrentUserId(httpRequest);
         
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+        ConnectionRequestDto connectionRequest = socialService.sendConnectionRequest(request, currentUserId);
+        
+        ApiResponse<ConnectionRequestDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
                 "Connection request sent successfully",
-                responseData,
-                request.getRequestURI()
+                connectionRequest,
+                httpRequest.getRequestURI()
         );
         
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -62,43 +92,37 @@ public class SocialController {
 
     @GetMapping("/connections/{userId}")
     @Operation(summary = "Get user connections", description = "Retrieves all connections for a user")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserConnections(
+    public ResponseEntity<ApiResponse<List<TravelConnectionDto>>> getUserConnections(
             @Parameter(description = "User ID") @PathVariable Long userId,
             HttpServletRequest request) {
-        
-        List<Map<String, Object>> connections = List.of(
-                Map.of("id", 1L, "username", "john_doe", "status", "ACCEPTED"),
-                Map.of("id", 2L, "username", "jane_smith", "status", "ACCEPTED"),
-                Map.of("id", 3L, "username", "mike_johnson", "status", "PENDING")
-        );
-        
-        ApiResponse<List<Map<String, Object>>> response = ApiResponse.success(
+
+        List<TravelConnectionDto> connections = socialService.getUserConnections(userId);
+
+        ApiResponse<List<TravelConnectionDto>> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connections retrieved successfully",
                 connections,
                 request.getRequestURI()
         );
-        
+
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/connections/{requestId}/accept")
     @Operation(summary = "Accept connection request", description = "Accepts a pending connection request")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> acceptConnectionRequest(
+    public ResponseEntity<ApiResponse<ConnectionRequestDto>> acceptConnectionRequest(
             @Parameter(description = "Connection request ID") @PathVariable Long requestId,
-            HttpServletRequest request) {
+            HttpServletRequest httpRequest) {
         
-        Map<String, Object> responseData = Map.of(
-                "requestId", requestId,
-                "status", "ACCEPTED",
-                "acceptedAt", java.time.LocalDateTime.now()
-        );
+        Long currentUserId = getCurrentUserId(httpRequest);
         
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+        ConnectionRequestDto connectionRequest = socialService.acceptConnectionRequest(requestId, currentUserId);
+        
+        ApiResponse<ConnectionRequestDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connection request accepted",
-                responseData,
-                request.getRequestURI()
+                connectionRequest,
+                httpRequest.getRequestURI()
         );
         
         return ResponseEntity.ok(response);
@@ -106,21 +130,57 @@ public class SocialController {
 
     @PutMapping("/connections/{requestId}/reject")
     @Operation(summary = "Reject connection request", description = "Rejects a pending connection request")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> rejectConnectionRequest(
+    public ResponseEntity<ApiResponse<ConnectionRequestDto>> rejectConnectionRequest(
             @Parameter(description = "Connection request ID") @PathVariable Long requestId,
-            HttpServletRequest request) {
+            HttpServletRequest httpRequest) {
         
-        Map<String, Object> responseData = Map.of(
-                "requestId", requestId,
-                "status", "REJECTED",
-                "rejectedAt", java.time.LocalDateTime.now()
-        );
+        Long currentUserId = getCurrentUserId(httpRequest);
         
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+        ConnectionRequestDto connectionRequest = socialService.rejectConnectionRequest(requestId, currentUserId);
+        
+        ApiResponse<ConnectionRequestDto> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connection request rejected",
-                responseData,
-                request.getRequestURI()
+                connectionRequest,
+                httpRequest.getRequestURI()
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/connections/pending")
+    @Operation(summary = "Get pending connection requests", description = "Retrieves all pending connection requests received by the user")
+    public ResponseEntity<ApiResponse<List<ConnectionRequestDto>>> getPendingRequests(
+            HttpServletRequest httpRequest) {
+        
+        Long currentUserId = getCurrentUserId(httpRequest);
+        
+        List<ConnectionRequestDto> pendingRequests = socialService.getPendingRequestsForUser(currentUserId);
+        
+        ApiResponse<List<ConnectionRequestDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Pending requests retrieved successfully",
+                pendingRequests,
+                httpRequest.getRequestURI()
+        );
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/connections/sent")
+    @Operation(summary = "Get sent connection requests", description = "Retrieves all pending connection requests sent by the user")
+    public ResponseEntity<ApiResponse<List<ConnectionRequestDto>>> getSentRequests(
+            HttpServletRequest httpRequest) {
+        
+        Long currentUserId = getCurrentUserId(httpRequest);
+        
+        List<ConnectionRequestDto> sentRequests = socialService.getSentRequestsForUser(currentUserId);
+        
+        ApiResponse<List<ConnectionRequestDto>> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Sent requests retrieved successfully",
+                sentRequests,
+                httpRequest.getRequestURI()
         );
         
         return ResponseEntity.ok(response);
@@ -131,13 +191,36 @@ public class SocialController {
     public ResponseEntity<ApiResponse<Void>> removeConnection(
             @Parameter(description = "Connection ID") @PathVariable Long connectionId,
             HttpServletRequest request) {
-        
+
+        // TODO: Get current user ID from security context
+        Long currentUserId = 1L; // Placeholder - should get from authentication
+
+        socialService.deleteConnection(connectionId, currentUserId);
+
         ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Connection removed successfully",
                 request.getRequestURI()
         );
-        
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/travelers/{id}/summary")
+    @Operation(summary = "Get traveler summary profile", description = "Retrieves the public summary profile for a compatible traveler")
+    public ResponseEntity<ApiResponse<TravelerSummaryDto>> getTravelerSummary(
+            @Parameter(description = "Traveler ID") @PathVariable("id") Long travelerId,
+            HttpServletRequest request) {
+
+        TravelerSummaryDto summary = socialService.getTravelerSummary(travelerId);
+
+        ApiResponse<TravelerSummaryDto> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Traveler summary retrieved successfully",
+                summary,
+                request.getRequestURI()
+        );
+
         return ResponseEntity.ok(response);
     }
 
@@ -236,31 +319,6 @@ public class SocialController {
         return ResponseEntity.ok(response);
     }
 
-    // Messaging System
-    @PostMapping("/messages")
-    @Operation(summary = "Send message", description = "Sends a message to another user")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> sendMessage(
-            @Valid @RequestBody Map<String, Object> messageData,
-            HttpServletRequest request) {
-        
-        Map<String, Object> responseData = Map.of(
-                "messageId", 1L,
-                "recipientId", messageData.get("recipientId"),
-                "content", messageData.get("content"),
-                "status", "SENT",
-                "sentAt", java.time.LocalDateTime.now()
-        );
-        
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
-                HttpStatus.CREATED.value(),
-                "Message sent successfully",
-                responseData,
-                request.getRequestURI()
-        );
-        
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
     @GetMapping("/conversations/{userId}")
     @Operation(summary = "Get conversations", description = "Retrieves all conversations for a user")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getConversations(
@@ -283,54 +341,45 @@ public class SocialController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/messages/{conversationId}")
-    @Operation(summary = "Get conversation messages", description = "Retrieves messages from a specific conversation")
-    public ResponseEntity<PagedResponse<Map<String, Object>>> getConversationMessages(
-            @Parameter(description = "Conversation ID") @PathVariable Long conversationId,
+    // Update getConversationMessages endpoint
+    @GetMapping("/connections/{connectionId}/messages")
+    @Operation(summary = "Get conversation messages", description = "Retrieves paginated messages from a specific connection")
+    public ResponseEntity<PagedResponse<Message>> getConversationMessages(
+            @Parameter(description = "Connection ID") @PathVariable Long connectionId,
+            @Parameter(description = "User ID") @RequestParam Long userId,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "50") int size,
             HttpServletRequest request) {
-        
-        List<Map<String, Object>> messages = List.of(
-                Map.of("id", 1L, "sender", "John Doe", "content", "Hi there!", "timestamp", java.time.LocalDateTime.now()),
-                Map.of("id", 2L, "sender", "Jane Smith", "content", "How are you?", "timestamp", java.time.LocalDateTime.now()),
-                Map.of("id", 3L, "sender", "John Doe", "content", "Great thanks!", "timestamp", java.time.LocalDateTime.now())
-        );
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
-        Page<Map<String, Object>> pageResult = new org.springframework.data.domain.PageImpl<>(
-                messages, pageable, messages.size()
-        );
-        
-        PagedResponse<Map<String, Object>> response = PagedResponse.fromPage(
-                pageResult,
+
+        Page<Message> messagesPage = socialService.getConversationMessagesPaginated(connectionId, userId, page, size);
+
+        PagedResponse<Message> response = PagedResponse.fromPage(
+                messagesPage,
                 "Messages retrieved successfully",
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );
-        
+
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/messages/{messageId}/read")
     @Operation(summary = "Mark message as read", description = "Marks a message as read")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> markMessageAsRead(
+    public ResponseEntity<ApiResponse<Void>> markMessageAsRead(
             @Parameter(description = "Message ID") @PathVariable Long messageId,
             HttpServletRequest request) {
-        
-        Map<String, Object> responseData = Map.of(
-                "messageId", messageId,
-                "status", "READ",
-                "readAt", java.time.LocalDateTime.now()
-        );
-        
-        ApiResponse<Map<String, Object>> response = ApiResponse.success(
+
+        // TODO: Get current user ID from security context
+        Long currentUserId = 1L; // Placeholder - should get from authentication
+
+        socialService.markMessageAsRead(messageId, currentUserId);
+
+        ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Message marked as read",
-                responseData,
                 request.getRequestURI()
         );
-        
+
         return ResponseEntity.ok(response);
     }
 
@@ -484,4 +533,29 @@ public class SocialController {
         
         return ResponseEntity.ok(response);
     }
+
+    // Update sendMessage endpoint
+    @PostMapping("/messages")
+    @Operation(summary = "Send message", description = "Sends a message to a connected user")
+    public ResponseEntity<ApiResponse<Message>> sendMessage(
+            @Valid @RequestBody SendMessageRequest messageRequest,
+            HttpServletRequest httpRequest) {
+
+        Message message = socialService.sendMessage(
+                messageRequest.getConnectionId(),
+                messageRequest.getSenderId(),
+                messageRequest.getContent()
+        );
+
+        ApiResponse<Message> response = ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                "Message sent successfully",
+                message,
+                httpRequest.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+
 }

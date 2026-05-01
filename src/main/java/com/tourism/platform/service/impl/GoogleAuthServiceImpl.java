@@ -36,9 +36,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RestTemplate restTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public UserDto authenticateWithAuthorizationCode(String code) {
@@ -52,7 +52,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         User user = findOrCreateGoogleUser(profile);
 
         UserDto dto = toDto(user);
-        dto.setToken(jwtTokenProvider.generateTokenFromUsername(dto.getUsername()));
+        dto.setToken(jwtTokenProvider.generateTokenFromUsernameAndUserId(dto.getUsername(), user.getId()));
         return dto;
     }
 
