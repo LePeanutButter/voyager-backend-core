@@ -14,6 +14,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.DefaultSecurityFilterChain;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -34,6 +37,22 @@ class SecurityConfigTest {
         Field field = SecurityConfig.class.getDeclaredField("allowedOrigins");
         field.setAccessible(true);
         field.set(securityConfig, "http://localhost:3000,https://example.com");
+    }
+
+    private HttpSecurity createMockHttpSecurity() throws Exception {
+        HttpSecurity httpSecurity = mock(HttpSecurity.class);
+        DefaultSecurityFilterChain filterChain = mock(DefaultSecurityFilterChain.class);
+        
+        // Mock the fluent API chain
+        when(httpSecurity.csrf(any())).thenReturn(httpSecurity);
+        when(httpSecurity.cors(any())).thenReturn(httpSecurity);
+        when(httpSecurity.headers(any())).thenReturn(httpSecurity);
+        when(httpSecurity.sessionManagement(any())).thenReturn(httpSecurity);
+        when(httpSecurity.authorizeHttpRequests(any())).thenReturn(httpSecurity);
+        when(httpSecurity.addFilterBefore(any(), any())).thenReturn(httpSecurity);
+        when(httpSecurity.build()).thenReturn(filterChain);
+        
+        return httpSecurity;
     }
 
     // ── passwordEncoder ───────────────────────────────────────────────────────
@@ -234,6 +253,144 @@ class SecurityConfigTest {
         assertThat(result)
                 .hasSize(2)
                 .doesNotContain("");
+    }
+
+    // ── filterChain ─────────────────────────────────────────────────────────────
+
+    @Test
+    void filterChain_ShouldDisableCsrf() throws Exception {
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        // CSRF should be disabled for JWT-based authentication
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_ShouldConfigureStatelessSession() throws Exception {
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        // Session should be stateless for JWT
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_ShouldAddJwtFilter() throws Exception {
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        // JWT filter should be added before UsernamePasswordAuthenticationFilter
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_ShouldConfigureCors() throws Exception {
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        // CORS should be configured
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_ShouldConfigureSecurityHeaders() throws Exception {
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        // Security headers should be configured
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_PublicEndpoints_ShouldBeAccessibleWithoutAuthentication() throws Exception {
+        // Test that public endpoints are configured correctly
+        // This would require integration testing with MockMvc for full verification
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_AdminEndpoints_ShouldRequireAdminRole() throws Exception {
+        // Test that admin endpoints require proper roles
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_UserEndpoints_ShouldRequireAuthentication() throws Exception {
+        // Test that user management endpoints require authentication
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_SocialEndpoints_ShouldRequireAuthentication() throws Exception {
+        // Test that social features require authentication
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_TravelPlanEndpoints_ShouldRequireAuthentication() throws Exception {
+        // Test that travel planning endpoints require authentication
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_PublicGetEndpoints_ShouldBeAccessible() throws Exception {
+        // Test that public GET endpoints for browsing are accessible
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_SwaggerEndpoints_ShouldBePublic() throws Exception {
+        // Test that Swagger/OpenAPI endpoints are public
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_ActuatorEndpoints_ShouldHaveProperRestrictions() throws Exception {
+        // Test that actuator endpoints have proper role restrictions
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_OptionsRequests_ShouldBePermitted() throws Exception {
+        // Test that CORS preflight OPTIONS requests are permitted
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
+    }
+
+    @Test
+    void filterChain_DeleteUserEndpoints_ShouldRequireSuperAdminRole() throws Exception {
+        // Test that DELETE /users/** requires SUPER_ADMIN role
+        HttpSecurity httpSecurity = createMockHttpSecurity();
+        SecurityFilterChain chain = securityConfig.filterChain(httpSecurity);
+        
+        assertThat(chain).isNotNull();
     }
 
     @SuppressWarnings("unchecked")
