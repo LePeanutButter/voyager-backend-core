@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -81,7 +82,7 @@ class TravelPlanActivityServiceImplTest {
     @Test
     void createActivity_ShouldReturnActivityDto_WhenValidRequest() {
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(travelPlan));
-        when(activityRepository.save(Objects.requireNonNull(any(TravelPlanActivity.class)))).thenReturn(activity);
+        when(activityRepository.save(any(TravelPlanActivity.class))).thenReturn(activity);
 
         TravelPlanActivityDto result = service.createActivity(1L, createRequest);
 
@@ -92,7 +93,7 @@ class TravelPlanActivityServiceImplTest {
         assertFalse(result.getIsConfirmed());
 
         verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
-        verify(activityRepository).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(activityRepository).save(any(TravelPlanActivity.class));
     }
 
     @Test
@@ -102,7 +103,7 @@ class TravelPlanActivityServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> service.createActivity(1L, createRequest));
 
         verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
-        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(activityRepository, never()).save(any(TravelPlanActivity.class));
     }
 
     @Test
@@ -111,15 +112,15 @@ class TravelPlanActivityServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.createActivity(1L, createRequest));
 
-        verify(travelPlanRepository, never()).findById(Objects.requireNonNull(any()));
-        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(travelPlanRepository, never()).findById(anyLong());
+        verify(activityRepository, never()).save(any(TravelPlanActivity.class));
     }
 
     @Test
     void updateActivity_ShouldReturnUpdatedActivityDto_WhenValidRequest() {
         when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.of(travelPlan));
         when(activityRepository.findByIdAndTravelPlanId(1L, 1L)).thenReturn(Optional.of(activity));
-        when(activityRepository.save(Objects.requireNonNull(any(TravelPlanActivity.class)))).thenReturn(activity);
+        when(activityRepository.save(any(TravelPlanActivity.class))).thenReturn(activity);
 
         TravelPlanActivityDto result = service.updateActivity(1L, 1L, updateRequest);
 
@@ -138,7 +139,7 @@ class TravelPlanActivityServiceImplTest {
 
         verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
         verify(activityRepository).findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L));
-        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(activityRepository, never()).save(any(TravelPlanActivity.class));
     }
 
     @Test
@@ -148,8 +149,8 @@ class TravelPlanActivityServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> service.updateActivity(1L, 1L, updateRequest));
 
         verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
-        verify(activityRepository, never()).findByIdAndTravelPlanId(Objects.requireNonNull(any()), Objects.requireNonNull(any()));
-        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(activityRepository, never()).findByIdAndTravelPlanId(anyLong(), anyLong());
+        verify(activityRepository, never()).save(any(TravelPlanActivity.class));
     }
 
     @Test
@@ -158,9 +159,9 @@ class TravelPlanActivityServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.updateActivity(1L, 1L, updateRequest));
 
-        verify(travelPlanRepository, never()).findById(Objects.requireNonNull(any()));
-        verify(activityRepository, never()).findByIdAndTravelPlanId(Objects.requireNonNull(any()), Objects.requireNonNull(any()));
-        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(travelPlanRepository, never()).findById(anyLong());
+        verify(activityRepository, never()).findByIdAndTravelPlanId(anyLong(), anyLong());
+        verify(activityRepository, never()).save(any(TravelPlanActivity.class));
     }
 
     @Test
@@ -210,7 +211,7 @@ class TravelPlanActivityServiceImplTest {
 
         verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
         verify(activityRepository).findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L));
-        verify(activityRepository, never()).delete(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(activityRepository, never()).delete(any(TravelPlanActivity.class));
     }
 
     @Test
@@ -220,7 +221,7 @@ class TravelPlanActivityServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> service.deleteActivity(1L, 1L));
 
         verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
-        verify(activityRepository, never()).findByIdAndTravelPlanId(Objects.requireNonNull(any()), Objects.requireNonNull(any()));
-        verify(activityRepository, never()).delete(Objects.requireNonNull(any(TravelPlanActivity.class)));
+        verify(activityRepository, never()).findByIdAndTravelPlanId(anyLong(), anyLong());
+        verify(activityRepository, never()).delete(any(TravelPlanActivity.class));
     }
 }

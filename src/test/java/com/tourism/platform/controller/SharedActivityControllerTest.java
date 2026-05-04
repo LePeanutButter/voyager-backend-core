@@ -37,6 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 class SharedActivityControllerTest {
 
+    private static final String TEST_USERNAME = "testuser";
+    private static final String USER_ID_MDC_KEY = "userId";
+
     @Mock
     private SharedActivityService sharedActivityService;
 
@@ -64,7 +67,7 @@ class SharedActivityControllerTest {
         decisionRequest = new SharedActivityDecisionRequest();
         decisionRequest.setAction(com.tourism.platform.model.SharedActivityDecisionAction.ACCEPT);
 
-        when(authentication.getName()).thenReturn("testuser");
+        when(authentication.getName()).thenReturn(TEST_USERNAME);
     }
 
     @Test
@@ -73,11 +76,11 @@ class SharedActivityControllerTest {
         ShareActivityRequest body = new ShareActivityRequest();
         body.setReceiverId(200L);
 
-        when(sharedActivityService.shareActivity(activityId, 200L, "testuser"))
+        when(sharedActivityService.shareActivity(activityId, 200L, TEST_USERNAME))
                 .thenReturn(sharedActivityResponse);
 
         try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
-            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+            mdc.when(() -> MDC.get(USER_ID_MDC_KEY)).thenReturn("1");
 
             mockMvc.perform(post("/activities/{activityId}/share", activityId)
                             .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
@@ -89,18 +92,18 @@ class SharedActivityControllerTest {
                     .andExpect(jsonPath("$.data.id").value(1));
         }
 
-        verify(sharedActivityService).shareActivity(activityId, 200L, "testuser");
+        verify(sharedActivityService).shareActivity(activityId, 200L, TEST_USERNAME);
     }
 
     @Test
     void updateSharedActivityStatusShouldReturnOkResponse() throws Exception {
         Long sharedActivityId = 1L;
 
-        when(sharedActivityService.resolveSharedActivity(sharedActivityId, any(SharedActivityDecisionRequest.class), eq("testuser")))
+        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(SharedActivityDecisionRequest.class), eq(TEST_USERNAME)))
                 .thenReturn(sharedActivityResponse);
 
         try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
-            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+            mdc.when(() -> MDC.get(USER_ID_MDC_KEY)).thenReturn("1");
 
             mockMvc.perform(patch("/shared-activities/{id}", sharedActivityId)
                             .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
@@ -111,7 +114,7 @@ class SharedActivityControllerTest {
                     .andExpect(jsonPath("$.message").value("Shared activity updated successfully"));
         }
 
-        verify(sharedActivityService).resolveSharedActivity(Objects.requireNonNull(sharedActivityId), any(SharedActivityDecisionRequest.class), eq("testuser"));
+        verify(sharedActivityService).resolveSharedActivity(eq(sharedActivityId), any(SharedActivityDecisionRequest.class), eq(TEST_USERNAME));
     }
 
     @Test
@@ -119,11 +122,11 @@ class SharedActivityControllerTest {
         Long sharedActivityId = 1L;
         decisionRequest.setAction(com.tourism.platform.model.SharedActivityDecisionAction.REJECT);
 
-        when(sharedActivityService.resolveSharedActivity(sharedActivityId, any(SharedActivityDecisionRequest.class), eq("testuser")))
+        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(SharedActivityDecisionRequest.class), eq(TEST_USERNAME)))
                 .thenReturn(sharedActivityResponse);
 
         try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
-            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+            mdc.when(() -> MDC.get(USER_ID_MDC_KEY)).thenReturn("1");
 
             mockMvc.perform(patch("/shared-activities/{id}", sharedActivityId)
                             .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
@@ -132,7 +135,7 @@ class SharedActivityControllerTest {
                     .andExpect(status().isOk());
         }
 
-        verify(sharedActivityService).resolveSharedActivity(Objects.requireNonNull(sharedActivityId), any(SharedActivityDecisionRequest.class), eq("testuser"));
+        verify(sharedActivityService).resolveSharedActivity(eq(sharedActivityId), any(SharedActivityDecisionRequest.class), eq(TEST_USERNAME));
     }
 
     @Test
@@ -141,11 +144,11 @@ class SharedActivityControllerTest {
         ShareActivityRequest body = new ShareActivityRequest();
         body.setReceiverId(200L);
 
-        when(sharedActivityService.shareActivity(activityId, 200L, "testuser"))
+        when(sharedActivityService.shareActivity(activityId, 200L, TEST_USERNAME))
                 .thenReturn(sharedActivityResponse);
 
         try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
-            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+            mdc.when(() -> MDC.get(USER_ID_MDC_KEY)).thenReturn("1");
 
             mockMvc.perform(post("/activities/{activityId}/share", activityId)
                             .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
@@ -161,11 +164,11 @@ class SharedActivityControllerTest {
         ShareActivityRequest body = new ShareActivityRequest();
         body.setReceiverId(200L);
 
-        when(sharedActivityService.shareActivity(activityId, 200L, "testuser"))
+        when(sharedActivityService.shareActivity(activityId, 200L, TEST_USERNAME))
                 .thenReturn(sharedActivityResponse);
 
         try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
-            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+            mdc.when(() -> MDC.get(USER_ID_MDC_KEY)).thenReturn("1");
 
             ResponseEntity<ApiResponse<SharedActivityResponse>> response =
                     controller.shareActivity(activityId, body, authentication, null);
@@ -181,11 +184,11 @@ class SharedActivityControllerTest {
     void updateSharedActivityStatusWithNullHttpServletRequestUsesSafePath() {
         Long sharedActivityId = 1L;
 
-        when(sharedActivityService.resolveSharedActivity(sharedActivityId, any(SharedActivityDecisionRequest.class), "testuser"))
+        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(SharedActivityDecisionRequest.class), eq(TEST_USERNAME)))
                 .thenReturn(sharedActivityResponse);
 
         try (MockedStatic<MDC> mdc = mockStatic(MDC.class)) {
-            mdc.when(() -> MDC.get("userId")).thenReturn("1");
+            mdc.when(() -> MDC.get(USER_ID_MDC_KEY)).thenReturn("1");
 
             ResponseEntity<ApiResponse<SharedActivityResponse>> response =
                     controller.updateSharedActivityStatus(sharedActivityId, decisionRequest, authentication, null);

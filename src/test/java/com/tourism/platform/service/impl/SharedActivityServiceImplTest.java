@@ -24,7 +24,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -150,7 +149,7 @@ class SharedActivityServiceImplTest {
 
         when(userRepository.findByUsername("receiver")).thenReturn(Optional.of(receiver));
         when(sharedActivityRepository.findById(1L)).thenReturn(Optional.of(sharedActivity));
-        when(sharedActivityRepository.save(Objects.requireNonNull(any(SharedActivity.class)))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sharedActivityRepository.save(any(SharedActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = service.resolveSharedActivity(1L, request, "receiver");
         assertEquals(SharedActivityStatus.ACCEPTED, response.getStatus());

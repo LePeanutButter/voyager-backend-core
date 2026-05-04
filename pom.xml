@@ -29,6 +29,8 @@
         <tomcat.version>10.1.54</tomcat.version>
         <spring-security.version>6.4.6</spring-security.version>
         <spring-framework.version>6.2.11</spring-framework.version>
+        <!-- JaCoCo 0.8.13+: soporte JDK 24 (major 68); 0.8.8 falla al instrumentar con JVM reciente -->
+        <jacoco.version>0.8.13</jacoco.version>
     </properties>
 
     <dependencies>
@@ -207,7 +209,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.8</version>
+                <version>${jacoco.version}</version>
                 <executions>
                     <execution>
                         <goals>

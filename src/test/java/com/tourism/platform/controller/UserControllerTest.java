@@ -29,6 +29,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -234,7 +235,7 @@ class UserControllerTest {
         updateDto.setBio("Updated bio");
 
         userDto.setFirstName("Updated");
-        when(userService.updateUser(Objects.requireNonNull(1L), Objects.requireNonNull(any(UserUpdateDto.class)))).thenReturn(Optional.of(userDto));
+        when(userService.updateUser(eq(1L), any(UserUpdateDto.class))).thenReturn(Optional.of(userDto));
 
         mockMvc.perform(put("/users/{id}", 1L)
                         .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
@@ -250,7 +251,7 @@ class UserControllerTest {
         updateDto.setFirstName("Updated");
         updateDto.setBio("bio");
 
-        when(userService.updateUser(Objects.requireNonNull(999L), Objects.requireNonNull(any(UserUpdateDto.class)))).thenReturn(Optional.empty());
+        when(userService.updateUser(eq(999L), any(UserUpdateDto.class))).thenReturn(Optional.empty());
 
         mockMvc.perform(put("/users/{id}", 999L)
                         .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
@@ -289,7 +290,7 @@ class UserControllerTest {
     @Test
     void getAllUsers_ShouldReturnPagedResponse() throws Exception {
         Page<UserDto> page = new PageImpl<>(Objects.requireNonNull(List.of(userDto)), PageRequest.of(0, 20), 1);
-        when(userService.getAllUsers(Objects.requireNonNull(any(Pageable.class)))).thenReturn(page);
+        when(userService.getAllUsers(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/users")
                         .param("page", "0")
@@ -302,7 +303,7 @@ class UserControllerTest {
     @Test
     void getAllUsers_WithAscSortDirection_ShouldReturnOk() throws Exception {
         Page<UserDto> page = new PageImpl<>(Objects.requireNonNull(List.of(userDto)));
-        when(userService.getAllUsers(Objects.requireNonNull(any(Pageable.class)))).thenReturn(page);
+        when(userService.getAllUsers(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/users")
                         .param("sortDir", "asc")

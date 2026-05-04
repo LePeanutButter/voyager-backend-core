@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import java.util.Objects;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -155,13 +154,13 @@ class CustomUserDetailsServiceTest {
     @Test
     void loadUserById_WithNullId_ShouldThrowUsernameNotFoundException() {
         // Given
-        when(userRepository.findById(Objects.requireNonNull(isNull()))).thenReturn(Optional.empty());
+        when(userRepository.findById(isNull())).thenReturn(Optional.empty());
 
         // When & Then
         assertThrows(UsernameNotFoundException.class,
-                () -> customUserDetailsService.loadUserById(Objects.requireNonNull(null)));
+                () -> customUserDetailsService.loadUserById(null));
 
-        verify(userRepository).findById(Objects.requireNonNull(isNull()));
+        verify(userRepository).findById(isNull());
     }
 
     @Test

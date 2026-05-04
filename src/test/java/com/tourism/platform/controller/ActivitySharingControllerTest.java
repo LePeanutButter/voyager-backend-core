@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -122,7 +123,7 @@ class ActivitySharingControllerTest {
         lenient().when(request.getRequestURI()).thenReturn("/shared-activities/1");
         lenient().when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenReturn(Optional.of(testUser));
-        when(sharedActivityService.resolveSharedActivity(sharedActivityId, any(), "testuser"))
+        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(), eq("testuser")))
                 .thenReturn(response);
 
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
@@ -139,8 +140,8 @@ class ActivitySharingControllerTest {
         }
 
         verify(userRepository).findByUsernameOrEmail("testuser", "testuser");
-        verify(sharedActivityService).resolveSharedActivity(sharedActivityId, argThat(decision -> 
-                decision.getAction() == SharedActivityDecisionAction.ACCEPT), "testuser");
+        verify(sharedActivityService).resolveSharedActivity(eq(sharedActivityId), argThat(decision -> 
+                decision.getAction() == SharedActivityDecisionAction.ACCEPT), eq("testuser"));
     }
 
     @Test
@@ -158,7 +159,7 @@ class ActivitySharingControllerTest {
         lenient().when(request.getRequestURI()).thenReturn("/shared-activities/1");
         lenient().when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenReturn(Optional.of(testUser));
-        when(sharedActivityService.resolveSharedActivity(sharedActivityId, any(), "testuser"))
+        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(), eq("testuser")))
                 .thenReturn(response);
 
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
@@ -173,8 +174,8 @@ class ActivitySharingControllerTest {
                     .andExpect(jsonPath("$.message").value("Shared activity updated successfully"));
         }
 
-        verify(sharedActivityService).resolveSharedActivity(sharedActivityId, argThat(decision -> 
-                decision.getAction() == SharedActivityDecisionAction.REJECT), "testuser");
+        verify(sharedActivityService).resolveSharedActivity(eq(sharedActivityId), argThat(decision -> 
+                decision.getAction() == SharedActivityDecisionAction.REJECT), eq("testuser"));
     }
 
     @Test

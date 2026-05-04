@@ -3,6 +3,7 @@ package com.tourism.platform.controller;
 import com.tourism.platform.dto.*;
 import com.tourism.platform.model.Message;
 import com.tourism.platform.model.User;
+import com.tourism.platform.security.CustomUserDetailsService;
 import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,8 +18,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,21 +63,71 @@ public class SocialController {
 
     private final SocialService socialService;
     private final JwtTokenProvider tokenProvider;
+    private final CustomUserDetailsService customUserDetailsService;
 
-    /** Prefer Spring Security principal (JWT filter loads {@link User} by username); fallback to userId claim if present. */
+    /**
+     * Resolves the current user id from {@link SecurityContextHolder} (authenticated, non-anonymous principal)
+     * or, when the context is not populated (e.g. tests without the security filter), from a valid Bearer JWT.
+     *
+     * @throws AuthenticationCredentialsNotFoundException if the caller cannot be identified
+     */
     private Long getCurrentUserId(HttpServletRequest request) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof User user) {
-            return user.getId();
-        }
-        String token = extractTokenFromRequest(request);
-        if (token != null && tokenProvider.validateToken(token)) {
-            Long userId = tokenProvider.getUserIdFromJWT(token);
-            if (userId != null) {
-                return userId;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)) {
+            Long fromPrincipal = resolveUserIdFromPrincipal(authentication.getPrincipal());
+            if (fromPrincipal != null) {
+                return fromPrincipal;
             }
         }
-        throw new IllegalArgumentException("Invalid or missing authentication token");
+        Long fromJwt = tryResolveUserIdFromJwt(request);
+        if (fromJwt != null) {
+            return fromJwt;
+        }
+        throw new AuthenticationCredentialsNotFoundException("User is not authenticated");
+    }
+
+    private Long tryResolveUserIdFromJwt(HttpServletRequest request) {
+        String token = extractTokenFromRequest(request);
+        if (token == null || !tokenProvider.validateToken(token)) {
+            return null;
+        }
+        return tokenProvider.getUserIdFromJWT(token);
+    }
+
+    /**
+     * Maps the authentication principal to a user id: domain {@link User}, generic {@link UserDetails}
+     * (reload by username), or raw {@link String} username/email via {@link CustomUserDetailsService}.
+     */
+    private Long resolveUserIdFromPrincipal(Object principal) {
+        if (principal == null) {
+            return null;
+        }
+        if (principal instanceof User domainUser) {
+            return domainUser.getId();
+        }
+        if (principal instanceof UserDetails details) {
+            try {
+                UserDetails loaded = customUserDetailsService.loadUserByUsername(details.getUsername());
+                if (loaded instanceof User u) {
+                    return u.getId();
+                }
+            } catch (UsernameNotFoundException ignored) {
+                return null;
+            }
+        }
+        if (principal instanceof String username) {
+            try {
+                UserDetails loaded = customUserDetailsService.loadUserByUsername(username);
+                if (loaded instanceof User u) {
+                    return u.getId();
+                }
+            } catch (UsernameNotFoundException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {
@@ -246,8 +301,7 @@ public class SocialController {
          * @param request      current HTTP request used to resolve authentication and build response path
          * @return ResponseEntity with ApiResponse<Void> indicating success
          */
-        // TODO: Get current user ID from security context
-        Long currentUserId = 1L; // Placeholder - should get from authentication
+        Long currentUserId = getCurrentUserId(request);
         socialService.deleteConnection(connectionId, currentUserId);
         ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -470,8 +524,7 @@ public class SocialController {
          * @param request   current HTTP request used to resolve authentication and build response path
          * @return ResponseEntity with ApiResponse<Void> indicating success
          */
-        // TODO: Get current user ID from security context
-        Long currentUserId = 1L; // Placeholder - should get from authentication
+        Long currentUserId = getCurrentUserId(request);
         socialService.markMessageAsRead(messageId, currentUserId);
         ApiResponse<Void> response = ApiResponse.success(
                 HttpStatus.OK.value(),

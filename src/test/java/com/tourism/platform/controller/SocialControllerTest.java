@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +41,7 @@ import com.tourism.platform.model.Message;
 import com.tourism.platform.model.MessageStatus;
 import com.tourism.platform.model.User;
 import com.tourism.platform.model.UserRole;
+import com.tourism.platform.security.CustomUserDetailsService;
 import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.SocialService;
 
@@ -54,6 +56,9 @@ class SocialControllerTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private CustomUserDetailsService customUserDetailsService;
 
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
@@ -81,7 +86,7 @@ class SocialControllerTest {
 
     @BeforeEach
     void setUp() {
-        SocialController controller = new SocialController(socialService, jwtTokenProvider);
+        SocialController controller = new SocialController(socialService, jwtTokenProvider, customUserDetailsService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
@@ -158,7 +163,8 @@ class SocialControllerTest {
 
     @Test
         void removeConnectionOk() throws Exception {
-        mockMvc.perform(delete("/social/connections/{connectionId}", 7L))
+        mockMvc.perform(delete("/social/connections/{connectionId}", 7L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
 
         verify(socialService).deleteConnection(7L, 1L);
@@ -206,7 +212,8 @@ class SocialControllerTest {
                 .andExpect(status().isOk());
 
         doNothing().when(socialService).markMessageAsRead(99L, 1L);
-        mockMvc.perform(put("/social/messages/{messageId}/read", 99L))
+        mockMvc.perform(put("/social/messages/{messageId}/read", 99L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
     }
 
@@ -318,8 +325,8 @@ class SocialControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body))));
 
-        assertThat(ex.getCause()).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid or missing authentication token");
+        assertThat(ex.getCause()).isInstanceOf(AuthenticationCredentialsNotFoundException.class)
+                .hasMessage("User is not authenticated");
     }
 
     @Test
@@ -334,8 +341,8 @@ class SocialControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body))));
 
-        assertThat(ex.getCause()).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid or missing authentication token");
+        assertThat(ex.getCause()).isInstanceOf(AuthenticationCredentialsNotFoundException.class)
+                .hasMessage("User is not authenticated");
     }
 
     @Test
@@ -351,7 +358,7 @@ class SocialControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body))));
 
-        assertThat(ex.getCause()).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ex.getCause()).isInstanceOf(AuthenticationCredentialsNotFoundException.class);
     }
 
     @Test
@@ -369,6 +376,6 @@ class SocialControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body))));
 
-        assertThat(ex.getCause()).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ex.getCause()).isInstanceOf(AuthenticationCredentialsNotFoundException.class);
     }
 }

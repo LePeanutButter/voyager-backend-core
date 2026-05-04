@@ -24,6 +24,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
@@ -205,7 +207,7 @@ class SocialServiceImplTest {
     void sendMessage_WithValidConnectionAndUser_ShouldReturnMessage() {
         // Given
         when(connectionRepository.findById(1L)).thenReturn(Optional.of(testConnection));
-        when(messageRepository.save(Objects.requireNonNull(any(Message.class)))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
         Message result = socialService.sendMessage(1L, 1L, "Hello world");
@@ -218,7 +220,7 @@ class SocialServiceImplTest {
         assertEquals("Hello world", result.getContent());
         assertEquals(MessageStatus.SENT, result.getStatus());
         verify(connectionRepository).findById(1L);
-        verify(messageRepository).save(Objects.requireNonNull(any(Message.class)));
+        verify(messageRepository).save(any(Message.class));
     }
 
     @Test
@@ -229,7 +231,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(ResourceNotFoundException.class, () -> socialService.sendMessage(999L, 1L, "Hello"));
         verify(connectionRepository).findById(999L);
-        verify(messageRepository, never()).save(Objects.requireNonNull(any(Message.class)));
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
     @ParameterizedTest
@@ -241,7 +243,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.sendMessage(1L, senderId, content));
         verify(connectionRepository).findById(1L);
-        verify(messageRepository, never()).save(Objects.requireNonNull(any(Message.class)));
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
     private static Stream<Arguments> invalidSendMessageInputs() {
@@ -261,7 +263,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.sendMessage(1L, 1L, "Hello"));
         verify(connectionRepository).findById(1L);
-        verify(messageRepository, never()).save(Objects.requireNonNull(any(Message.class)));
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
     @Test
@@ -312,7 +314,7 @@ class SocialServiceImplTest {
         message.setStatus(MessageStatus.SENT);
         
         when(messageRepository.findById(1L)).thenReturn(Optional.of(message));
-        when(messageRepository.save(Objects.requireNonNull(any(Message.class)))).thenReturn(message);
+        when(messageRepository.save(any(Message.class))).thenReturn(message);
 
         // When
         socialService.markMessageAsRead(1L, 1L);
@@ -345,7 +347,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.markMessageAsRead(1L, 1L));
         verify(messageRepository).findById(1L);
-        verify(messageRepository, never()).save(Objects.requireNonNull(any(Message.class)));
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
     // ── sendConnectionRequest ─────────────────────────────────────────────────────
@@ -365,7 +367,7 @@ class SocialServiceImplTest {
         when(userRepository.existsById(2L)).thenReturn(true);
         when(connectionRepository.findByRequesterIdAndRecipientId(1L, 2L)).thenReturn(Optional.empty());
         when(connectionRepository.findByRequesterIdAndRecipientId(2L, 1L)).thenReturn(Optional.empty());
-        when(connectionRepository.save(Objects.requireNonNull(any(Connection.class)))).thenAnswer(invocation -> {
+        when(connectionRepository.save(any(Connection.class))).thenAnswer(invocation -> {
             Connection conn = invocation.getArgument(0);
             conn.setId(1L);
             conn.setCreatedAt(LocalDateTime.now());
@@ -385,7 +387,7 @@ class SocialServiceImplTest {
         assertEquals("PENDING", result.getStatus());
         assertEquals("Let's connect!", result.getMessage());
         verify(userRepository).existsById(2L);
-        verify(connectionRepository).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository).save(any(Connection.class));
     }
 
     @Test
@@ -399,7 +401,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(ResourceNotFoundException.class, () -> socialService.sendConnectionRequest(request, 1L));
         verify(userRepository).existsById(999L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     @Test
@@ -413,7 +415,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.sendConnectionRequest(request, 1L));
         verify(userRepository).existsById(1L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     @Test
@@ -432,7 +434,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.sendConnectionRequest(request, 1L));
         verify(userRepository).existsById(2L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     @Test
@@ -451,7 +453,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.sendConnectionRequest(request, 1L));
         verify(userRepository).existsById(2L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     @Test
@@ -472,8 +474,8 @@ class SocialServiceImplTest {
         when(userRepository.existsById(2L)).thenReturn(true);
         when(connectionRepository.findByRequesterIdAndRecipientId(1L, 2L))
                 .thenReturn(Optional.of(existingConnection));
-        when(connectionRepository.save(Objects.requireNonNull(any(Connection.class)))).thenReturn(existingConnection);
-        when(userRepository.findById(Objects.requireNonNull(any()))).thenReturn(Optional.of(testUser));
+        when(connectionRepository.save(any(Connection.class))).thenReturn(existingConnection);
+        when(userRepository.findById(any())).thenReturn(Optional.of(testUser));
 
         // When
         ConnectionRequestDto result = socialService.sendConnectionRequest(request, 1L);
@@ -497,7 +499,7 @@ class SocialServiceImplTest {
         connection.setStatus(ConnectionStatus.PENDING);
         
         when(connectionRepository.findById(1L)).thenReturn(Optional.of(connection));
-        when(connectionRepository.save(Objects.requireNonNull(any(Connection.class)))).thenReturn(connection);
+        when(connectionRepository.save(any(Connection.class))).thenReturn(connection);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.findById(2L)).thenReturn(Optional.of(testUser));
 
@@ -518,7 +520,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(ResourceNotFoundException.class, () -> socialService.acceptConnectionRequest(999L, 2L));
         verify(connectionRepository).findById(999L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     @Test
@@ -534,7 +536,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.acceptConnectionRequest(1L, 3L));
         verify(connectionRepository).findById(1L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     @Test
@@ -551,7 +553,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.acceptConnectionRequest(1L, 2L));
         verify(connectionRepository).findById(1L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     // ── rejectConnectionRequest ───────────────────────────────────────────────────
@@ -566,7 +568,7 @@ class SocialServiceImplTest {
         connection.setStatus(ConnectionStatus.PENDING);
         
         when(connectionRepository.findById(1L)).thenReturn(Optional.of(connection));
-        when(connectionRepository.save(Objects.requireNonNull(any(Connection.class)))).thenReturn(connection);
+        when(connectionRepository.save(any(Connection.class))).thenReturn(connection);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.findById(2L)).thenReturn(Optional.of(testUser));
 
@@ -587,7 +589,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(ResourceNotFoundException.class, () -> socialService.rejectConnectionRequest(999L, 2L));
         verify(connectionRepository).findById(999L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     @Test
@@ -603,7 +605,7 @@ class SocialServiceImplTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> socialService.rejectConnectionRequest(1L, 3L));
         verify(connectionRepository).findById(1L);
-        verify(connectionRepository, never()).save(Objects.requireNonNull(any(Connection.class)));
+        verify(connectionRepository, never()).save(any(Connection.class));
     }
 
     // ── getPendingRequestsForUser ───────────────────────────────────────────────
@@ -776,19 +778,26 @@ class SocialServiceImplTest {
 
     @Test
     void getConversationMessagesPaginated_WithValidConnectionAndUser_ShouldReturnPage() {
-        // Given
         Message message1 = new Message();
         message1.setId(1L);
         message1.setConnectionId(1L);
         message1.setSenderId(1L);
         message1.setRecipientId(2L);
         message1.setContent("Hello");
-        
+
         Message message2 = new Message();
         message2.setId(2L);
+        message2.setConnectionId(1L);
+        message2.setSenderId(2L);
+        message2.setRecipientId(1L);
+        message2.setContent("Hi");
+
+        Page<Message> expectedPage = new PageImpl<>(List.of(message1, message2), PageRequest.of(0, 10), 2);
+        when(connectionRepository.findById(1L)).thenReturn(Optional.of(testConnection));
+        when(messageRepository.findConversationMessages(eq(1L), any(Pageable.class))).thenReturn(expectedPage);
+
         Page<Message> result = socialService.getConversationMessagesPaginated(1L, 1L, 0, 10);
 
-        // Then
         assertNotNull(result);
         assertEquals(2, result.getContent().size());
         verify(connectionRepository).findById(1L);

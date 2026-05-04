@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -69,8 +70,8 @@ class ChatWebSocketControllerTest {
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
-        verify(messagingTemplate).convertAndSend("/topic/chat/1", isA(ChatMessage.class));
-        verify(messagingTemplate, times(1)).convertAndSend("/queue/user/2", isA(ChatMessage.class));
+        verify(messagingTemplate).convertAndSend(eq("/topic/chat/1"), isA(ChatMessage.class));
+        verify(messagingTemplate, times(1)).convertAndSend(eq("/queue/user/2"), isA(ChatMessage.class));
     }
 
     @Test
@@ -86,10 +87,10 @@ class ChatWebSocketControllerTest {
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
-        verify(messagingTemplate, never()).convertAndSend("/topic/chat/1", isA(ChatMessage.class));
+        verify(messagingTemplate, never()).convertAndSend(eq("/topic/chat/1"), isA(ChatMessage.class));
         
         verify(messagingTemplate, times(1)).convertAndSend(
-                "/queue/user/1",
+                eq("/queue/user/1"),
                 isA(ChatMessage.class)
         );
     }
@@ -108,7 +109,7 @@ class ChatWebSocketControllerTest {
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
         verify(messagingTemplate, times(1)).convertAndSend(
-                "/queue/user/1",
+                eq("/queue/user/1"),
                 isA(ChatMessage.class)
         );
     }
@@ -128,7 +129,7 @@ class ChatWebSocketControllerTest {
 
         // Then
         verify(messagingTemplate, times(1)).convertAndSend(
-                "/topic/chat/1/typing",
+                eq("/topic/chat/1/typing"),
                 isA(ChatMessage.class)
         );
     }
@@ -148,7 +149,7 @@ class ChatWebSocketControllerTest {
 
         // Then
         verify(messagingTemplate, times(1)).convertAndSend(
-                "/topic/chat/2/typing",
+                eq("/topic/chat/2/typing"),
                 isA(ChatMessage.class)
         );
     }
@@ -176,7 +177,7 @@ class ChatWebSocketControllerTest {
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
         verify(messagingTemplate, times(1)).convertAndSend(
-                "/topic/chat/1",
+                eq("/topic/chat/1"),
                 isA(ChatMessage.class)
         );
     }

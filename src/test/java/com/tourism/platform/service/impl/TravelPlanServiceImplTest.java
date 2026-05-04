@@ -140,7 +140,7 @@ class TravelPlanServiceImplTest {
         assertTrue(match.getCompatibilityScore() > 0.0);
 
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository).findCompatibleTravelPlans(Objects.requireNonNull(anyString()), Objects.requireNonNull(any()), Objects.requireNonNull(any()), eq(1L), eq(TravelPlanStatus.ACTIVE));
+        verify(travelPlanRepository).findCompatibleTravelPlans(anyString(), any(), any(), eq(1L), eq(TravelPlanStatus.ACTIVE));
     }
 
     @Test
@@ -153,7 +153,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.findCompatibleTravelers(999L, 1L));
 
         verify(travelPlanRepository).findById(999L);
-        verify(travelPlanRepository, never()).findCompatibleTravelPlans(Objects.requireNonNull(anyString()), any(), any(), anyLong(), any());
+        verify(travelPlanRepository, never()).findCompatibleTravelPlans(anyString(), any(), any(), anyLong(), any());
     }
 
     @Test
@@ -166,7 +166,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.findCompatibleTravelers(1L, 2L));
 
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository, never()).findCompatibleTravelPlans(Objects.requireNonNull(anyString()), any(), any(), anyLong(), any());
+        verify(travelPlanRepository, never()).findCompatibleTravelPlans(anyString(), any(), any(), anyLong(), any());
     }
 
     @Test
@@ -280,7 +280,7 @@ class TravelPlanServiceImplTest {
     void createTravelPlan_WithValidData_ShouldReturnCreatedPlan() {
         // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(travelPlanRepository.save(Objects.requireNonNull(any(TravelPlan.class)))).thenReturn(testTravelPlan);
+        when(travelPlanRepository.save(any(TravelPlan.class))).thenReturn(testTravelPlan);
 
         // When
         TravelPlanDto result = travelPlanService.createTravelPlan(testTravelPlanDto, 1L);
@@ -291,7 +291,7 @@ class TravelPlanServiceImplTest {
         assertEquals("Test Travel Plan", result.getTitle());
         assertEquals("Paris", result.getDestinationLocation());
         verify(userRepository).findById(1L);
-        verify(travelPlanRepository).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository).save(any(TravelPlan.class));
     }
 
     @Test
@@ -308,7 +308,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.createTravelPlan(invalidDto, 1L));
 
         verify(userRepository, never()).findById(anyLong());
-        verify(travelPlanRepository, never()).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository, never()).save(any(TravelPlan.class));
     }
 
     @Test
@@ -321,7 +321,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.createTravelPlan(testTravelPlanDto, 999L));
 
         verify(userRepository).findById(999L);
-        verify(travelPlanRepository, never()).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository, never()).save(any(TravelPlan.class));
     }
 
     @Test
@@ -352,7 +352,7 @@ class TravelPlanServiceImplTest {
                 .build();
 
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(testTravelPlan));
-        when(travelPlanRepository.save(Objects.requireNonNull(any(TravelPlan.class)))).thenReturn(testTravelPlan);
+        when(travelPlanRepository.save(any(TravelPlan.class))).thenReturn(testTravelPlan);
 
         // When
         TravelPlanDto result = travelPlanService.updateTravelPlan(1L, 1L, updateDto);
@@ -360,7 +360,7 @@ class TravelPlanServiceImplTest {
         // Then
         assertNotNull(result);
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository).save(any(TravelPlan.class));
     }
 
     @Test
@@ -376,7 +376,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.updateTravelPlan(1L, 1L, invalidDto));
 
         verify(travelPlanRepository, never()).findById(anyLong());
-        verify(travelPlanRepository, never()).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository, never()).save(any(TravelPlan.class));
     }
 
     @Test
@@ -389,7 +389,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.updateTravelPlan(999L, 1L, testTravelPlanDto));
 
         verify(travelPlanRepository).findById(999L);
-        verify(travelPlanRepository, never()).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository, never()).save(any(TravelPlan.class));
     }
 
     @Test
@@ -402,22 +402,18 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.updateTravelPlan(1L, 2L, testTravelPlanDto));
 
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository, never()).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository, never()).save(any(TravelPlan.class));
     }
 
     @Test
     void deleteTravelPlan_WithValidUser_ShouldDeletePlan() {
-        // Given
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(testTravelPlan));
-        doNothing().when(travelPlanRepository).delete(Objects.requireNonNull(testTravelPlan));
+        doNothing().when(travelPlanRepository).delete(testTravelPlan);
 
+        travelPlanService.deleteTravelPlan(1L, 1L);
 
-        // When & Then
-        assertThrows(ResourceNotFoundException.class,
-                () -> travelPlanService.deleteTravelPlan(999L, 1L));
-
-        verify(travelPlanRepository).findById(999L);
-        verify(travelPlanRepository, never()).delete(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository).findById(1L);
+        verify(travelPlanRepository).delete(testTravelPlan);
     }
 
     @Test
@@ -430,7 +426,7 @@ class TravelPlanServiceImplTest {
                 () -> travelPlanService.deleteTravelPlan(1L, 2L));
 
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository, never()).delete(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository, never()).delete(any(TravelPlan.class));
     }
 
     @Test
@@ -442,7 +438,7 @@ class TravelPlanServiceImplTest {
                 .build();
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(travelPlanRepository.save(Objects.requireNonNull(any(TravelPlan.class)))).thenReturn(testTravelPlan);
+        when(travelPlanRepository.save(any(TravelPlan.class))).thenReturn(testTravelPlan);
 
         // When
         TravelPlanDto result = travelPlanService.createTravelPlan(planWithoutDates, 1L);
@@ -450,7 +446,7 @@ class TravelPlanServiceImplTest {
         // Then
         assertNotNull(result);
         verify(userRepository).findById(1L);
-        verify(travelPlanRepository).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository).save(any(TravelPlan.class));
     }
 
     @Test
@@ -461,7 +457,7 @@ class TravelPlanServiceImplTest {
                 .build();
 
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(testTravelPlan));
-        when(travelPlanRepository.save(Objects.requireNonNull(any(TravelPlan.class)))).thenReturn(testTravelPlan);
+        when(travelPlanRepository.save(any(TravelPlan.class))).thenReturn(testTravelPlan);
 
         // When
         TravelPlanDto result = travelPlanService.updateTravelPlan(1L, 1L, updateWithoutDates);
@@ -469,6 +465,6 @@ class TravelPlanServiceImplTest {
         // Then
         assertNotNull(result);
         verify(travelPlanRepository).findById(1L);
-        verify(travelPlanRepository).save(Objects.requireNonNull(any(TravelPlan.class)));
+        verify(travelPlanRepository).save(any(TravelPlan.class));
     }
 }
