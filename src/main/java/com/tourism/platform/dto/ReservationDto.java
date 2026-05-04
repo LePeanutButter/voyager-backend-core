@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO representing a reservation associated with a travel plan activity.
+ * Encapsulates reservation identifiers and relevant booking metadata.
+ */
+
 import com.tourism.platform.model.ReservationStatus;
 import com.tourism.platform.model.ReservationType;
 import io.swagger.v3.oas.annotations.media.Schema;

@@ -34,6 +34,15 @@ public class SharedActivityController {
     }
 
     @PostMapping("/activities/{activityId}/share")
+    /**
+     * Share an activity with another user.
+     *
+     * @param activityId         id of the activity to share
+     * @param request            request DTO containing receiver information and optional message
+     * @param authentication     Spring Security authentication of the requester
+     * @param httpServletRequest current HTTP request (used for logging and response path)
+     * @return ResponseEntity with ApiResponse containing the created SharedActivityResponse and HTTP 201
+     */
     public ResponseEntity<ApiResponse<SharedActivityResponse>> shareActivity(
             @PathVariable Long activityId,
             @Valid @RequestBody ShareActivityRequest request,
@@ -58,6 +67,15 @@ public class SharedActivityController {
     }
 
     @PatchMapping("/shared-activities/{id}")
+    /**
+     * Update the status of a previously shared activity (accept/reject/cancel).
+     *
+     * @param id                  id of the shared activity record to update
+     * @param request             decision request DTO containing the new status and optional metadata
+     * @param authentication      Spring Security authentication of the acting user
+     * @param httpServletRequest  current HTTP request (used for logging and response path)
+     * @return ResponseEntity with ApiResponse containing the updated SharedActivityResponse
+     */
     public ResponseEntity<ApiResponse<SharedActivityResponse>> updateSharedActivityStatus(
             @PathVariable Long id,
             @Valid @RequestBody SharedActivityDecisionRequest request,
@@ -82,10 +100,22 @@ public class SharedActivityController {
     }
 
     private String safePath(HttpServletRequest request) {
-        return request != null ? request.getRequestURI() : "";
+                /**
+                 * Safely obtain the request URI, returning an empty string when request is null.
+                 *
+                 * @param request HTTP servlet request
+                 * @return request URI or empty string when request is null
+                 */
+                return request != null ? request.getRequestURI() : "";
     }
 
     private String authenticatedUsername(Authentication authentication) {
-        return Objects.requireNonNull(authentication, "authentication is required").getName();
+                /**
+                 * Resolve the authenticated principal's username.
+                 *
+                 * @param authentication Spring Security authentication object (must not be null)
+                 * @return principal username
+                 */
+                return Objects.requireNonNull(authentication, "authentication is required").getName();
     }
 }

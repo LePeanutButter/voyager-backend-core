@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO representing a user in responses and internal transfers. Contains
+ * profile fields such as id, username, name and contact information.
+ */
+
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
 import io.swagger.v3.oas.annotations.media.Schema;

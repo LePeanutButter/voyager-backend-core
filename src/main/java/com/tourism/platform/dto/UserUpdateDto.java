@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO used to update mutable user profile fields. Sent by clients when a user
+ * edits their profile to modify display name, biography, or contact details.
+ */
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

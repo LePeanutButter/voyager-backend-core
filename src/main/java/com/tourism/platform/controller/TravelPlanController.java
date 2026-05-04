@@ -67,6 +67,13 @@ public class TravelPlanController {
 
     @PostMapping
     @Operation(summary = "Create a new travel plan")
+    /**
+     * Create a new travel plan for the authenticated user.
+     *
+     * @param travelPlanDto DTO containing travel plan details
+     * @param request       current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing the created TravelPlanDto and HTTP 201
+     */
     public ResponseEntity<ApiResponse<TravelPlanDto>> createTravelPlan(
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
@@ -90,6 +97,13 @@ public class TravelPlanController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get travel plan by ID", description = "Retrieves a specific travel plan by its ID")
+    /**
+     * Retrieve a travel plan by id for the authenticated user.
+     *
+     * @param id      travel plan id
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing the TravelPlanDto
+     */
     public ResponseEntity<ApiResponse<TravelPlanDto>> getTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
@@ -112,7 +126,13 @@ public class TravelPlanController {
 
     @GetMapping
     @Operation(summary = "Get authenticated user travel plans", description = "Retrieves all travel plans for the authenticated user")
-    public ResponseEntity<ApiResponse<List<TravelPlanDto>>> getMyTravelPlans(HttpServletRequest request) {
+        /**
+         * Retrieve all travel plans that belong to the authenticated user.
+         *
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing list of TravelPlanDto
+         */
+        public ResponseEntity<ApiResponse<List<TravelPlanDto>>> getMyTravelPlans(HttpServletRequest request) {
         User user = getAuthenticatedUser();
         List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(user.getId());
 
@@ -128,6 +148,15 @@ public class TravelPlanController {
 
     @GetMapping("/user/{userId}")
     @Operation(summary = "Get travel plans by user", description = "Retrieves all travel plans for a specific user")
+    /**
+     * Retrieve paginated travel plans for a given user id.
+     *
+     * @param userId  id of the user whose travel plans are requested
+     * @param page    page number (0-based)
+     * @param size    page size
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with PagedResponse containing TravelPlanDto
+     */
     public ResponseEntity<PagedResponse<TravelPlanDto>> getTravelPlansByUser(
             @Parameter(description = "User ID") @PathVariable Long userId,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
@@ -152,6 +181,14 @@ public class TravelPlanController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update travel plan", description = "Updates an existing travel plan")
+    /**
+     * Update an existing travel plan belonging to the authenticated user.
+     *
+     * @param id            id of the travel plan to update
+     * @param travelPlanDto DTO containing updated travel plan fields
+     * @param request       current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing the updated TravelPlanDto
+     */
     public ResponseEntity<ApiResponse<TravelPlanDto>> updateTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Valid @RequestBody TravelPlanDto travelPlanDto,
@@ -172,6 +209,13 @@ public class TravelPlanController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete travel plan", description = "Deletes a travel plan")
+    /**
+     * Delete a travel plan owned by the authenticated user.
+     *
+     * @param id      id of the travel plan to delete
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse<Void> indicating deletion success
+     */
     public ResponseEntity<ApiResponse<Void>> deleteTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
@@ -190,6 +234,14 @@ public class TravelPlanController {
 
     @PostMapping("/{id}/activities")
     @Operation(summary = "Add activity to travel plan", description = "Adds a new activity to an existing travel plan")
+    /**
+     * Add a new activity to an existing travel plan.
+     *
+     * @param id          travel plan id
+     * @param activityDto DTO with activity creation data
+     * @param request     current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing created TravelPlanActivityDto and HTTP 201
+     */
     public ResponseEntity<ApiResponse<TravelPlanActivityDto>> addActivity(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Valid @RequestBody CreateTravelPlanActivityRequestDto activityDto,
@@ -208,6 +260,13 @@ public class TravelPlanController {
 
     @GetMapping("/{id}/activities")
     @Operation(summary = "Get travel plan activities", description = "Retrieves all activities for a travel plan")
+    /**
+     * Retrieve activities for the specified travel plan.
+     *
+     * @param id      travel plan id
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing list of TravelPlanActivityDto
+     */
     public ResponseEntity<ApiResponse<List<TravelPlanActivityDto>>> getActivities(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
@@ -225,6 +284,15 @@ public class TravelPlanController {
 
     @PutMapping("/{id}/activities/{activityId}")
     @Operation(summary = "Update activity in travel plan", description = "Updates an existing activity in an existing travel plan")
+    /**
+     * Update an activity inside a travel plan.
+     *
+     * @param id          travel plan id
+     * @param activityId  activity id to update
+     * @param activityDto DTO containing updated activity fields
+     * @param request     current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing the updated TravelPlanActivityDto
+     */
     public ResponseEntity<ApiResponse<TravelPlanActivityDto>> updateActivity(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Parameter(description = "Activity ID") @PathVariable Long activityId,
@@ -245,6 +313,14 @@ public class TravelPlanController {
 
     @GetMapping("/{id}/connections")
     @Operation(summary = "Get accepted connections by travel plan", description = "Retrieves accepted traveler connections in the context of a travel plan")
+    /**
+     * Retrieve accepted traveler connections associated with a travel plan.
+     *
+     * @param id      travel plan id
+     * @param status  connection status filter (defaults to ACCEPTED)
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing list of TravelConnectionDto
+     */
     public ResponseEntity<ApiResponse<List<TravelConnectionDto>>> getTravelPlanConnections(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Parameter(description = "Connection status filter") @RequestParam(defaultValue = "ACCEPTED") String status,
@@ -266,6 +342,14 @@ public class TravelPlanController {
 
     @PostMapping("/{id}/reservations")
     @Operation(summary = "Add reservation to travel plan", description = "Adds a new reservation to an existing travel plan")
+    /**
+     * Add a reservation to a travel plan (placeholder implementation).
+     *
+     * @param id             travel plan id
+     * @param reservationDto reservation DTO with reservation details
+     * @param request        current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing created ReservationDto and HTTP 201
+     */
     public ResponseEntity<ApiResponse<ReservationDto>> addReservation(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Valid @RequestBody ReservationDto reservationDto,
@@ -297,6 +381,13 @@ public class TravelPlanController {
 
     @GetMapping("/{id}/reservations")
     @Operation(summary = "Get travel plan reservations", description = "Retrieves all reservations for a travel plan")
+    /**
+     * Retrieve reservations associated with a travel plan (placeholder implementation).
+     *
+     * @param id      travel plan id
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing list of ReservationDto
+     */
     public ResponseEntity<ApiResponse<List<ReservationDto>>> getReservations(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
@@ -320,6 +411,13 @@ public class TravelPlanController {
 
     @PostMapping("/{id}/share")
     @Operation(summary = "Share travel plan", description = "Generates a shareable link for the travel plan")
+    /**
+     * Generate a shareable link for a travel plan (placeholder implementation).
+     *
+     * @param id      travel plan id
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing the share URL
+     */
     public ResponseEntity<ApiResponse<String>> shareTravelPlan(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
@@ -340,6 +438,13 @@ public class TravelPlanController {
 
     @GetMapping("/shared/{shareToken}")
     @Operation(summary = "Get shared travel plan", description = "Retrieves a travel plan using its share token")
+    /**
+     * Retrieve a travel plan by its public share token (placeholder implementation).
+     *
+     * @param shareToken public share token
+     * @param request    current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing the shared TravelPlanDto
+     */
     public ResponseEntity<ApiResponse<TravelPlanDto>> getSharedTravelPlan(
             @Parameter(description = "Share token") @PathVariable String shareToken,
             HttpServletRequest request) {
@@ -367,6 +472,15 @@ public class TravelPlanController {
 
     @GetMapping("/status/{status}")
     @Operation(summary = "Get travel plans by status", description = "Retrieves travel plans filtered by status")
+    /**
+     * Retrieve paginated travel plans filtered by status.
+     *
+     * @param status  travel plan status
+     * @param page    page number (0-based)
+     * @param size    page size
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with PagedResponse containing TravelPlanDto
+     */
     public ResponseEntity<PagedResponse<TravelPlanDto>> getTravelPlansByStatus(
             @Parameter(description = "Travel plan status") @PathVariable TravelPlanStatus status,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
@@ -396,6 +510,15 @@ public class TravelPlanController {
 
     @GetMapping("/type/{type}")
     @Operation(summary = "Get travel plans by type", description = "Retrieves travel plans filtered by type")
+    /**
+     * Retrieve paginated travel plans filtered by type.
+     *
+     * @param type    travel type
+     * @param page    page number (0-based)
+     * @param size    page size
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with PagedResponse containing TravelPlanDto
+     */
     public ResponseEntity<PagedResponse<TravelPlanDto>> getTravelPlansByType(
             @Parameter(description = "Travel type") @PathVariable TravelType type,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
@@ -425,6 +548,14 @@ public class TravelPlanController {
 
     @PutMapping("/{id}/status")
     @Operation(summary = "Update travel plan status", description = "Updates the status of a travel plan")
+    /**
+     * Update the status of a travel plan for the authenticated user.
+     *
+     * @param id      travel plan id
+     * @param status  new status to set
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing the updated TravelPlanDto
+     */
     public ResponseEntity<ApiResponse<TravelPlanDto>> updateTravelPlanStatus(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Parameter(description = "New status") @RequestParam TravelPlanStatus status,
@@ -445,6 +576,13 @@ public class TravelPlanController {
 
     @GetMapping("/{id}/compatible-travelers")
     @Operation(summary = "Find compatible travelers", description = "Finds travelers with similar destinations and compatible dates")
+    /**
+     * Find compatible travelers for the specified travel plan.
+     *
+     * @param id      travel plan id
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing list of TravelerMatchDto
+     */
     public ResponseEntity<ApiResponse<List<TravelerMatchDto>>> findCompatibleTravelers(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             HttpServletRequest request) {
@@ -467,6 +605,14 @@ public class TravelPlanController {
 
     @DeleteMapping("/{id}/activities/{activityId}")
     @Operation(summary = "Delete activity from travel plan", description = "Removes an activity from an existing travel plan")
+    /**
+     * Delete an activity from a travel plan.
+     *
+     * @param id         travel plan id
+     * @param activityId activity id to delete
+     * @param request    current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse<Void> indicating deletion success
+     */
     public ResponseEntity<ApiResponse<Void>> deleteActivity(
             @Parameter(description = "Travel plan ID") @PathVariable Long id,
             @Parameter(description = "Activity ID") @PathVariable Long activityId,
@@ -484,6 +630,12 @@ public class TravelPlanController {
     }
 
     private User getAuthenticatedUser() {
+        /**
+         * Resolve the currently authenticated User from the security context.
+         *
+         * @return User entity of the authenticated principal
+         * @throws EntityNotFoundException when the user cannot be found in repository
+         */
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         return userRepository.findByUsername(username)

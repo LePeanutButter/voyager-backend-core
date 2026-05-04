@@ -55,10 +55,16 @@ public class UserController {
 
     @PostMapping
     @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
+    /**
+     * Register a new user account.
+     *
+     * @param registrationDto DTO containing registration details
+     * @param request         current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing created UserDto and HTTP 201
+     */
     public ResponseEntity<ApiResponse<UserDto>> registerUser(
             @Valid @RequestBody UserRegistrationDto registrationDto,
             HttpServletRequest request) {
-        
         UserDto createdUser = userService.registerUser(registrationDto);
         ApiResponse<UserDto> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
@@ -66,7 +72,6 @@ public class UserController {
                 createdUser,
                 request.getRequestURI()
         );
-        
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -80,19 +85,23 @@ public class UserController {
 
     @PostMapping("/login")
     @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information with JWT token")
+    /**
+     * Authenticate a user with username/email and password. On success returns user details including JWT.
+     *
+     * @param loginDto login DTO containing username/email and password
+     * @param request  current HTTP request used to build response path
+     * @return ResponseEntity with ApiResponse containing UserDto and token on success, or 401 on failure
+     */
     public ResponseEntity<ApiResponse<UserDto>> loginUser(
             @Valid @RequestBody UserLoginDto loginDto,
             HttpServletRequest request) {
-        
         Optional<UserDto> userOpt = userService.authenticateUser(
                 loginDto.getUsernameOrEmail(), loginDto.getPassword());
-        
         if (userOpt.isPresent()) {
             UserDto userDto = userOpt.get();
             String token = tokenProvider.generateTokenFromUsernameAndUserId(
                     userDto.getUsername(), userDto.getId());
             userDto.setToken(token);
-            
             ApiResponse<UserDto> response = ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Authentication successful",
@@ -112,67 +121,113 @@ public class UserController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID", description = "Retrieves user information by their unique ID")
-    public ResponseEntity<ApiResponse<UserDto>> getUserById(
-            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
-            HttpServletRequest request) {
-        return toUserResponse(userService.getUserById(id), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
-    }
+        /**
+         * Retrieve a user by their id.
+         *
+         * @param id      user id
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing UserDto or 404 when not found
+         */
+        public ResponseEntity<ApiResponse<UserDto>> getUserById(
+                        @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+                        HttpServletRequest request) {
+                return toUserResponse(userService.getUserById(id), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
+        }
 
     @GetMapping("/username/{username}")
     @Operation(summary = "Get user by username", description = "Retrieves user information by their username")
-    public ResponseEntity<ApiResponse<UserDto>> getUserByUsername(
-            @Parameter(description = "Username") @PathVariable String username,
-            HttpServletRequest request) {
-        return toUserResponse(userService.getUserByUsername(username), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
-    }
+        /**
+         * Retrieve a user by username.
+         *
+         * @param username username to look up
+         * @param request  current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing UserDto or 404 when not found
+         */
+        public ResponseEntity<ApiResponse<UserDto>> getUserByUsername(
+                        @Parameter(description = "Username") @PathVariable String username,
+                        HttpServletRequest request) {
+                return toUserResponse(userService.getUserByUsername(username), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
+        }
 
     @GetMapping("/email/{email}")
     @Operation(summary = "Get user by email", description = "Retrieves user information by their email address")
-    public ResponseEntity<ApiResponse<UserDto>> getUserByEmail(
-            @Parameter(description = "Email address") @PathVariable String email,
-            HttpServletRequest request) {
-        return toUserResponse(userService.getUserByEmail(email), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
-    }
+        /**
+         * Retrieve a user by email address.
+         *
+         * @param email   email address to look up
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing UserDto or 404 when not found
+         */
+        public ResponseEntity<ApiResponse<UserDto>> getUserByEmail(
+                        @Parameter(description = "Email address") @PathVariable String email,
+                        HttpServletRequest request) {
+                return toUserResponse(userService.getUserByEmail(email), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
+        }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update user profile", description = "Updates user profile information")
-    public ResponseEntity<ApiResponse<UserDto>> updateUser(
-            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
-            @Valid @RequestBody @NonNull UserUpdateDto updateDto,
-            HttpServletRequest request) {
-        return toUserResponse(userService.updateUser(id, updateDto), request.getRequestURI(), "User updated successfully");
-    }
+        /**
+         * Update a user's profile information.
+         *
+         * @param id        user id
+         * @param updateDto DTO with updated user fields
+         * @param request   current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing updated UserDto
+         */
+        public ResponseEntity<ApiResponse<UserDto>> updateUser(
+                        @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+                        @Valid @RequestBody @NonNull UserUpdateDto updateDto,
+                        HttpServletRequest request) {
+                return toUserResponse(userService.updateUser(id, updateDto), request.getRequestURI(), "User updated successfully");
+        }
 
     @PutMapping("/{id}/password")
     @Operation(summary = "Change user password", description = "Updates user password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
-            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
-            @RequestParam @NonNull String currentPassword,
-            @RequestParam @NonNull String newPassword,
-            HttpServletRequest request) {
-        
-        boolean success = userService.changePassword(id, currentPassword, newPassword);
-        
-        if (success) {
-            ApiResponse<Void> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "Password changed successfully",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<Void> response = ApiResponse.error(
-                    HttpStatus.BAD_REQUEST.value(),
-                    "Invalid current password",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.badRequest().body(response);
+        /**
+         * Change a user's password.
+         *
+         * @param id              user id
+         * @param currentPassword user's current password
+         * @param newPassword     new password to set
+         * @param request         current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse<Void> indicating success or failure
+         */
+        public ResponseEntity<ApiResponse<Void>> changePassword(
+                        @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+                        @RequestParam @NonNull String currentPassword,
+                        @RequestParam @NonNull String newPassword,
+                        HttpServletRequest request) {
+                boolean success = userService.changePassword(id, currentPassword, newPassword);
+                if (success) {
+                        ApiResponse<Void> response = ApiResponse.success(
+                                        HttpStatus.OK.value(),
+                                        "Password changed successfully",
+                                        request.getRequestURI()
+                        );
+                        return ResponseEntity.ok(response);
+                } else {
+                        ApiResponse<Void> response = ApiResponse.error(
+                                        HttpStatus.BAD_REQUEST.value(),
+                                        "Invalid current password",
+                                        request.getRequestURI()
+                        );
+                        return ResponseEntity.badRequest().body(response);
+                }
         }
-    }
 
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves a paginated list of all users")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    /**
+     * Retrieve a paginated list of all users. Requires ADMIN or SUPER_ADMIN.
+     *
+     * @param page    page number (0-based)
+     * @param size    page size
+     * @param sortBy  field to sort by
+     * @param sortDir sort direction (asc|desc)
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with PagedResponse containing UserDto
+     */
     public ResponseEntity<PagedResponse<UserDto>> getAllUsers(
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
@@ -198,6 +253,15 @@ public class UserController {
     @GetMapping("/role/{role}")
     @Operation(summary = "Get users by role", description = "Retrieves users filtered by their role")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    /**
+     * Retrieve users filtered by role. Requires ADMIN or SUPER_ADMIN.
+     *
+     * @param role    user role to filter by
+     * @param page    page number (0-based)
+     * @param size    page size
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with PagedResponse containing UserDto
+     */
     public ResponseEntity<PagedResponse<UserDto>> getUsersByRole(
             @Parameter(description = "User role") @PathVariable @NonNull UserRole role,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
@@ -219,6 +283,15 @@ public class UserController {
     @GetMapping("/status/{status}")
     @Operation(summary = "Get users by status", description = "Retrieves users filtered by their status")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    /**
+     * Retrieve users filtered by status. Requires ADMIN or SUPER_ADMIN.
+     *
+     * @param status  user status to filter by
+     * @param page    page number (0-based)
+     * @param size    page size
+     * @param request current HTTP request used to build response path
+     * @return ResponseEntity with PagedResponse containing UserDto
+     */
     public ResponseEntity<PagedResponse<UserDto>> getUsersByStatus(
             @Parameter(description = "User status") @PathVariable @NonNull UserStatus status,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
@@ -240,6 +313,15 @@ public class UserController {
     @GetMapping("/search")
     @Operation(summary = "Search users by name", description = "Searches users by first name or last name")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    /**
+     * Search users by first or last name. Requires ADMIN or SUPER_ADMIN.
+     *
+     * @param searchTerm search term to match against first or last name
+     * @param page       page number (0-based)
+     * @param size       page size
+     * @param request    current HTTP request used to build response path
+     * @return ResponseEntity with PagedResponse containing UserDto
+     */
     public ResponseEntity<PagedResponse<UserDto>> searchUsersByName(
             @Parameter(description = "Search term") @RequestParam @NonNull String searchTerm,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
@@ -261,50 +343,79 @@ public class UserController {
     @PutMapping("/{id}/role")
     @Operation(summary = "Update user role", description = "Updates user role (admin operation)")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<UserDto>> updateUserRole(
-            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
-            @Parameter(description = "New role") @RequestParam @NonNull UserRole role,
-            HttpServletRequest request) {
-        return toUserResponse(userService.updateUserRole(id, role), request.getRequestURI(), "User role updated successfully");
-    }
+        /**
+         * Update a user's role. Requires ADMIN or SUPER_ADMIN.
+         *
+         * @param id      user id
+         * @param role    new role to set
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing updated UserDto
+         */
+        public ResponseEntity<ApiResponse<UserDto>> updateUserRole(
+                        @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+                        @Parameter(description = "New role") @RequestParam @NonNull UserRole role,
+                        HttpServletRequest request) {
+                return toUserResponse(userService.updateUserRole(id, role), request.getRequestURI(), "User role updated successfully");
+        }
 
     @PutMapping("/{id}/status")
     @Operation(summary = "Update user status", description = "Updates user status (admin operation)")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<UserDto>> updateUserStatus(
-            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
-            @Parameter(description = "New status") @RequestParam @NonNull UserStatus status,
-            HttpServletRequest request) {
-        return toUserResponse(userService.updateUserStatus(id, status), request.getRequestURI(), "User status updated successfully");
-    }
+        /**
+         * Update a user's status. Requires ADMIN or SUPER_ADMIN.
+         *
+         * @param id      user id
+         * @param status  new status to set
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing updated UserDto
+         */
+        public ResponseEntity<ApiResponse<UserDto>> updateUserStatus(
+                        @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+                        @Parameter(description = "New status") @RequestParam @NonNull UserStatus status,
+                        HttpServletRequest request) {
+                return toUserResponse(userService.updateUserStatus(id, status), request.getRequestURI(), "User status updated successfully");
+        }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete user", description = "Deletes a user account")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(
-            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
-            HttpServletRequest request) {
-        
-        boolean deleted = userService.deleteUser(id);
-        
-        if (deleted) {
-            ApiResponse<Void> response = ApiResponse.success(
-                    HttpStatus.OK.value(),
-                    "User deleted successfully",
-                    request.getRequestURI()
-            );
-            return ResponseEntity.ok(response);
-        } else {
-            ApiResponse<Void> response = ApiResponse.error(
-                    HttpStatus.NOT_FOUND.value(),
-                    USER_NOT_FOUND,
-                    request.getRequestURI()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        /**
+         * Delete a user account. Requires SUPER_ADMIN.
+         *
+         * @param id      user id to delete
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse<Void> indicating deletion success or 404 when not found
+         */
+        public ResponseEntity<ApiResponse<Void>> deleteUser(
+                        @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+                        HttpServletRequest request) {
+                boolean deleted = userService.deleteUser(id);
+                if (deleted) {
+                        ApiResponse<Void> response = ApiResponse.success(
+                                        HttpStatus.OK.value(),
+                                        "User deleted successfully",
+                                        request.getRequestURI()
+                        );
+                        return ResponseEntity.ok(response);
+                } else {
+                        ApiResponse<Void> response = ApiResponse.error(
+                                        HttpStatus.NOT_FOUND.value(),
+                                        USER_NOT_FOUND,
+                                        request.getRequestURI()
+                        );
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+                }
         }
-    }
 
     private ResponseEntity<ApiResponse<UserDto>> toUserResponse(Optional<UserDto> userOpt, String path, String successMessage) {
+        /**
+         * Helper that converts an Optional<UserDto> into a ResponseEntity<ApiResponse<UserDto>>.
+         *
+         * @param userOpt        optional user DTO
+         * @param path           request path used in the ApiResponse
+         * @param successMessage message to use on successful retrieval
+         * @return ResponseEntity with ApiResponse containing UserDto or 404 error
+         */
         return userOpt
                 .map(user -> ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), successMessage, user, path)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -314,24 +425,35 @@ public class UserController {
     @GetMapping("/statistics")
     @Operation(summary = "Get user statistics", description = "Retrieves user statistics for dashboard")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<UserService.UserStatistics>> getUserStatistics(HttpServletRequest request) {
-        UserService.UserStatistics statistics = userService.getUserStatistics();
-        ApiResponse<UserService.UserStatistics> response = ApiResponse.success(
-                HttpStatus.OK.value(),
-                "User statistics retrieved successfully",
-                statistics,
-                request.getRequestURI()
-        );
-        
-        return ResponseEntity.ok(response);
-    }
+        /**
+         * Retrieve aggregated user statistics for dashboard. Requires ADMIN or SUPER_ADMIN.
+         *
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing UserStatistics
+         */
+        public ResponseEntity<ApiResponse<UserService.UserStatistics>> getUserStatistics(HttpServletRequest request) {
+                UserService.UserStatistics statistics = userService.getUserStatistics();
+                ApiResponse<UserService.UserStatistics> response = ApiResponse.success(
+                                HttpStatus.OK.value(),
+                                "User statistics retrieved successfully",
+                                statistics,
+                                request.getRequestURI()
+                );
+                return ResponseEntity.ok(response);
+        }
 
     @GetMapping("/check-username")
     @Operation(summary = "Check username availability", description = "Checks if a username is available for registration")
     public ResponseEntity<ApiResponse<Boolean>> checkUsernameAvailability(
             @Parameter(description = "Username to check") @RequestParam @NonNull String username,
             HttpServletRequest request) {
-        
+        /**
+         * Check whether a username is available for registration.
+         *
+         * @param username candidate username
+         * @param request  current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing boolean availability
+         */
         boolean available = userService.isUsernameAvailable(username);
         ApiResponse<Boolean> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -339,7 +461,6 @@ public class UserController {
                 available,
                 request.getRequestURI()
         );
-        
         return ResponseEntity.ok(response);
     }
 
@@ -348,7 +469,13 @@ public class UserController {
     public ResponseEntity<ApiResponse<Boolean>> checkEmailAvailability(
             @Parameter(description = "Email to check") @RequestParam @NonNull String email,
             HttpServletRequest request) {
-        
+        /**
+         * Check whether an email address is available for registration.
+         *
+         * @param email   candidate email address
+         * @param request current HTTP request used to build response path
+         * @return ResponseEntity with ApiResponse containing boolean availability
+         */
         boolean available = userService.isEmailAvailable(email);
         ApiResponse<Boolean> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -356,7 +483,6 @@ public class UserController {
                 available,
                 request.getRequestURI()
         );
-        
         return ResponseEntity.ok(response);
     }
 }

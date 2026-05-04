@@ -39,7 +39,19 @@ public class MatchController {
     private final MeterRegistry meterRegistry;
 
     @GetMapping("/matches")
-    public ResponseEntity<ApiResponse<List<MatchResponseDto>>> getMatches(
+        /**
+         * Endpoint to find matching travelers based on destination, date range and interests.
+         *
+         * @param destination required destination string (max 120 chars)
+         * @param startDate   requested start date (inclusive)
+         * @param endDate     requested end date (inclusive)
+         * @param interests   optional list of interests used to bias matches
+         * @param limit       maximum number of results requested (defaults to 20)
+         * @param request     current HTTP servlet request
+         * @return ResponseEntity containing an ApiResponse with a list of MatchResponseDto
+         * @throws IllegalArgumentException for invalid input
+         */
+        public ResponseEntity<ApiResponse<List<MatchResponseDto>>> getMatches(
             @RequestParam @NotBlank @Size(max = 120) String destination,
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate,

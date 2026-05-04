@@ -46,6 +46,13 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Build a concise traveler summary for display in social contexts.
+     *
+     * @param travelerId id of the traveler
+     * @return TravelerSummaryDto containing a short bio and display information
+     * @throws ResourceNotFoundException if the traveler does not exist
+     */
     public TravelerSummaryDto getTravelerSummary(Long travelerId) {
         User user = userRepository.findById(Objects.requireNonNull(travelerId))
                 .orElseThrow(() -> new ResourceNotFoundException("Traveler not found with ID: " + travelerId));
@@ -66,6 +73,16 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Return a sample list of accepted connections for a travel plan.
+     *
+     * This implementation currently returns a small sample list derived from
+     * existing users and is intended as a placeholder for a real query.
+     *
+     * @param travelPlanId id of the travel plan
+     * @return list of TravelConnectionDto representing accepted connections
+     * @throws ResourceNotFoundException if the travel plan does not exist
+     */
     public List<TravelConnectionDto> getAcceptedConnectionsByTravelPlan(Long travelPlanId) {
         if (!travelPlanRepository.existsById(Objects.requireNonNull(travelPlanId))) {
             throw new ResourceNotFoundException("Travel plan not found with ID: " + travelPlanId);
@@ -83,6 +100,14 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional
+    /**
+     * Delete a connection and related data (messages, shared access) if the
+     * requesting user is one of the participants.
+     *
+     * @param connectionId      id of the connection to delete
+     * @param requestingUserId  id of the user requesting deletion
+     * @throws ResourceNotFoundException when the connection does not exist or user lacks access
+     */
     public void deleteConnection(Long connectionId, Long requestingUserId) {
         Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
@@ -104,6 +129,16 @@ public class SocialServiceImpl implements SocialService {
     // Add these implementations to SocialServiceImpl
     @Override
     @Transactional
+    /**
+     * Send a message on an accepted connection.
+     *
+     * @param connectionId id of the connection
+     * @param senderId     id of the sending user
+     * @param content      message content text
+     * @return persisted Message entity
+     * @throws IllegalArgumentException if the user is not part of the connection or content is invalid
+     * @throws ResourceNotFoundException if the connection does not exist
+     */
     public Message sendMessage(Long connectionId, Long senderId, String content) {
         // Validate connection exists and user is part of it
         Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
@@ -139,6 +174,15 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Retrieve conversation messages for a connection, ordered by createdAt descending.
+     *
+     * @param connectionId id of the connection
+     * @param userId       id of the requesting user
+     * @return list of messages in the conversation
+     * @throws IllegalArgumentException if the user is not part of the connection
+     * @throws ResourceNotFoundException if the connection does not exist
+     */
     public List<Message> getConversationMessages(Long connectionId, Long userId) {
         Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
@@ -161,6 +205,14 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional
+    /**
+     * Mark a single message as read by its recipient.
+     *
+     * @param messageId id of the message to mark read
+     * @param userId    id of the user marking the message
+     * @throws ResourceNotFoundException if the message does not exist
+     * @throws IllegalArgumentException if the user is not the recipient
+     */
     public void markMessageAsRead(Long messageId, Long userId) {
         Message message = messageRepository.findById(Objects.requireNonNull(messageId))
                 .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
@@ -176,6 +228,15 @@ public class SocialServiceImpl implements SocialService {
     // Connection request management methods
     @Override
     @Transactional
+    /**
+     * Send a connection request from one user to another.
+     *
+     * @param request     DTO containing recipient and message
+     * @param requesterId id of the user initiating the request
+     * @return ConnectionRequestDto representing the created or updated request
+     * @throws ResourceNotFoundException if the recipient user does not exist
+     * @throws IllegalArgumentException for invalid or duplicate request scenarios
+     */
     public ConnectionRequestDto sendConnectionRequest(SendConnectionRequestDto request, Long requesterId) {
         // Validate recipient exists
         if (!userRepository.existsById(Objects.requireNonNull(request.getRecipientId()))) {
@@ -231,6 +292,15 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional
+    /**
+     * Accept a pending connection request.
+     *
+     * @param requestId   id of the connection request to accept
+     * @param recipientId id of the user accepting the request
+     * @return ConnectionRequestDto representing the accepted connection
+     * @throws ResourceNotFoundException if the request does not exist
+     * @throws IllegalArgumentException if the caller is not the recipient or request state is invalid
+     */
     public ConnectionRequestDto acceptConnectionRequest(Long requestId, Long recipientId) {
         Connection connection = connectionRepository.findById(Objects.requireNonNull(requestId))
                 .orElseThrow(() -> new ResourceNotFoundException("Connection request not found"));
@@ -251,6 +321,15 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional
+    /**
+     * Reject a pending connection request.
+     *
+     * @param requestId   id of the connection request to reject
+     * @param recipientId id of the user rejecting the request
+     * @return ConnectionRequestDto representing the rejected connection
+     * @throws ResourceNotFoundException if the request does not exist
+     * @throws IllegalArgumentException if the caller is not the recipient or request state is invalid
+     */
     public ConnectionRequestDto rejectConnectionRequest(Long requestId, Long recipientId) {
         Connection connection = connectionRepository.findById(Objects.requireNonNull(requestId))
                 .orElseThrow(() -> new ResourceNotFoundException("Connection request not found"));
@@ -271,6 +350,12 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Get pending connection requests for a user.
+     *
+     * @param userId id of the user
+     * @return list of pending ConnectionRequestDto
+     */
     public List<ConnectionRequestDto> getPendingRequestsForUser(Long userId) {
         List<Connection> pendingRequests = connectionRepository
                 .findByRecipientIdAndStatus(userId, ConnectionStatus.PENDING);
@@ -282,6 +367,12 @@ public class SocialServiceImpl implements SocialService {
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Get connection requests sent by a user.
+     *
+     * @param userId id of the user
+     * @return list of sent ConnectionRequestDto
+     */
     public List<ConnectionRequestDto> getSentRequestsForUser(Long userId) {
         List<Connection> sentRequests = connectionRepository
                 .findByRequesterIdAndStatus(userId, ConnectionStatus.PENDING);
@@ -292,6 +383,12 @@ public class SocialServiceImpl implements SocialService {
     }
 
     private ConnectionRequestDto convertToConnectionRequestDto(Connection connection) {
+        /**
+         * Convert a Connection entity into a ConnectionRequestDto with user display information.
+         *
+         * @param connection entity to convert
+         * @return populated ConnectionRequestDto
+         */
         ConnectionRequestDto dto = new ConnectionRequestDto();
         dto.setId(connection.getId());
         dto.setRequesterId(connection.getRequesterId());

@@ -27,6 +27,15 @@ public class TravelPlanActivityServiceImpl implements TravelPlanActivityService 
 
     @Override
     @Transactional
+    /**
+     * Create an activity associated with a travel plan.
+     *
+     * @param travelPlanId id of the travel plan
+     * @param request      DTO containing activity details
+     * @return TravelPlanActivityDto representing the created activity
+     * @throws IllegalArgumentException if the provided time range is invalid
+     * @throws ResourceNotFoundException if the travel plan does not exist
+     */
     public TravelPlanActivityDto createActivity(Long travelPlanId, CreateTravelPlanActivityRequestDto request) {
         validateTimeRange(request.getStartTime(), request.getEndTime());
         TravelPlan travelPlan = getTravelPlanOrThrow(Objects.requireNonNull(travelPlanId));
@@ -47,6 +56,16 @@ public class TravelPlanActivityServiceImpl implements TravelPlanActivityService 
 
     @Override
     @Transactional
+    /**
+     * Update an existing travel plan activity.
+     *
+     * @param travelPlanId id of the travel plan that owns the activity
+     * @param activityId   id of the activity to update
+     * @param request      DTO with updated activity fields
+     * @return TravelPlanActivityDto representing the updated activity
+     * @throws IllegalArgumentException if the provided time range is invalid
+     * @throws ResourceNotFoundException if the activity or travel plan does not exist
+     */
     public TravelPlanActivityDto updateActivity(Long travelPlanId, Long activityId, UpdateTravelPlanActivityRequestDto request) {
         validateTimeRange(request.getStartTime(), request.getEndTime());
         getTravelPlanOrThrow(Objects.requireNonNull(travelPlanId));
@@ -66,6 +85,13 @@ public class TravelPlanActivityServiceImpl implements TravelPlanActivityService 
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Retrieve activities for a travel plan ordered by start time.
+     *
+     * @param travelPlanId id of the travel plan
+     * @return list of TravelPlanActivityDto ordered by start time
+     * @throws ResourceNotFoundException if the travel plan does not exist
+     */
     public List<TravelPlanActivityDto> getActivities(Long travelPlanId) {
         getTravelPlanOrThrow(Objects.requireNonNull(travelPlanId));
         return activityRepository.findByTravelPlanIdOrderByStartTimeAsc(travelPlanId)
@@ -76,6 +102,13 @@ public class TravelPlanActivityServiceImpl implements TravelPlanActivityService 
 
     @Override
     @Transactional
+    /**
+     * Delete an activity belonging to a travel plan.
+     *
+     * @param travelPlanId id of the travel plan
+     * @param activityId   id of the activity to delete
+     * @throws ResourceNotFoundException if the travel plan or activity does not exist
+     */
     public void deleteActivity(Long travelPlanId, Long activityId) {
         getTravelPlanOrThrow(Objects.requireNonNull(travelPlanId));
 
@@ -97,6 +130,12 @@ public class TravelPlanActivityServiceImpl implements TravelPlanActivityService 
     }
 
     private TravelPlanActivityDto toDto(TravelPlanActivity activity) {
+        /**
+         * Map a TravelPlanActivity entity to its DTO representation.
+         *
+         * @param activity entity to map
+         * @return TravelPlanActivityDto containing the activity data
+         */
         return TravelPlanActivityDto.builder()
                 .id(activity.getId())
                 .name(activity.getName())

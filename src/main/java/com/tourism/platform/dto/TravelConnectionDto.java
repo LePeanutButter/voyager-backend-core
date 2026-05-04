@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO describing a travel connection between two users. Contains minimal
+ * relationship metadata used by connection-management endpoints.
+ */
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

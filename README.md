@@ -45,21 +45,24 @@ The API follows REST best practices and implements the Richardson Maturity Model
 ### Local Development Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/LePeanutButter/voyager-backend-core.git
    cd voyager-backend-core
    ```
 
 2. **Set up the database**
+
    ```bash
    # Create PostgreSQL database
    createdb -U postgres tourism_platform
-   
+
    # Update application.yml with your database credentials
    cp src/main/resources/application.yml.example src/main/resources/application.yml
    ```
 
 3. **Build the application**
+
    ```bash
    mvn clean install
    ```
@@ -74,6 +77,7 @@ The application will start on `http://localhost:8080/api/v1`
 ### Docker Setup
 
 1. **Build the Docker image**
+
    ```bash
    docker build -t smartrip-backend:latest .
    ```
@@ -286,6 +290,7 @@ mvn test -Dtest=UserServiceTest
 ### Production Deployment
 
 1. **Environment Setup**
+
    ```bash
    # Set production environment variables
    export SPRING_PROFILES_ACTIVE=prod
@@ -295,10 +300,11 @@ mvn test -Dtest=UserServiceTest
    ```
 
 2. **Docker Deployment**
+
    ```bash
    # Build production image
    docker build -t smartrip-backend:1.0.0 .
-   
+
    # Run with production configuration
    docker run -d \
      --name smartrip-backend \
@@ -340,7 +346,16 @@ The application includes built-in health endpoints:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
+
+### License Summary
+
+- **Commercial Use**: Yes
+- **Modification**: Yes
+- **Distribution**: Yes
+- **Private Use**: Yes
+- **Liability**: No
+- **Warranty**: No
 
 ### Copyright
 

@@ -44,7 +44,9 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     /**
-     * Password encoder bean for hashing passwords
+     * Password encoder bean for hashing and verifying user passwords.
+     *
+     * @return a {@link PasswordEncoder} instance suitable for encoding passwords
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -52,7 +54,11 @@ public class SecurityConfig {
     }
 
     /**
-     * Authentication manager bean for JWT authentication
+     * Expose the {@link AuthenticationManager} from the provided configuration.
+     *
+     * @param config Spring {@link AuthenticationConfiguration} used to obtain the manager
+     * @return the resolved AuthenticationManager
+     * @throws Exception if the authentication manager cannot be created
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -60,7 +66,12 @@ public class SecurityConfig {
     }
 
     /**
-     * JWT authentication filter bean
+     * Create the JWT authentication filter responsible for extracting and validating
+     * JWT tokens from incoming requests.
+     *
+     * @param tokenProvider       provider responsible for token validation and claims extraction
+     * @param userDetailsService  service used to load user details for authentication context
+     * @return configured {@link JwtAuthenticationFilter} instance
      */
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider tokenProvider,
@@ -69,7 +80,9 @@ public class SecurityConfig {
     }
 
     /**
-     * CORS configuration source
+     * Build the CORS configuration used by the application.
+     *
+     * @return a {@link CorsConfigurationSource} exposing allowed origins, headers and methods
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -88,7 +101,13 @@ public class SecurityConfig {
     }
 
     /**
-     * Main security filter chain configuration
+     * Configure the main {@link SecurityFilterChain} for HTTP security.
+     *
+     * @param http               {@link HttpSecurity} builder provided by Spring Security
+     * @param tokenProvider      component used to validate JWT tokens
+     * @param userDetailsService service used to load user details for authentication
+     * @return the configured {@link SecurityFilterChain}
+     * @throws Exception if an error occurs while building the security chain
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtTokenProvider tokenProvider,
@@ -160,6 +179,12 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * Parse the configured allowed origins property into a list of origins.
+     *
+     * @param originsProperty comma-separated allowed origins property from configuration
+     * @return list of trimmed, non-empty origin strings
+     */
     private List<String> parseAllowedOrigins(String originsProperty) {
         return java.util.Arrays.stream(originsProperty.split(","))
                 .map(String::trim)

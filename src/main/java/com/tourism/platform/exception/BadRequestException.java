@@ -5,6 +5,11 @@ package com.tourism.platform.exception;
  */
 public class BadRequestException extends RuntimeException {
 
+    /**
+     * Create a new BadRequestException with a descriptive message.
+     *
+     * @param message description of the bad request or validation problem
+     */
     public BadRequestException(String message) {
         super(message);
     }

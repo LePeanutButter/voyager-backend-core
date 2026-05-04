@@ -37,7 +37,22 @@ public class ActivitySharingController {
     private final UserRepository userRepository;
 
     @PostMapping("/activities/{activityId}/share")
-    public ResponseEntity<ApiResponse<SharedActivityResponse>> shareActivity(
+        /**
+         * Share an activity with another user.
+         *
+         * Accepts a `ShareActivityRequest` containing the receiver id and creates
+         * a pending shared activity request. The authenticated principal is used
+         * to resolve the sender user.
+         *
+         * @param activityId  id of the activity to share
+         * @param requestBody request body containing the receiver id and optional message
+         * @param request     current HTTP servlet request (used to build response path)
+         * @param authentication authentication principal for the caller
+         * @return ResponseEntity wrapping an ApiResponse with the created SharedActivityResponse and HTTP 201
+         * @throws ResourceNotFoundException if referenced entities cannot be found
+         * @throws IllegalArgumentException for invalid input
+         */
+        public ResponseEntity<ApiResponse<SharedActivityResponse>> shareActivity(
             @PathVariable Long activityId,
             @Valid @RequestBody ShareActivityRequest requestBody,
             HttpServletRequest request,
@@ -67,7 +82,21 @@ public class ActivitySharingController {
     }
 
     @PatchMapping("/shared-activities/{id}")
-    public ResponseEntity<ApiResponse<SharedActivityResponse>> updateSharedActivity(
+        /**
+         * Resolve (accept/reject) a pending shared activity.
+         *
+         * The endpoint accepts a `SharedActivityActionRequest` giving the action
+         * to perform. Only the receiver of the shared activity may resolve it.
+         *
+         * @param id           id of the shared activity to update
+         * @param requestBody  request body containing the accept/reject action
+         * @param request      current HTTP servlet request (used to build response path)
+         * @param authentication authentication principal for the caller
+         * @return ResponseEntity wrapping an ApiResponse with the updated SharedActivityResponse and HTTP 200
+         * @throws ResourceNotFoundException if the shared activity or authenticated user cannot be found
+         * @throws IllegalArgumentException if the caller is not authorized to perform the action
+         */
+        public ResponseEntity<ApiResponse<SharedActivityResponse>> updateSharedActivity(
             @PathVariable Long id,
             @Valid @RequestBody SharedActivityActionRequest requestBody,
             HttpServletRequest request,
@@ -97,6 +126,13 @@ public class ActivitySharingController {
     }
 
     private Long resolveCurrentUserId(Authentication authentication) {
+        /**
+         * Resolve the current authenticated user's id from the provided Authentication.
+         *
+         * @param authentication Spring Security authentication object
+         * @return id of the authenticated user
+         * @throws ResourceNotFoundException when the user cannot be resolved from username
+         */
         String username = authenticatedUsername(authentication);
         return userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found: " + username))
@@ -104,10 +140,22 @@ public class ActivitySharingController {
     }
 
     private String safePath(HttpServletRequest request) {
-        return request != null ? request.getRequestURI() : "";
+                /**
+                 * Safely extract the request URI or return an empty string when request is null.
+                 *
+                 * @param request HTTP servlet request or null
+                 * @return request URI string or empty string
+                 */
+                return request != null ? request.getRequestURI() : "";
     }
 
     private String authenticatedUsername(Authentication authentication) {
-        return Objects.requireNonNull(authentication, "authentication is required").getName();
+                /**
+                 * Return the username from the Authentication object.
+                 *
+                 * @param authentication Spring Security authentication (must not be null)
+                 * @return username string
+                 */
+                return Objects.requireNonNull(authentication, "authentication is required").getName();
     }
 }

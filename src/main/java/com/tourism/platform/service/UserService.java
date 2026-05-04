@@ -1,15 +1,16 @@
 package com.tourism.platform.service;
 
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
+
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.dto.UserRegistrationDto;
 import com.tourism.platform.dto.UserUpdateDto;
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.lang.NonNull;
-
-import java.util.Optional;
 
 /**
  * Service interface for user management operations
@@ -179,15 +180,31 @@ public interface UserService {
         private final long totalUsers;
         private final long activeUsers;
 
+        /**
+         * Construct a new UserStatistics instance.
+         *
+         * @param totalUsers  total number of users in the system
+         * @param activeUsers number of users currently marked as active
+         */
         public UserStatistics(long totalUsers, long activeUsers) {
             this.totalUsers = totalUsers;
             this.activeUsers = activeUsers;
         }
 
+        /**
+         * Get the total number of users.
+         *
+         * @return total users count
+         */
         public long getTotalUsers() {
             return totalUsers;
         }
 
+        /**
+         * Get the number of active users.
+         *
+         * @return active users count
+         */
         public long getActiveUsers() {
             return activeUsers;
         }

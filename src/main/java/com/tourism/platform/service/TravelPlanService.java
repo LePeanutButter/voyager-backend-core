@@ -1,13 +1,14 @@
 package com.tourism.platform.service;
 
-import com.tourism.platform.dto.TravelerMatchDto;
-import com.tourism.platform.dto.TravelPlanDto;
-import com.tourism.platform.model.TravelPlan;
-import com.tourism.platform.model.TravelPlanStatus;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
+import com.tourism.platform.dto.TravelPlanDto;
+import com.tourism.platform.dto.TravelerMatchDto;
+import com.tourism.platform.model.TravelPlan;
+import com.tourism.platform.model.TravelPlanStatus;
 
 /**
  * Service interface for TravelPlan business logic
@@ -66,17 +67,48 @@ public interface TravelPlanService {
      * @return Page of active travel plans for the user
      */
     Page<TravelPlan> getActiveTravelPlansByUser(Long userId, Pageable pageable);
-
+    /**
+     * Create a new travel plan for a user.
+     *
+     * @param dto    travel plan data transfer object containing plan details
+     * @param userId id of the user creating the travel plan
+     * @return created TravelPlanDto representing the persisted plan
+     */
     TravelPlanDto createTravelPlan(TravelPlanDto dto, Long userId);
 
+    /**
+     * Retrieve all travel plan DTOs for a given user.
+     *
+     * @param userId id of the user whose plans should be retrieved
+     * @return list of TravelPlanDto belonging to the user
+     */
     List<TravelPlanDto> getTravelPlanDtosByUser(Long userId);
 
+    /**
+     * Update an existing travel plan.
+     *
+     * @param travelPlanId id of the travel plan to update
+     * @param userId       id of the user requesting the update
+     * @param dto          DTO containing updated travel plan fields
+     * @return updated TravelPlanDto after persistence
+     */
     TravelPlanDto updateTravelPlan(Long travelPlanId, Long userId, TravelPlanDto dto);
 
+    /**
+     * Delete a travel plan.
+     *
+     * @param travelPlanId id of the travel plan to delete
+     * @param userId       id of the user requesting deletion
+     */
     void deleteTravelPlan(Long travelPlanId, Long userId);
 
     /**
-     * Updates only the status of a travel plan (persisted).
+     * Update only the status field of an existing travel plan and persist it.
+     *
+     * @param travelPlanId id of the travel plan to update
+     * @param userId       id of the user performing the update
+     * @param status       new TravelPlanStatus to apply
+     * @return TravelPlanDto representing the travel plan after the status change
      */
     TravelPlanDto updateTravelPlanStatus(Long travelPlanId, Long userId, TravelPlanStatus status);
 }

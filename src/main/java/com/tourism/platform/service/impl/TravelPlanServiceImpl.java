@@ -1,7 +1,18 @@
 package com.tourism.platform.service.impl;
 
-import com.tourism.platform.dto.TravelerMatchDto;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Objects;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.tourism.platform.dto.TravelPlanDto;
+import com.tourism.platform.dto.TravelerMatchDto;
 import com.tourism.platform.exception.BusinessException;
 import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.TravelPlan;
@@ -9,19 +20,10 @@ import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.repository.TravelPlanRepository;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.TravelPlanService;
-import org.springframework.security.access.AccessDeniedException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityNotFoundException;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Objects;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Implementation of TravelPlanService
@@ -43,6 +45,17 @@ public class TravelPlanServiceImpl implements TravelPlanService {
 
     @Override
     @Transactional
+    /**
+     * Find travelers whose travel plans are compatible with the given travel plan.
+     *
+     * Compatibility is determined by destination proximity and overlapping dates.
+     * The requesting user must own the reference travel plan.
+     *
+     * @param travelPlanId     id of the reference travel plan
+     * @param requestingUserId id of the user requesting compatible travelers
+     * @return list of TravelerMatchDto containing compatibility metadata for each match
+     * @throws AccessDeniedException if the requesting user does not own the travel plan
+     */
     public List<TravelerMatchDto> findCompatibleTravelers(Long travelPlanId, Long requestingUserId) {
         log.info("Finding compatible travelers for travel plan ID: {} by user ID: {}", travelPlanId, requestingUserId);
 
@@ -75,6 +88,17 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     }
 
     @Override
+    /**
+     * Calculate the number of overlapping days between two date ranges.
+     *
+     * The result includes both endpoints and returns 0 when ranges do not overlap.
+     *
+     * @param startDate1 start of the first range
+     * @param endDate1   end of the first range
+     * @param startDate2 start of the second range
+     * @param endDate2   end of the second range
+     * @return number of overlapping days (0 if none)
+     */
     public Integer calculateOverlappingDays(LocalDateTime startDate1, LocalDateTime endDate1,
                                           LocalDateTime startDate2, LocalDateTime endDate2) {
         // Find the latest start date
@@ -94,17 +118,38 @@ public class TravelPlanServiceImpl implements TravelPlanService {
 
     @Override
     public TravelPlan getTravelPlanById(Long travelPlanId) {
+        /**
+         * Retrieve a travel plan by its identifier.
+         *
+         * @param travelPlanId id of the travel plan to retrieve
+         * @return TravelPlan entity when found
+         * @throws EntityNotFoundException if the travel plan is not found
+         */
         return travelPlanRepository.findById(Objects.requireNonNull(travelPlanId))
                 .orElseThrow(() -> new EntityNotFoundException("Travel plan not found with ID: " + travelPlanId));
     }
 
     @Override
     public Page<TravelPlan> getTravelPlansByUser(Long userId, Pageable pageable) {
+        /**
+         * Retrieve travel plans for a user with pagination.
+         *
+         * @param userId   id of the user
+         * @param pageable pagination information
+         * @return page of TravelPlan entities for the user
+         */
         return travelPlanRepository.findByUserId(userId, pageable);
     }
 
     @Override
     public Page<TravelPlan> getActiveTravelPlansByUser(Long userId, Pageable pageable) {
+        /**
+         * Retrieve only active travel plans for a user with pagination.
+         *
+         * @param userId   id of the user
+         * @param pageable pagination information
+         * @return page of active TravelPlan entities for the user
+         */
         return travelPlanRepository.findByUserIdAndStatus(userId, TravelPlanStatus.ACTIVE, pageable);
     }
 
@@ -144,6 +189,12 @@ public class TravelPlanServiceImpl implements TravelPlanService {
 
     @Override
     public List<TravelPlanDto> getTravelPlanDtosByUser(Long userId) {
+        /**
+         * Retrieve all travel plans for a user and map them to DTOs.
+         *
+         * @param userId id of the user
+         * @return list of TravelPlanDto for the user
+         */
         return travelPlanRepository.findByUserId(userId, org.springframework.data.domain.Pageable.unpaged())
                 .map(this::toDto)
                 .getContent();
@@ -152,6 +203,17 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     @Override
     @Transactional
     public TravelPlanDto updateTravelPlan(Long travelPlanId, Long userId, TravelPlanDto dto) {
+        /**
+         * Update an existing travel plan's fields.
+         *
+         * @param travelPlanId id of the travel plan to update
+         * @param userId       id of the user performing the update
+         * @param dto          DTO containing updated fields
+         * @return updated TravelPlanDto after persistence
+         * @throws BusinessException if provided dates are invalid
+         * @throws ResourceNotFoundException if the travel plan does not exist
+         * @throws AccessDeniedException if the user is not allowed to update the plan
+         */
         if (dto.getStartDate() != null && dto.getEndDate() != null && dto.getEndDate().isBefore(dto.getStartDate())) {
             throw new BusinessException("Invalid date range: endDate cannot be before startDate");
         }
@@ -189,6 +251,14 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     @Override
     @Transactional
     public void deleteTravelPlan(Long travelPlanId, Long userId) {
+        /**
+         * Delete a travel plan if the requesting user is the owner.
+         *
+         * @param travelPlanId id of the travel plan to delete
+         * @param userId       id of the user requesting deletion
+         * @throws ResourceNotFoundException if the travel plan does not exist
+         * @throws AccessDeniedException if the user does not own the travel plan
+         */
         TravelPlan existing = travelPlanRepository.findById(Objects.requireNonNull(travelPlanId))
                 .orElseThrow(() -> new ResourceNotFoundException(TRAVEL_PLAN_NOT_FOUND + travelPlanId));
 
@@ -202,6 +272,16 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     @Override
     @Transactional
     public TravelPlanDto updateTravelPlanStatus(Long travelPlanId, Long userId, TravelPlanStatus status) {
+        /**
+         * Update only the status of an existing travel plan.
+         *
+         * @param travelPlanId id of the travel plan to update
+         * @param userId       id of the user performing the update
+         * @param status       new TravelPlanStatus to set
+         * @return TravelPlanDto representing the travel plan after the status update
+         * @throws ResourceNotFoundException if the travel plan does not exist
+         * @throws AccessDeniedException if the user is not the owner of the travel plan
+         */
         TravelPlan existing = travelPlanRepository.findById(Objects.requireNonNull(travelPlanId))
                 .orElseThrow(() -> new ResourceNotFoundException(TRAVEL_PLAN_NOT_FOUND + travelPlanId));
         if (!existing.getUser().getId().equals(userId)) {
@@ -212,6 +292,12 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     }
 
     private TravelPlanDto toDto(TravelPlan plan) {
+        /**
+         * Map a TravelPlan entity to its corresponding DTO representation.
+         *
+         * @param plan TravelPlan entity to map
+         * @return TravelPlanDto containing selected fields from the entity
+         */
         return TravelPlanDto.builder()
                 .id(plan.getId())
                 .title(plan.getTitle())

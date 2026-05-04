@@ -25,7 +25,17 @@ public class ChatWebSocketController {
     private final SimpMessagingTemplate messagingTemplate;
 
     @MessageMapping("/chat/{connectionId}/sendMessage")
-    public void sendMessage(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
+        /**
+         * Handle incoming chat messages from WebSocket clients.
+         *
+         * Persists the message via the SocialService and broadcasts the saved message
+         * to the chat topic and to the recipient's private queue. On failure an error
+         * notification is sent back to the sender's private queue.
+         *
+         * @param connectionId id of the connection the message belongs to
+         * @param chatMessage  payload containing senderId, content and metadata
+         */
+        public void sendMessage(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
         try {
             // Save message to database
             Message savedMessage = socialService.sendMessage(
@@ -72,7 +82,13 @@ public class ChatWebSocketController {
     }
 
     @MessageMapping("/chat/{connectionId}/typing")
-    public void handleTyping(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
+        /**
+         * Handle typing indicators sent by clients and broadcast them to the chat topic.
+         *
+         * @param connectionId id of the connection where typing is occurring
+         * @param chatMessage  payload containing senderId
+         */
+        public void handleTyping(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
         ChatMessage typingNotification = ChatMessage.builder()
                 .connectionId(connectionId)
                 .senderId(chatMessage.getSenderId())

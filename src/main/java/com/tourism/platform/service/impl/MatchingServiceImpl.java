@@ -37,6 +37,16 @@ public class MatchingServiceImpl implements MatchingService {
     private final MeterRegistry meterRegistry;
 
     @Override
+    /**
+     * Find potential traveler matches based on destination, date range and interests.
+     *
+     * @param destination requested destination (may be null for relaxed matching)
+     * @param startDate   requested start date (inclusive)
+     * @param endDate     requested end date (inclusive)
+     * @param interests   list of interests to bias matching (may be null or empty)
+     * @return ordered list of MatchResponseDto sorted by score descending
+     * @throws BusinessException if the provided date range is invalid
+     */
     public List<MatchResponseDto> getMatches(String destination,
                                              LocalDate startDate,
                                              LocalDate endDate,
@@ -91,6 +101,10 @@ public class MatchingServiceImpl implements MatchingService {
                                         LocalDate requestedEndDate,
                                         List<String> normalizedInterests,
                                         Set<String> userInterests) {
+        /**
+         * Build a MatchResponseDto scoring a single travel plan against the
+         * requested criteria.
+         */
         int destinationPoints = computeDestinationPoints(requestedDestination, plan.getDestinationLocation());
         int datePoints = computeDatePoints(
                 requestedStartDate.atStartOfDay(),
@@ -114,6 +128,9 @@ public class MatchingServiceImpl implements MatchingService {
     }
 
     private int computeDestinationPoints(String requestedDestination, String planDestination) {
+        /**
+         * Compute destination score points for an exact destination match.
+         */
         if (requestedDestination == null || planDestination == null) {
             return 0;
         }
@@ -124,6 +141,9 @@ public class MatchingServiceImpl implements MatchingService {
                                   LocalDateTime requestedEnd,
                                   LocalDateTime candidateStart,
                                   LocalDateTime candidateEnd) {
+        /**
+         * Compute date overlap points based on ratio of overlapping days.
+         */
         LocalDateTime overlapStart = requestedStart.isAfter(candidateStart) ? requestedStart : candidateStart;
         LocalDateTime overlapEnd = requestedEnd.isBefore(candidateEnd) ? requestedEnd : candidateEnd;
         if (overlapStart.isAfter(overlapEnd)) {
@@ -138,6 +158,10 @@ public class MatchingServiceImpl implements MatchingService {
     }
 
     private int computeInterestPoints(List<String> normalizedInterests, Set<String> userInterests) {
+        /**
+         * Compute points for interest intersection between requested interests
+         * and the user's interests.
+         */
         if (normalizedInterests.isEmpty() || userInterests == null || userInterests.isEmpty()) {
             return 0;
         }
@@ -162,6 +186,12 @@ public class MatchingServiceImpl implements MatchingService {
     }
 
     private Map<Long, Set<String>> buildInterestsByUserId(Set<Long> userIds) {
+        /**
+         * Load and aggregate user interests for a set of user ids.
+         *
+         * @param userIds set of user ids to query
+         * @return map userId -> set of interest strings
+         */
         Map<Long, Set<String>> interestsByUserId = new HashMap<>();
         if (userIds.isEmpty()) {
             return interestsByUserId;
@@ -182,6 +212,9 @@ public class MatchingServiceImpl implements MatchingService {
                                                          LocalDate endDate,
                                                          List<String> normalizedInterests,
                                                          Map<Long, Set<String>> userInterestsMap) {
+        /**
+         * Evaluate candidate travel plans and keep the best-scoring plan per user.
+         */
         Map<Long, MatchResponseDto> bestPerUser = new HashMap<>();
         for (TravelPlan plan : candidates) {
             MatchResponseDto candidate = buildMatch(
@@ -193,6 +226,9 @@ public class MatchingServiceImpl implements MatchingService {
     }
 
     private void updateBestPerUser(Map<Long, MatchResponseDto> bestPerUser, MatchResponseDto candidate) {
+        /**
+         * Update the map of best matches per user if the candidate score is higher.
+         */
         if (candidate.getScore() > 0.0d) {
             MatchResponseDto currentBest = bestPerUser.get(candidate.getUserId());
             if (currentBest == null || candidate.getScore() > currentBest.getScore()) {

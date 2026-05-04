@@ -46,6 +46,20 @@ public class SharedActivityServiceImpl implements SharedActivityService {
     }
 
     @Override
+    /**
+     * Share an activity with another user within the same trip context.
+     *
+     * Validates ownership, trip membership and an accepted connection between users
+     * before creating a pending SharedActivity record.
+     *
+     * @param activityId     id of the activity to share
+     * @param receiverId     id of the user receiving the shared activity
+     * @param senderUsername username of the sender (used to resolve sender user)
+     * @return SharedActivityResponse representing the newly created share request
+     * @throws ResourceNotFoundException if sender, receiver or activity is not found
+     * @throws BadRequestException for invalid inputs (e.g., same sender and receiver)
+     * @throws ConflictException if sharing is not allowed due to trip membership or prior accepted shares
+     */
     public SharedActivityResponse shareActivity(@NonNull Long activityId, @NonNull Long receiverId, String senderUsername) {
         log.info("event=shared_activity_share_start activityId={} receiverId={}", activityId, receiverId);
         User sender = userRepository.findByUsername(senderUsername)
@@ -107,6 +121,20 @@ public class SharedActivityServiceImpl implements SharedActivityService {
         return response;
     }
 
+    /**
+     * Resolve a pending shared activity by accepting or rejecting it.
+     *
+     * Only the receiver may resolve the shared activity and only pending shares
+     * can be transitioned to accepted or rejected states.
+     *
+     * @param sharedActivityId id of the SharedActivity record to resolve
+     * @param request          decision request containing the action to take
+     * @param receiverUsername username of the receiver performing the action
+     * @return SharedActivityResponse reflecting the updated status
+     * @throws ResourceNotFoundException if the shared activity or user cannot be found
+     * @throws AccessDeniedException if the caller is not the receiver
+     * @throws ConflictException if the shared activity is not in a pending state
+     */
     @Override
     public SharedActivityResponse resolveSharedActivity(@NonNull Long sharedActivityId, SharedActivityDecisionRequest request, String receiverUsername) {
         log.info("event=shared_activity_resolve_start sharedActivityId={}", sharedActivityId);
@@ -139,6 +167,12 @@ public class SharedActivityServiceImpl implements SharedActivityService {
     }
 
     private void validateLatestShareStatus(SharedActivityStatus status) {
+        /**
+         * Validate that the latest share status does not block creating a new share.
+         *
+         * @param status the status of the latest shared activity to validate
+         * @throws ConflictException when a pending or accepted share exists
+         */
         if (status == SharedActivityStatus.PENDING) {
             throw new ConflictException("A pending share already exists for this receiver");
         }
@@ -148,6 +182,12 @@ public class SharedActivityServiceImpl implements SharedActivityService {
     }
 
     private SharedActivityResponse toResponse(SharedActivity sharedActivity) {
+        /**
+         * Map a SharedActivity entity to a SharedActivityResponse DTO.
+         *
+         * @param sharedActivity entity to convert
+         * @return SharedActivityResponse with id, activityId, senderId, receiverId and status
+         */
         SharedActivityResponse response = new SharedActivityResponse();
         response.setId(sharedActivity.getId());
         response.setActivityId(sharedActivity.getActivity().getId());

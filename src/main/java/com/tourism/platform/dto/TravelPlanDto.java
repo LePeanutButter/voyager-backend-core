@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO representing a travel plan. Contains plan metadata and lists of
+ * associated activities, participants and other related information used by
+ * the API to transfer travel plan state.
+ */
+
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.model.TravelType;
 import io.swagger.v3.oas.annotations.media.Schema;

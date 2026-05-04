@@ -35,6 +35,14 @@ public class CompatibilityController {
     }
 
     @PostMapping("/matches")
+    /**
+     * Compute compatibility matches for the authenticated user based on the request payload.
+     *
+     * @param request            compatibility match request containing criteria
+     * @param authentication     authentication principal of the requesting user
+     * @param httpServletRequest current HTTP request (used to populate response path)
+     * @return ResponseEntity wrapping an ApiResponse with a list of CompatibilityMatchResponse
+     */
     public ResponseEntity<ApiResponse<List<CompatibilityMatchResponse>>> findMatches(
             @Valid @RequestBody CompatibilityMatchRequest request,
             Authentication authentication,
@@ -53,10 +61,22 @@ public class CompatibilityController {
     }
 
     private String safePath(HttpServletRequest request) {
+        /**
+         * Safely extract the request URI or return an empty string when request is null.
+         *
+         * @param request HTTP servlet request or null
+         * @return request URI string or empty string
+         */
         return request != null ? request.getRequestURI() : "";
     }
 
     private String authenticatedUsername(Authentication authentication) {
+        /**
+         * Return the username from the Authentication object.
+         *
+         * @param authentication Spring Security authentication (must not be null)
+         * @return username string
+         */
         return Objects.requireNonNull(authentication, "authentication is required").getName();
     }
 }

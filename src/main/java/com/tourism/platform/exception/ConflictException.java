@@ -5,6 +5,11 @@ package com.tourism.platform.exception;
  */
 public class ConflictException extends RuntimeException {
 
+    /**
+     * Create a new ConflictException with a message describing the conflict.
+     *
+     * @param message description of the conflict scenario
+     */
     public ConflictException(String message) {
         super(message);
     }

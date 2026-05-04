@@ -40,6 +40,15 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
 
     @Override
     public List<CompatibilityMatchResponse> findMatches(CompatibilityMatchRequest request, String requesterUsername) {
+        /**
+         * Find compatible users for the requester based on destination, dates and interests.
+         *
+         * @param request           compatibility match request containing criteria
+         * @param requesterUsername username of the requesting user (used to exclude self)
+         * @return list of CompatibilityMatchResponse ordered by total score descending
+         * @throws BadRequestException if provided date range is invalid
+         * @throws ResourceNotFoundException if the requester user cannot be found
+         */
         validateRequest(request);
 
         User requester = userRepository.findByUsername(requesterUsername)
@@ -80,6 +89,10 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
             Set<String> normalizedInputInterests,
             List<TravelPlan> plans,
             Set<String> candidateInterests) {
+        /**
+         * Compute a composite compatibility score for a single candidate user based
+         * on destination match, date proximity and interest similarity.
+         */
 
         double destinationScore = hasDestinationMatch(plans, request.getDestination()) ? DESTINATION_WEIGHT : 0.0;
         double dateScore = computeDateProximityScore(plans, request.getStartDate(), request.getEndDate());
@@ -105,6 +118,9 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private boolean hasDestinationMatch(List<TravelPlan> plans, String destination) {
+        /**
+         * Check whether any of the candidate's travel plans match the requested destination.
+         */
         return plans.stream().anyMatch(plan ->
                 plan.getDestinationLocation() != null
                         && plan.getDestinationLocation().equalsIgnoreCase(destination)
@@ -112,6 +128,10 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private double computeDateProximityScore(List<TravelPlan> plans, LocalDate requestStart, LocalDate requestEnd) {
+        /**
+         * Compute a date proximity score by finding the best overlap between the
+         * request range and any of the candidate's travel plans.
+         */
         long requestedSpan = Math.max(1L, requestEnd.toEpochDay() - requestStart.toEpochDay() + 1L);
         double bestScore = 0.0;
 
@@ -124,6 +144,9 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private void validateRequest(CompatibilityMatchRequest request) {
+        /**
+         * Validate the incoming request payload for basic consistency.
+         */
         if (request.getStartDate() != null && request.getEndDate() != null
                 && request.getStartDate().isAfter(request.getEndDate())) {
             throw new BadRequestException("startDate must be before or equal to endDate");
@@ -131,6 +154,9 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private Map<Long, Set<String>> buildInterestsByUserId(Set<Long> candidateIds) {
+        /**
+         * Load user interests for the provided candidate ids and normalize them.
+         */
         if (candidateIds.isEmpty()) {
             return Map.of();
         }
@@ -146,6 +172,9 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private double jaccardSimilarity(Set<String> first, Set<String> second) {
+        /**
+         * Compute Jaccard similarity between two sets of interests.
+         */
         if (first.isEmpty() && second.isEmpty()) {
             return 0.0;
         }
@@ -161,6 +190,9 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private Set<String> normalizeInterests(List<String> interests) {
+        /**
+         * Normalize a list of interest strings to a lower-case, trimmed set.
+         */
         if (interests == null) {
             return Set.of();
         }
@@ -173,10 +205,17 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private double round(double value) {
+        /**
+         * Round a double to two decimal places.
+         */
         return Math.round(value * 100.0) / 100.0;
     }
 
     private boolean shouldIncludeScore(CompatibilityMatchResponse score, Set<String> normalizedInputInterests) {
+        /**
+         * Decide whether a computed score should be included in the final results
+         * based on totalScore and whether interest filtering is requested.
+         */
         if (score.getTotalScore() <= 0.0) {
             return false;
         }
@@ -184,6 +223,9 @@ public class CompatibilityMatchingServiceImpl implements CompatibilityMatchingSe
     }
 
     private double scorePlanOverlap(TravelPlan plan, LocalDate requestStart, LocalDate requestEnd, long requestedSpan) {
+        /**
+         * Score the overlap of a candidate plan with the requested date range.
+         */
         if (plan.getStartDate() == null || plan.getEndDate() == null) {
             return 0.0;
         }
