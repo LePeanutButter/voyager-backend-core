@@ -1,26 +1,31 @@
 package com.tourism.platform.controller;
 
-import com.tourism.platform.dto.ChatMessage;
-import com.tourism.platform.model.Message;
-import com.tourism.platform.service.SocialService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import com.tourism.platform.dto.ChatMessage;
+import com.tourism.platform.model.Message;
+import com.tourism.platform.service.SocialService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 @Controller
 @RequiredArgsConstructor
 @Slf4j
 public class ChatWebSocketController {
 
+        private static final String USER_QUEUE_PREFIX = "/queue/user/";
+
     private final SocialService socialService;
     private final SimpMessagingTemplate messagingTemplate;
 
     @MessageMapping("/chat/{connectionId}/sendMessage")
-    public void sendMessage(@DestinationVariable Long connectionId, @Payload ChatMessage chatMessage) {
+    public void sendMessage(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
         try {
             // Save message to database
             Message savedMessage = socialService.sendMessage(
@@ -44,31 +49,30 @@ public class ChatWebSocketController {
             // Send to specific connection topic
             messagingTemplate.convertAndSend(
                     "/topic/chat/" + connectionId,
-                    response
+                    java.util.Objects.requireNonNull(response)
             );
 
             // Send to specific user queue for private notifications
             messagingTemplate.convertAndSend(
-                    "/queue/user/" + savedMessage.getRecipientId(),
-                    response
+                    USER_QUEUE_PREFIX + savedMessage.getRecipientId(),
+                    java.util.Objects.requireNonNull(response)
             );
 
-        } catch (Exception e) {
-            log.error("Error sending message: {}", e.getMessage());
+                } catch (RuntimeException e) {
             // Send error back to sender
             ChatMessage error = ChatMessage.builder()
                     .type("ERROR")
                     .content("Failed to send message: " + e.getMessage())
                     .build();
             messagingTemplate.convertAndSend(
-                    "/queue/user/" + chatMessage.getSenderId(),
-                    error
+                    USER_QUEUE_PREFIX + chatMessage.getSenderId(),
+                    java.util.Objects.requireNonNull(error)
             );
         }
     }
 
     @MessageMapping("/chat/{connectionId}/typing")
-    public void handleTyping(@DestinationVariable Long connectionId, @Payload ChatMessage chatMessage) {
+    public void handleTyping(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
         ChatMessage typingNotification = ChatMessage.builder()
                 .connectionId(connectionId)
                 .senderId(chatMessage.getSenderId())
@@ -79,7 +83,7 @@ public class ChatWebSocketController {
         // Send typing notification to the other user in the connection
         messagingTemplate.convertAndSend(
                 "/topic/chat/" + connectionId + "/typing",
-                typingNotification
+                java.util.Objects.requireNonNull(typingNotification)
         );
     }
 }

@@ -1,8 +1,36 @@
 package com.tourism.platform.controller;
 
+import java.lang.reflect.Method;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.lang.reflect.InvocationTargetException;
 import com.tourism.platform.dto.ShareActivityRequest;
 import com.tourism.platform.dto.SharedActivityActionRequest;
 import com.tourism.platform.dto.SharedActivityResponse;
@@ -10,28 +38,8 @@ import com.tourism.platform.model.SharedActivityDecisionAction;
 import com.tourism.platform.model.User;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.SharedActivityService;
+
 import jakarta.servlet.http.HttpServletRequest;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.MDC;
-import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.lang.reflect.Method;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class ActivitySharingControllerTest {
@@ -68,7 +76,8 @@ class ActivitySharingControllerTest {
     }
 
     @Test
-    void shareActivity_WithValidRequest_ShouldReturnCreatedResponse() throws Exception {
+    @SuppressWarnings("null")
+    void shareActivityWithValidRequestShouldReturnCreatedResponse() throws Exception {
         // Given
         Long activityId = 1L;
         ShareActivityRequest shareRequest = new ShareActivityRequest();
@@ -79,7 +88,7 @@ class ActivitySharingControllerTest {
 
         lenient().when(authentication.getName()).thenReturn("testuser");
         lenient().when(request.getRequestURI()).thenReturn("/activities/1/share");
-        when(sharedActivityService.shareActivity(eq(activityId), eq(2L), eq("testuser")))
+        when(sharedActivityService.shareActivity(activityId, 2L, "testuser"))
                 .thenReturn(response);
 
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
@@ -99,7 +108,8 @@ class ActivitySharingControllerTest {
     }
 
     @Test
-    void updateSharedActivity_WithAcceptAction_ShouldReturnOkResponse() throws Exception {
+    @SuppressWarnings("null")
+    void updateSharedActivityWithAcceptActionShouldReturnOkResponse() throws Exception {
         // Given
         Long sharedActivityId = 1L;
         SharedActivityActionRequest actionRequest = new SharedActivityActionRequest();
@@ -112,7 +122,7 @@ class ActivitySharingControllerTest {
         lenient().when(request.getRequestURI()).thenReturn("/shared-activities/1");
         lenient().when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenReturn(Optional.of(testUser));
-        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(), eq("testuser")))
+        when(sharedActivityService.resolveSharedActivity(sharedActivityId, any(), "testuser"))
                 .thenReturn(response);
 
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
@@ -129,12 +139,13 @@ class ActivitySharingControllerTest {
         }
 
         verify(userRepository).findByUsernameOrEmail("testuser", "testuser");
-        verify(sharedActivityService).resolveSharedActivity(eq(sharedActivityId), argThat(decision -> 
-                decision.getAction() == SharedActivityDecisionAction.ACCEPT), eq("testuser"));
+        verify(sharedActivityService).resolveSharedActivity(sharedActivityId, argThat(decision -> 
+                decision.getAction() == SharedActivityDecisionAction.ACCEPT), "testuser");
     }
 
     @Test
-    void updateSharedActivity_WithRejectAction_ShouldReturnOkResponse() throws Exception {
+    @SuppressWarnings("null")
+    void updateSharedActivityWithRejectActionShouldReturnOkResponse() throws Exception {
         // Given
         Long sharedActivityId = 1L;
         SharedActivityActionRequest actionRequest = new SharedActivityActionRequest();
@@ -147,7 +158,7 @@ class ActivitySharingControllerTest {
         lenient().when(request.getRequestURI()).thenReturn("/shared-activities/1");
         lenient().when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenReturn(Optional.of(testUser));
-        when(sharedActivityService.resolveSharedActivity(eq(sharedActivityId), any(), eq("testuser")))
+        when(sharedActivityService.resolveSharedActivity(sharedActivityId, any(), "testuser"))
                 .thenReturn(response);
 
         try (MockedStatic<MDC> mdcMock = mockStatic(MDC.class)) {
@@ -162,8 +173,8 @@ class ActivitySharingControllerTest {
                     .andExpect(jsonPath("$.message").value("Shared activity updated successfully"));
         }
 
-        verify(sharedActivityService).resolveSharedActivity(eq(sharedActivityId), argThat(decision -> 
-                decision.getAction() == SharedActivityDecisionAction.REJECT), eq("testuser"));
+        verify(sharedActivityService).resolveSharedActivity(sharedActivityId, argThat(decision -> 
+                decision.getAction() == SharedActivityDecisionAction.REJECT), "testuser");
     }
 
     @Test
@@ -198,8 +209,9 @@ class ActivitySharingControllerTest {
         String username = (String) authenticatedUsername.invoke(activitySharingController, authentication);
         assertEquals("testuser", username);
         
-        assertThrows(java.lang.reflect.InvocationTargetException.class, () -> {
+                java.lang.reflect.InvocationTargetException thrown = assertThrows(java.lang.reflect.InvocationTargetException.class, () -> {
             authenticatedUsername.invoke(activitySharingController, (Authentication) null);
         });
+                assertEquals(java.lang.reflect.InvocationTargetException.class, thrown.getClass());
     }
 }

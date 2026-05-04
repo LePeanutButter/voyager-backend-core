@@ -11,6 +11,7 @@ import com.tourism.platform.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,7 +73,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UserDto> getUserById(Long userId) {
+    public Optional<UserDto> getUserById(@NonNull Long userId) {
         return userRepository.findById(userId)
                 .map(this::convertToDto);
     }
@@ -92,11 +93,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<UserDto> updateUser(Long userId, UserUpdateDto updateDto) {
+    public Optional<UserDto> updateUser(@NonNull Long userId, @NonNull UserUpdateDto updateDto) {
         return userRepository.findById(userId)
                 .map(user -> {
                     validateUpdateDto(updateDto);
                     updateUserFields(user, updateDto);
+                    @SuppressWarnings("null")
                     User updatedUser = userRepository.save(user);
                     return convertToDto(updatedUser);
                 });
@@ -130,7 +132,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean changePassword(Long userId, String currentPassword, String newPassword) {
+    public boolean changePassword(@NonNull Long userId, @NonNull String currentPassword, @NonNull String newPassword) {
         return userRepository.findById(userId)
                 .map(user -> {
                     if (passwordEncoder.matches(currentPassword, user.getPassword())) {
@@ -144,7 +146,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<UserDto> updateUserRole(Long userId, UserRole role) {
+    public Optional<UserDto> updateUserRole(@NonNull Long userId, @NonNull UserRole role) {
         return userRepository.findById(userId)
                 .map(user -> {
                     user.setRole(role);
@@ -154,7 +156,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<UserDto> updateUserStatus(Long userId, UserStatus status) {
+    public Optional<UserDto> updateUserStatus(@NonNull Long userId, @NonNull UserStatus status) {
         return userRepository.findById(userId)
                 .map(user -> {
                     user.setStatus(status);
@@ -164,7 +166,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean deleteUser(Long userId) {
+    public boolean deleteUser(@NonNull Long userId) {
         if (userRepository.existsById(userId)) {
             userRepository.deleteById(userId);
             return true;
@@ -174,46 +176,46 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> getAllUsers(Pageable pageable) {
+    public Page<UserDto> getAllUsers(@NonNull Pageable pageable) {
         return userRepository.findAll(pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> getUsersByRole(UserRole role, Pageable pageable) {
+    public Page<UserDto> getUsersByRole(@NonNull UserRole role, @NonNull Pageable pageable) {
         return userRepository.findByRole(role, pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> getUsersByStatus(UserStatus status, Pageable pageable) {
+    public Page<UserDto> getUsersByStatus(@NonNull UserStatus status, @NonNull Pageable pageable) {
         return userRepository.findByStatus(status, pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> searchUsersByName(String searchTerm, Pageable pageable) {
+    public Page<UserDto> searchUsersByName(@NonNull String searchTerm, @NonNull Pageable pageable) {
         return userRepository.searchByName(searchTerm, pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isUsernameAvailable(String username) {
+    public boolean isUsernameAvailable(@NonNull String username) {
         return !userRepository.existsByUsername(username);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isEmailAvailable(String email) {
+    public boolean isEmailAvailable(@NonNull String email) {
         return !userRepository.existsByEmail(email);
     }
 
     @Override
-    public Optional<UserDto> setUserEnabled(Long userId, boolean enabled) {
+    public Optional<UserDto> setUserEnabled(@NonNull Long userId, boolean enabled) {
         return userRepository.findById(userId)
                 .map(user -> {
                     user.setEnabled(enabled);
@@ -233,7 +235,7 @@ public class UserServiceImpl implements UserService {
     /**
      * Convert User entity to UserDto
      */
-    private UserDto convertToDto(User user) {
+    private UserDto convertToDto(@NonNull User user) {
         UserDto dto = new UserDto();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());

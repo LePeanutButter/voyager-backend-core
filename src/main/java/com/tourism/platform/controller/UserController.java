@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -46,6 +47,8 @@ import java.util.Optional;
 public class UserController {
     private static final String USER_NOT_FOUND = "User not found";
     private static final String USER_RETRIEVED_SUCCESSFULLY = "User retrieved successfully";
+    private static final String USERS_RETRIEVED_SUCCESSFULLY = "Users retrieved successfully";
+    private static final String CREATED_AT = "createdAt";
 
     private final UserService userService;
     private final JwtTokenProvider tokenProvider;
@@ -110,7 +113,7 @@ public class UserController {
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID", description = "Retrieves user information by their unique ID")
     public ResponseEntity<ApiResponse<UserDto>> getUserById(
-            @Parameter(description = "User ID") @PathVariable Long id,
+            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
             HttpServletRequest request) {
         return toUserResponse(userService.getUserById(id), request.getRequestURI(), USER_RETRIEVED_SUCCESSFULLY);
     }
@@ -134,8 +137,8 @@ public class UserController {
     @PutMapping("/{id}")
     @Operation(summary = "Update user profile", description = "Updates user profile information")
     public ResponseEntity<ApiResponse<UserDto>> updateUser(
-            @Parameter(description = "User ID") @PathVariable Long id,
-            @Valid @RequestBody UserUpdateDto updateDto,
+            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+            @Valid @RequestBody @NonNull UserUpdateDto updateDto,
             HttpServletRequest request) {
         return toUserResponse(userService.updateUser(id, updateDto), request.getRequestURI(), "User updated successfully");
     }
@@ -143,9 +146,9 @@ public class UserController {
     @PutMapping("/{id}/password")
     @Operation(summary = "Change user password", description = "Updates user password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
-            @Parameter(description = "User ID") @PathVariable Long id,
-            @RequestParam String currentPassword,
-            @RequestParam String newPassword,
+            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+            @RequestParam @NonNull String currentPassword,
+            @RequestParam @NonNull String newPassword,
             HttpServletRequest request) {
         
         boolean success = userService.changePassword(id, currentPassword, newPassword);
@@ -184,7 +187,7 @@ public class UserController {
         Page<UserDto> users = userService.getAllUsers(pageable);
         PagedResponse<UserDto> response = PagedResponse.fromPage(
                 users,
-                "Users retrieved successfully",
+                USERS_RETRIEVED_SUCCESSFULLY,
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );
@@ -196,16 +199,16 @@ public class UserController {
     @Operation(summary = "Get users by role", description = "Retrieves users filtered by their role")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<PagedResponse<UserDto>> getUsersByRole(
-            @Parameter(description = "User role") @PathVariable UserRole role,
+            @Parameter(description = "User role") @PathVariable @NonNull UserRole role,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<UserDto> users = userService.getUsersByRole(role, pageable);
         PagedResponse<UserDto> response = PagedResponse.fromPage(
                 users,
-                "Users retrieved successfully",
+                USERS_RETRIEVED_SUCCESSFULLY,
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );
@@ -217,16 +220,16 @@ public class UserController {
     @Operation(summary = "Get users by status", description = "Retrieves users filtered by their status")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<PagedResponse<UserDto>> getUsersByStatus(
-            @Parameter(description = "User status") @PathVariable UserStatus status,
+            @Parameter(description = "User status") @PathVariable @NonNull UserStatus status,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<UserDto> users = userService.getUsersByStatus(status, pageable);
         PagedResponse<UserDto> response = PagedResponse.fromPage(
                 users,
-                "Users retrieved successfully",
+                USERS_RETRIEVED_SUCCESSFULLY,
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );
@@ -238,16 +241,16 @@ public class UserController {
     @Operation(summary = "Search users by name", description = "Searches users by first name or last name")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<PagedResponse<UserDto>> searchUsersByName(
-            @Parameter(description = "Search term") @RequestParam String searchTerm,
+            @Parameter(description = "Search term") @RequestParam @NonNull String searchTerm,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<UserDto> users = userService.searchUsersByName(searchTerm, pageable);
         PagedResponse<UserDto> response = PagedResponse.fromPage(
                 users,
-                "Users retrieved successfully",
+                USERS_RETRIEVED_SUCCESSFULLY,
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );
@@ -259,8 +262,8 @@ public class UserController {
     @Operation(summary = "Update user role", description = "Updates user role (admin operation)")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<UserDto>> updateUserRole(
-            @Parameter(description = "User ID") @PathVariable Long id,
-            @Parameter(description = "New role") @RequestParam UserRole role,
+            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+            @Parameter(description = "New role") @RequestParam @NonNull UserRole role,
             HttpServletRequest request) {
         return toUserResponse(userService.updateUserRole(id, role), request.getRequestURI(), "User role updated successfully");
     }
@@ -269,8 +272,8 @@ public class UserController {
     @Operation(summary = "Update user status", description = "Updates user status (admin operation)")
     @PreAuthorize("hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<UserDto>> updateUserStatus(
-            @Parameter(description = "User ID") @PathVariable Long id,
-            @Parameter(description = "New status") @RequestParam UserStatus status,
+            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
+            @Parameter(description = "New status") @RequestParam @NonNull UserStatus status,
             HttpServletRequest request) {
         return toUserResponse(userService.updateUserStatus(id, status), request.getRequestURI(), "User status updated successfully");
     }
@@ -279,7 +282,7 @@ public class UserController {
     @Operation(summary = "Delete user", description = "Deletes a user account")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
-            @Parameter(description = "User ID") @PathVariable Long id,
+            @Parameter(description = "User ID") @PathVariable @NonNull Long id,
             HttpServletRequest request) {
         
         boolean deleted = userService.deleteUser(id);
@@ -294,7 +297,7 @@ public class UserController {
         } else {
             ApiResponse<Void> response = ApiResponse.error(
                     HttpStatus.NOT_FOUND.value(),
-                    "User not found",
+                    USER_NOT_FOUND,
                     request.getRequestURI()
             );
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
@@ -326,7 +329,7 @@ public class UserController {
     @GetMapping("/check-username")
     @Operation(summary = "Check username availability", description = "Checks if a username is available for registration")
     public ResponseEntity<ApiResponse<Boolean>> checkUsernameAvailability(
-            @Parameter(description = "Username to check") @RequestParam String username,
+            @Parameter(description = "Username to check") @RequestParam @NonNull String username,
             HttpServletRequest request) {
         
         boolean available = userService.isUsernameAvailable(username);
@@ -343,7 +346,7 @@ public class UserController {
     @GetMapping("/check-email")
     @Operation(summary = "Check email availability", description = "Checks if an email is available for registration")
     public ResponseEntity<ApiResponse<Boolean>> checkEmailAvailability(
-            @Parameter(description = "Email to check") @RequestParam String email,
+            @Parameter(description = "Email to check") @RequestParam @NonNull String email,
             HttpServletRequest request) {
         
         boolean available = userService.isEmailAvailable(email);

@@ -1,31 +1,44 @@
 package com.tourism.platform.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import jakarta.servlet.ServletException;
-import com.tourism.platform.dto.CompatibilityMatchRequest;
-import com.tourism.platform.dto.CompatibilityMatchResponse;
-import com.tourism.platform.service.CompatibilityMatchingService;
-import jakarta.servlet.http.HttpServletRequest;
+import java.security.Principal;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.MDC;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.List;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.tourism.platform.dto.CompatibilityMatchRequest;
+import com.tourism.platform.dto.CompatibilityMatchResponse;
+import com.tourism.platform.service.CompatibilityMatchingService;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 
 @ExtendWith(MockitoExtension.class)
 class CompatibilityControllerTest {
@@ -53,7 +66,8 @@ class CompatibilityControllerTest {
     }
 
     @Test
-    void findMatches_WithValidRequest_ShouldReturnMatches() throws Exception {
+    @SuppressWarnings("null")
+    void findMatchesWithValidRequestShouldReturnMatches() throws Exception {
         // Given
         CompatibilityMatchRequest matchRequest = new CompatibilityMatchRequest();
         matchRequest.setDestination("Paris");
@@ -78,7 +92,7 @@ class CompatibilityControllerTest {
             mockMvc.perform(post("/compatibility/matches")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(matchRequest))
-                            .principal(authentication))
+                            .principal((Principal) authentication))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value(200))
                     .andExpect(jsonPath("$.message").value("Matches generated successfully"))
@@ -91,7 +105,8 @@ class CompatibilityControllerTest {
     }
 
     @Test
-    void findMatches_WithEmptyResults_ShouldReturnEmptyList() throws Exception {
+    @SuppressWarnings("null")
+    void findMatchesWithEmptyResultsShouldReturnEmptyList() throws Exception {
         // Given
         CompatibilityMatchRequest matchRequest = new CompatibilityMatchRequest();
         matchRequest.setDestination("RemoteLocation");
@@ -110,7 +125,7 @@ class CompatibilityControllerTest {
             mockMvc.perform(post("/compatibility/matches")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(matchRequest))
-                            .principal(authentication))
+                            .principal((Principal) authentication))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value(200))
                     .andExpect(jsonPath("$.message").value("Matches generated successfully"))
@@ -122,7 +137,8 @@ class CompatibilityControllerTest {
     }
 
     @Test
-    void findMatches_WithMultipleMatches_ShouldReturnAllMatches() throws Exception {
+    @SuppressWarnings("null")
+    void findMatchesWithMultipleMatchesShouldReturnAllMatches() throws Exception {
         // Given
         CompatibilityMatchRequest matchRequest = new CompatibilityMatchRequest();
         matchRequest.setDestination("Paris");
@@ -151,7 +167,7 @@ class CompatibilityControllerTest {
             mockMvc.perform(post("/compatibility/matches")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(matchRequest))
-                            .principal(authentication))
+                            .principal((Principal) authentication))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value(200))
                     .andExpect(jsonPath("$.data").isArray())
@@ -164,7 +180,7 @@ class CompatibilityControllerTest {
     }
 
     @Test
-    void findMatches_WithNullAuthentication_ShouldThrowException() throws Exception {
+    void findMatchesWithNullAuthenticationShouldThrowException() {
         // Given
         CompatibilityMatchRequest matchRequest = new CompatibilityMatchRequest();
         matchRequest.setDestination("Paris");
@@ -172,7 +188,8 @@ class CompatibilityControllerTest {
         matchRequest.setEndDate(java.time.LocalDate.now().plusDays(7));
 
         // When & Then
-        assertThrows(ServletException.class, () -> {
+        @SuppressWarnings({ "null", "unused" })
+        var exception = assertThrows(ServletException.class, () -> {
             mockMvc.perform(post("/compatibility/matches")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(matchRequest)))
@@ -209,7 +226,7 @@ class CompatibilityControllerTest {
     }
 
     @Test
-    void constructor_ShouldInitializeService() {
+    void constructorShouldInitializeService() {
         // Given
         CompatibilityMatchingService service = mock(CompatibilityMatchingService.class);
 
@@ -222,7 +239,8 @@ class CompatibilityControllerTest {
     }
 
     @Test
-    void findMatches_WithServiceException_ShouldPropagateException() throws Exception {
+    @SuppressWarnings("null")
+    void findMatchesWithServiceExceptionShouldPropagateException() {
         // Given
         CompatibilityMatchRequest matchRequest = new CompatibilityMatchRequest();
         matchRequest.setDestination("Paris");
@@ -242,7 +260,7 @@ class CompatibilityControllerTest {
                 mockMvc.perform(post("/compatibility/matches")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(matchRequest))
-                                .principal(authentication))
+                                .principal((Principal) authentication))
                         .andExpect(status().isInternalServerError());
             });
         }
@@ -251,7 +269,8 @@ class CompatibilityControllerTest {
     }
 
     @Test
-    void findMatches_WithInvalidRequest_ShouldHandleValidationError() throws Exception {
+    @SuppressWarnings("null")
+    void findMatchesWithInvalidRequestShouldHandleValidationError() throws Exception {
         // Given - Invalid request with missing required fields
         String invalidRequest = "{}";
 
@@ -265,7 +284,7 @@ class CompatibilityControllerTest {
             mockMvc.perform(post("/compatibility/matches")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(invalidRequest)
-                            .principal(authentication))
+                            .principal((Principal) authentication))
                     .andExpect(status().isBadRequest());
         }
 

@@ -4,6 +4,7 @@ import com.tourism.platform.model.User;
 import com.tourism.platform.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -47,7 +48,7 @@ public class CustomUserDetailsService implements UserDetailsService {
      * @throws UsernameNotFoundException if user not found
      */
     @Transactional(readOnly = true)
-    public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
+    public UserDetails loadUserById(@NonNull Long userId) throws UsernameNotFoundException {
         log.debug("Loading user by ID: {}", userId);
         
         User user = userRepository.findById(userId)

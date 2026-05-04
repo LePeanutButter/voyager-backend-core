@@ -1,14 +1,11 @@
 package com.tourism.platform.service.impl;
 
-import com.tourism.platform.dto.ConnectionRequestDto;
-import com.tourism.platform.dto.SendConnectionRequestDto;
-import com.tourism.platform.dto.TravelConnectionDto;
-import com.tourism.platform.dto.TravelerSummaryDto;
-import com.tourism.platform.exception.ResourceNotFoundException;
-import com.tourism.platform.model.*;
-import com.tourism.platform.repository.*;
-import com.tourism.platform.service.SocialService;
-import lombok.RequiredArgsConstructor;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,10 +13,24 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
+import com.tourism.platform.dto.ConnectionRequestDto;
+import com.tourism.platform.dto.SendConnectionRequestDto;
+import com.tourism.platform.dto.TravelConnectionDto;
+import com.tourism.platform.dto.TravelerSummaryDto;
+import com.tourism.platform.exception.ResourceNotFoundException;
+import com.tourism.platform.model.Connection;
+import com.tourism.platform.model.ConnectionStatus;
+import com.tourism.platform.model.Message;
+import com.tourism.platform.model.MessageStatus;
+import com.tourism.platform.model.User;
+import com.tourism.platform.repository.ConnectionRepository;
+import com.tourism.platform.repository.MessageRepository;
+import com.tourism.platform.repository.SharedSpaceAccessRepository;
+import com.tourism.platform.repository.TravelPlanRepository;
+import com.tourism.platform.repository.UserRepository;
+import com.tourism.platform.service.SocialService;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -36,7 +47,7 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional(readOnly = true)
     public TravelerSummaryDto getTravelerSummary(Long travelerId) {
-        User user = userRepository.findById(travelerId)
+        User user = userRepository.findById(Objects.requireNonNull(travelerId))
                 .orElseThrow(() -> new ResourceNotFoundException("Traveler not found with ID: " + travelerId));
 
         String bio = user.getBio() == null ? "" : user.getBio().trim();
@@ -56,7 +67,7 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional(readOnly = true)
     public List<TravelConnectionDto> getAcceptedConnectionsByTravelPlan(Long travelPlanId) {
-        if (!travelPlanRepository.existsById(travelPlanId)) {
+        if (!travelPlanRepository.existsById(Objects.requireNonNull(travelPlanId))) {
             throw new ResourceNotFoundException("Travel plan not found with ID: " + travelPlanId);
         }
 
@@ -73,7 +84,7 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional
     public void deleteConnection(Long connectionId, Long requestingUserId) {
-        Connection connection = connectionRepository.findById(connectionId)
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(requestingUserId) && !connection.getRecipientId().equals(requestingUserId)) {
@@ -81,13 +92,13 @@ public class SocialServiceImpl implements SocialService {
         }
 
         // Delete related messages first
-        messageRepository.deleteByConnectionId(connectionId);
+        messageRepository.deleteByConnectionId(Objects.requireNonNull(connectionId));
 
         // Revoke shared space access
-        sharedSpaceAccessRepository.deleteByConnectionId(connectionId);
+        sharedSpaceAccessRepository.deleteByConnectionId(Objects.requireNonNull(connectionId));
 
         // Delete the connection
-        connectionRepository.deleteById(connectionId);
+        connectionRepository.deleteById(Objects.requireNonNull(connectionId));
     }
 
     // Add these implementations to SocialServiceImpl
@@ -95,7 +106,7 @@ public class SocialServiceImpl implements SocialService {
     @Transactional
     public Message sendMessage(Long connectionId, Long senderId, String content) {
         // Validate connection exists and user is part of it
-        Connection connection = connectionRepository.findById(connectionId)
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(senderId) && !connection.getRecipientId().equals(senderId)) {
@@ -116,7 +127,7 @@ public class SocialServiceImpl implements SocialService {
                 connection.getRecipientId() : connection.getRequesterId();
 
         Message message = new Message();
-        message.setConnectionId(connectionId);
+        message.setConnectionId(Objects.requireNonNull(connectionId));
         message.setSenderId(senderId);
         message.setRecipientId(recipientId);
         message.setContent(content.trim());
@@ -129,7 +140,7 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional(readOnly = true)
     public List<Message> getConversationMessages(Long connectionId, Long userId) {
-        Connection connection = connectionRepository.findById(connectionId)
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {
@@ -151,7 +162,7 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional
     public void markMessageAsRead(Long messageId, Long userId) {
-        Message message = messageRepository.findById(messageId)
+        Message message = messageRepository.findById(Objects.requireNonNull(messageId))
                 .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
 
         if (!message.getRecipientId().equals(userId)) {
@@ -167,7 +178,7 @@ public class SocialServiceImpl implements SocialService {
     @Transactional
     public ConnectionRequestDto sendConnectionRequest(SendConnectionRequestDto request, Long requesterId) {
         // Validate recipient exists
-        if (!userRepository.existsById(request.getRecipientId())) {
+        if (!userRepository.existsById(Objects.requireNonNull(request.getRecipientId()))) {
             throw new ResourceNotFoundException("Recipient user not found");
         }
 
@@ -181,15 +192,15 @@ public class SocialServiceImpl implements SocialService {
                 .findByRequesterIdAndRecipientId(requesterId, request.getRecipientId());
         if (existingConnection.isPresent()) {
             Connection connection = existingConnection.get();
-            if (connection.getStatus() == ConnectionStatus.PENDING) {
-                throw new IllegalArgumentException("A pending connection request already exists");
-            } else if (connection.getStatus() == ConnectionStatus.ACCEPTED) {
-                throw new IllegalArgumentException("Users are already connected");
-            } else {
-                // If rejected or blocked, create a new request
-                connection.setStatus(ConnectionStatus.PENDING);
-                connection = connectionRepository.save(connection);
-                return convertToConnectionRequestDto(connection);
+            switch (connection.getStatus()) {
+                case PENDING -> throw new IllegalArgumentException("A pending connection request already exists");
+                case ACCEPTED -> throw new IllegalArgumentException("Users are already connected");
+                default -> {
+                    // If rejected or blocked, create a new request
+                    connection.setStatus(ConnectionStatus.PENDING);
+                    Connection updatedConnection = connectionRepository.save(connection);
+                    return convertToConnectionRequestDto(updatedConnection);
+                }
             }
         }
 
@@ -198,10 +209,12 @@ public class SocialServiceImpl implements SocialService {
                 .findByRequesterIdAndRecipientId(request.getRecipientId(), requesterId);
         if (reverseConnection.isPresent()) {
             Connection connection = reverseConnection.get();
-            if (connection.getStatus() == ConnectionStatus.PENDING) {
-                throw new IllegalArgumentException("A pending connection request already exists");
-            } else if (connection.getStatus() == ConnectionStatus.ACCEPTED) {
-                throw new IllegalArgumentException("Users are already connected");
+            switch (connection.getStatus()) {
+                case PENDING -> throw new IllegalArgumentException("A pending connection request already exists");
+                case ACCEPTED -> throw new IllegalArgumentException("Users are already connected");
+                default -> {
+                    // no-op
+                }
             }
         }
 
@@ -219,7 +232,7 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional
     public ConnectionRequestDto acceptConnectionRequest(Long requestId, Long recipientId) {
-        Connection connection = connectionRepository.findById(requestId)
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(requestId))
                 .orElseThrow(() -> new ResourceNotFoundException("Connection request not found"));
 
         if (!connection.getRecipientId().equals(recipientId)) {
@@ -239,7 +252,7 @@ public class SocialServiceImpl implements SocialService {
     @Override
     @Transactional
     public ConnectionRequestDto rejectConnectionRequest(Long requestId, Long recipientId) {
-        Connection connection = connectionRepository.findById(requestId)
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(requestId))
                 .orElseThrow(() -> new ResourceNotFoundException("Connection request not found"));
 
         if (!connection.getRecipientId().equals(recipientId)) {
@@ -289,8 +302,8 @@ public class SocialServiceImpl implements SocialService {
         dto.setUpdatedAt(connection.getUpdatedAt());
 
         // Load user information for display
-        User requester = userRepository.findById(connection.getRequesterId()).orElse(null);
-        User recipient = userRepository.findById(connection.getRecipientId()).orElse(null);
+        User requester = userRepository.findById(Objects.requireNonNull(connection.getRequesterId())).orElse(null);
+        User recipient = userRepository.findById(Objects.requireNonNull(connection.getRecipientId())).orElse(null);
 
         if (requester != null) {
             dto.setRequesterName(requester.getFirstName() + " " + requester.getLastName());
@@ -315,7 +328,7 @@ public class SocialServiceImpl implements SocialService {
                 .map(connection -> {
                     Long otherUserId = connection.getRequesterId().equals(userId) ?
                             connection.getRecipientId() : connection.getRequesterId();
-                    User otherUser = userRepository.findById(otherUserId).orElse(null);
+                    User otherUser = userRepository.findById(Objects.requireNonNull(otherUserId)).orElse(null);
 
                     if (otherUser != null) {
                         return TravelConnectionDto.builder()
@@ -328,13 +341,13 @@ public class SocialServiceImpl implements SocialService {
                     }
                     return null;
                 })
-                .filter(dto -> dto != null)
+                .filter(Objects::nonNull)
                 .toList();
     }
     @Override
     @Transactional(readOnly = true)
     public Page<Message> getConversationMessagesPaginated(Long connectionId, Long userId, int page, int size) {
-        Connection connection = connectionRepository.findById(connectionId)
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {

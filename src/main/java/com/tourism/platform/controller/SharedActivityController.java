@@ -15,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Objects;
 
 @RestController
@@ -47,8 +46,8 @@ public class SharedActivityController {
         log.info(EVENT_ENTRY,
                 path, userId, activityId);
         SharedActivityResponse result = sharedActivityService.shareActivity(
-                activityId,
-                request.getReceiverId(),
+                Objects.requireNonNull(activityId),
+                Objects.requireNonNull(request.getReceiverId()),
                 principal
         );
         log.info(EVENT_EXIT,
@@ -71,7 +70,7 @@ public class SharedActivityController {
         log.info(EVENT_ENTRY,
                 path, userId, id);
         SharedActivityResponse result = sharedActivityService.resolveSharedActivity(
-                id,
+                Objects.requireNonNull(id),
                 request,
                 principal
         );

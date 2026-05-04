@@ -1,20 +1,19 @@
 package com.tourism.platform.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.tourism.platform.dto.*;
-import com.tourism.platform.model.Message;
-import com.tourism.platform.model.MessageStatus;
-import com.tourism.platform.model.User;
-import com.tourism.platform.model.UserRole;
-import com.tourism.platform.security.JwtTokenProvider;
-import com.tourism.platform.service.SocialService;
-import jakarta.servlet.ServletException;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -22,19 +21,32 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.tourism.platform.dto.ConnectionRequestDto;
+import com.tourism.platform.dto.SendConnectionRequestDto;
+import com.tourism.platform.dto.SendMessageRequest;
+import com.tourism.platform.dto.TravelerSummaryDto;
+import com.tourism.platform.model.Message;
+import com.tourism.platform.model.MessageStatus;
+import com.tourism.platform.model.User;
+import com.tourism.platform.model.UserRole;
+import com.tourism.platform.security.JwtTokenProvider;
+import com.tourism.platform.service.SocialService;
+
+import jakarta.servlet.ServletException;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class SocialControllerTest {
 
     @Mock
@@ -81,7 +93,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void sendConnectionRequest_Created() throws Exception {
+        void sendConnectionRequestCreated() throws Exception {
         ConnectionRequestDto out = new ConnectionRequestDto();
         out.setId(10L);
         out.setStatus("PENDING");
@@ -100,7 +112,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void getUserConnections_Ok() throws Exception {
+        void getUserConnectionsOk() throws Exception {
         when(socialService.getUserConnections(2L)).thenReturn(List.of());
 
         mockMvc.perform(get("/social/connections/{userId}", 2L))
@@ -108,7 +120,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void acceptConnectionRequest_Ok() throws Exception {
+        void acceptConnectionRequestOk() throws Exception {
         ConnectionRequestDto out = new ConnectionRequestDto();
         out.setStatus("ACCEPTED");
         when(socialService.acceptConnectionRequest(9L, 4L)).thenReturn(out);
@@ -120,7 +132,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void rejectConnectionRequest_Ok() throws Exception {
+        void rejectConnectionRequestOk() throws Exception {
         ConnectionRequestDto out = new ConnectionRequestDto();
         out.setStatus("REJECTED");
         when(socialService.rejectConnectionRequest(9L, 4L)).thenReturn(out);
@@ -131,7 +143,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void pendingAndSentRequests_Ok() throws Exception {
+        void pendingAndSentRequestsOk() throws Exception {
         when(socialService.getPendingRequestsForUser(1L)).thenReturn(List.of());
         when(socialService.getSentRequestsForUser(1L)).thenReturn(List.of());
 
@@ -145,7 +157,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void removeConnection_Ok() throws Exception {
+        void removeConnectionOk() throws Exception {
         mockMvc.perform(delete("/social/connections/{connectionId}", 7L))
                 .andExpect(status().isOk());
 
@@ -153,7 +165,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void getTravelerSummary_Ok() throws Exception {
+        void getTravelerSummaryOk() throws Exception {
         TravelerSummaryDto summary = TravelerSummaryDto.builder().userId(3L).displayName("X").build();
         when(socialService.getTravelerSummary(3L)).thenReturn(summary);
 
@@ -163,7 +175,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void reviewsFlow_Ok() throws Exception {
+        void reviewsFlowOk() throws Exception {
         mockMvc.perform(get("/social/reviews/{type}/{id}", "destination", 1L))
                 .andExpect(status().isOk());
 
@@ -182,7 +194,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void conversationsAndMessages_Ok() throws Exception {
+        void conversationsAndMessagesOk() throws Exception {
         mockMvc.perform(get("/social/conversations/{userId}", 2L))
                 .andExpect(status().isOk());
 
@@ -199,7 +211,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void feedAndPosts_Ok() throws Exception {
+        void feedAndPostsOk() throws Exception {
         mockMvc.perform(get("/social/feed/{userId}", 1L))
                 .andExpect(status().isOk());
 
@@ -224,7 +236,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void sendMessage_Ok() throws Exception {
+        void sendMessageOk() throws Exception {
         Message msg = new Message(1L, 2L, 3L, "hey", MessageStatus.SENT);
         msg.setId(50L);
         when(socialService.sendMessage(1L, 2L, "hey")).thenReturn(msg);
@@ -241,10 +253,10 @@ class SocialControllerTest {
     /**
      * Branch 1 (getCurrentUserId): auth != null, isAuthenticated(), principal instanceof User
      * → returns user.getId() directly, no token needed.
-     * Already implicitly covered by sendConnectionRequest_Created, but made explicit here.
+         * Already implicitly covered by sendConnectionRequestCreated, but made explicit here.
      */
     @Test
-    void getCurrentUserId_WithDomainUserPrincipal_ReturnsUserId() throws Exception {
+        void getCurrentUserIdWithDomainUserPrincipalReturnsUserId() throws Exception {
         ConnectionRequestDto out = new ConnectionRequestDto();
         out.setStatus("PENDING");
         when(socialService.sendConnectionRequest(any(), eq(99L))).thenReturn(out);
@@ -268,7 +280,7 @@ class SocialControllerTest {
      * tokenProvider.validateToken == true, getUserIdFromJWT returns non-null → returns userId.
      */
     @Test
-    void getCurrentUserId_WithValidBearerToken_ReturnsUserId() throws Exception {
+        void getCurrentUserIdWithValidBearerTokenReturnsUserId() throws Exception {
         SecurityContextHolder.clearContext(); // no domain principal
 
         when(jwtTokenProvider.validateToken("valid.jwt.token")).thenReturn(true);
@@ -291,7 +303,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void getCurrentUserId_WithValidTokenButNullUserId_Throws() throws Exception {
+        void getCurrentUserIdWithValidTokenButNullUserIdThrows() {
         SecurityContextHolder.clearContext();
 
         when(jwtTokenProvider.validateToken("valid.jwt.token")).thenReturn(true);
@@ -311,7 +323,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void getCurrentUserId_WithNoTokenAndNoPrincipal_Throws() throws Exception {
+        void getCurrentUserIdWithNoTokenAndNoPrincipalThrows() {
         SecurityContextHolder.clearContext();
 
         SendConnectionRequestDto body = new SendConnectionRequestDto();
@@ -327,7 +339,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void getCurrentUserId_WithNonBearerAuthHeader_Throws() throws Exception {
+        void getCurrentUserIdWithNonBearerAuthHeaderThrows() {
         SecurityContextHolder.clearContext();
 
         SendConnectionRequestDto body = new SendConnectionRequestDto();
@@ -343,7 +355,7 @@ class SocialControllerTest {
     }
 
     @Test
-    void getCurrentUserId_WithInvalidToken_Throws() throws Exception {
+        void getCurrentUserIdWithInvalidTokenThrows() {
         SecurityContextHolder.clearContext();
 
         when(jwtTokenProvider.validateToken("bad.token")).thenReturn(false);

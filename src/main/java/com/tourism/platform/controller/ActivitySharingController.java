@@ -20,7 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Objects;
 
 @RestController
@@ -51,8 +50,8 @@ public class ActivitySharingController {
                 path, userId, activityId);
 
         SharedActivityResponse responseData = sharedActivityService.shareActivity(
-                activityId,
-                requestBody.getReceiverId(),
+                Objects.requireNonNull(activityId),
+                Objects.requireNonNull(requestBody.getReceiverId()),
                 principal
         );
 
@@ -84,7 +83,7 @@ public class ActivitySharingController {
         decisionRequest.setAction(requestBody.getAction() == SharedActivityActionRequest.SharedActivityAction.ACCEPT
                 ? SharedActivityDecisionAction.ACCEPT
                 : SharedActivityDecisionAction.REJECT);
-        SharedActivityResponse responseData = sharedActivityService.resolveSharedActivity(id, decisionRequest, principal);
+        SharedActivityResponse responseData = sharedActivityService.resolveSharedActivity(Objects.requireNonNull(id), decisionRequest, principal);
 
         ApiResponse<SharedActivityResponse> response = ApiResponse.success(
                 HttpStatus.OK.value(),

@@ -9,6 +9,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class GlobalExceptionHandlerTest {
 
@@ -20,13 +21,18 @@ class GlobalExceptionHandlerTest {
         WebRequest request = new ServletWebRequest(servletRequest);
         ObjectOptimisticLockingFailureException ex =
                 new ObjectOptimisticLockingFailureException("shared_activities", 1L);
-        MDC.put("traceId", "test-trace");
+        try {
+            MDC.put("traceId", "test-trace");
 
-        ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
-                handler.handleOptimisticLockException(ex, request);
+            ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
+                    handler.handleOptimisticLockException(ex, request);
 
-        assertEquals(409, response.getStatusCode().value());
-        assertEquals("test-trace", response.getBody().getTraceId());
-        MDC.clear();
+            assertEquals(409, response.getStatusCode().value());
+            GlobalExceptionHandler.ErrorResponse responseBody = response.getBody();
+            assertNotNull(responseBody);
+            assertEquals("test-trace", responseBody.getTraceId());
+        } finally {
+            MDC.clear();
+        }
     }
 }

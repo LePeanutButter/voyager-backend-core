@@ -1,21 +1,26 @@
 package com.tourism.platform.controller;
 
+import java.time.LocalDateTime;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isA;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+
 import com.tourism.platform.dto.ChatMessage;
 import com.tourism.platform.model.Message;
 import com.tourism.platform.model.MessageStatus;
 import com.tourism.platform.service.SocialService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-import java.time.LocalDateTime;
-
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ChatWebSocketControllerTest {
@@ -52,9 +57,10 @@ class ChatWebSocketControllerTest {
     }
 
     @Test
-    void sendMessage_WithValidMessage_ShouldSendToTopicAndQueue() {
+    @SuppressWarnings("null")
+    void sendMessageWithValidMessageShouldSendToTopicAndQueue() {
         // Given
-        when(socialService.sendMessage(eq(1L), eq(1L), eq("Hello world")))
+        when(socialService.sendMessage(1L, 1L, "Hello world"))
                 .thenReturn(savedMessage);
 
         // When
@@ -63,12 +69,13 @@ class ChatWebSocketControllerTest {
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
-        verify(messagingTemplate).convertAndSend(eq("/topic/chat/1"), any(ChatMessage.class));
-        verify(messagingTemplate, times(1)).convertAndSend(eq("/queue/user/2"), any(ChatMessage.class));
+        verify(messagingTemplate).convertAndSend("/topic/chat/1", isA(ChatMessage.class));
+        verify(messagingTemplate, times(1)).convertAndSend("/queue/user/2", isA(ChatMessage.class));
     }
 
     @Test
-    void sendMessage_WithException_ShouldSendErrorToSender() {
+    @SuppressWarnings("null")
+    void sendMessageWithExceptionShouldSendErrorToSender() {
         // Given
         when(socialService.sendMessage(anyLong(), anyLong(), anyString()))
                 .thenThrow(new RuntimeException("Connection not found"));
@@ -79,16 +86,17 @@ class ChatWebSocketControllerTest {
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
-        verify(messagingTemplate, never()).convertAndSend(eq("/topic/chat/1"), any(ChatMessage.class));
+        verify(messagingTemplate, never()).convertAndSend("/topic/chat/1", isA(ChatMessage.class));
         
         verify(messagingTemplate, times(1)).convertAndSend(
-                eq("/queue/user/1"),
-                any(ChatMessage.class)
+                "/queue/user/1",
+                isA(ChatMessage.class)
         );
     }
 
     @Test
-    void sendMessage_WithIllegalArgumentException_ShouldSendErrorToSender() {
+    @SuppressWarnings("null")
+    void sendMessageWithIllegalArgumentExceptionShouldSendErrorToSender() {
         // Given
         when(socialService.sendMessage(anyLong(), anyLong(), anyString()))
                 .thenThrow(new IllegalArgumentException("User not authorized"));
@@ -100,13 +108,14 @@ class ChatWebSocketControllerTest {
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
         verify(messagingTemplate, times(1)).convertAndSend(
-                eq("/queue/user/1"),
-                any(ChatMessage.class)
+                "/queue/user/1",
+                isA(ChatMessage.class)
         );
     }
 
     @Test
-    void handleTyping_ShouldSendTypingNotification() {
+    @SuppressWarnings("null")
+    void handleTypingShouldSendTypingNotification() {
         // Given
         ChatMessage typingMessage = ChatMessage.builder()
                 .connectionId(1L)
@@ -119,13 +128,14 @@ class ChatWebSocketControllerTest {
 
         // Then
         verify(messagingTemplate, times(1)).convertAndSend(
-                eq("/topic/chat/1/typing"),
-                any(ChatMessage.class)
+                "/topic/chat/1/typing",
+                isA(ChatMessage.class)
         );
     }
 
     @Test
-    void handleTyping_WithDifferentSenderId_ShouldUseCorrectSender() {
+    @SuppressWarnings("null")
+    void handleTypingWithDifferentSenderIdShouldUseCorrectSender() {
         // Given
         ChatMessage typingMessage = ChatMessage.builder()
                 .connectionId(2L)
@@ -138,13 +148,14 @@ class ChatWebSocketControllerTest {
 
         // Then
         verify(messagingTemplate, times(1)).convertAndSend(
-                eq("/topic/chat/2/typing"),
-                any(ChatMessage.class)
+                "/topic/chat/2/typing",
+                isA(ChatMessage.class)
         );
     }
 
     @Test
-    void sendMessage_WithNullRecipientId_ShouldStillWork() {
+    @SuppressWarnings("null")
+    void sendMessageWithNullRecipientIdShouldStillWork() {
         // Given
         Message messageWithNullRecipient = new Message();
         messageWithNullRecipient.setId(100L);
@@ -155,7 +166,7 @@ class ChatWebSocketControllerTest {
         messageWithNullRecipient.setStatus(MessageStatus.SENT);
         messageWithNullRecipient.setCreatedAt(LocalDateTime.now());
 
-        when(socialService.sendMessage(eq(1L), eq(1L), eq("Hello world")))
+        when(socialService.sendMessage(1L, 1L, "Hello world"))
                 .thenReturn(messageWithNullRecipient);
 
         // When
@@ -165,8 +176,8 @@ class ChatWebSocketControllerTest {
         verify(socialService).sendMessage(1L, 1L, "Hello world");
         
         verify(messagingTemplate, times(1)).convertAndSend(
-                eq("/topic/chat/1"),
-                any(ChatMessage.class)
+                "/topic/chat/1",
+                isA(ChatMessage.class)
         );
     }
 }

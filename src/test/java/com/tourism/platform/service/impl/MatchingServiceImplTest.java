@@ -37,7 +37,7 @@ class MatchingServiceImplTest {
     }
 
     @Test
-    void getMatches_shouldScoreAndSortDeterministically() {
+    void getMatchesShouldScoreAndSortDeterministically() {
         TravelPlan topCandidate = createPlan(2L, "alice", "Paris",
                 LocalDateTime.of(2026, 5, 2, 10, 0),
                 LocalDateTime.of(2026, 5, 5, 10, 0));
@@ -69,7 +69,7 @@ class MatchingServiceImplTest {
     }
 
     @Test
-    void getMatches_shouldApplyAnyInterestFilteringAndReturnEmptyWhenNoMatch() {
+    void getMatchesShouldApplyAnyInterestFilteringAndReturnEmptyWhenNoMatch() {
         TravelPlan candidate = createPlan(10L, "carol", "Paris",
                 LocalDateTime.of(2026, 5, 2, 10, 0),
                 LocalDateTime.of(2026, 5, 5, 10, 0));

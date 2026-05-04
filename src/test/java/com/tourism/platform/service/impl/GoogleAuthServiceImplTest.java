@@ -31,6 +31,7 @@ import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.HttpMethod.GET;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class GoogleAuthServiceImplTest {
 
     @Mock
@@ -45,13 +46,12 @@ class GoogleAuthServiceImplTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
-    private RestTemplate restTemplate;
     private MockRestServiceServer mockServer;
     private GoogleAuthServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        restTemplate = new RestTemplate();
+        RestTemplate restTemplate = new RestTemplate();
         mockServer = MockRestServiceServer.createServer(restTemplate);
         service = new GoogleAuthServiceImpl(properties, userRepository, passwordEncoder, jwtTokenProvider, restTemplate);
 
@@ -68,21 +68,23 @@ class GoogleAuthServiceImplTest {
     }
 
     @Test
-    void authenticateWithAuthorizationCode_ThrowsWhenBlank() {
-        assertThrows(BusinessException.class, () -> service.authenticateWithAuthorizationCode(" "));
+    void authenticateWithAuthorizationCodeThrowsWhenBlank() {
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.authenticateWithAuthorizationCode(" "));
+        assertNotNull(ex);
         mockServer.verify();
     }
 
     @Test
-    void exchangeCodeForAccessToken_ThrowsWhenClientIdMissing() {
+    void exchangeCodeForAccessTokenThrowsWhenClientIdMissing() {
         when(properties.getClientId()).thenReturn("");
         mockServer.reset();
 
-        assertThrows(BusinessException.class, () -> service.authenticateWithAuthorizationCode("code"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.authenticateWithAuthorizationCode("code"));
+        assertNotNull(ex);
     }
 
     @Test
-    void authenticateWithAuthorizationCode_CreatesUser_WhenNew() {
+    void authenticateWithAuthorizationCodeCreatesUserWhenNew() {
         mockServer.expect(requestTo(startsWith("https://oauth2.googleapis.com/token")))
                 .andExpect(method(POST))
                 .andRespond(withSuccess("{\"access_token\":\"atok\"}", MediaType.APPLICATION_JSON));
@@ -108,7 +110,7 @@ class GoogleAuthServiceImplTest {
     }
 
     @Test
-    void authenticateWithAuthorizationCode_ReusesExistingUser() {
+    void authenticateWithAuthorizationCodeReusesExistingUser() {
         mockServer.expect(requestTo(startsWith("https://oauth2.googleapis.com/token")))
                 .andExpect(method(POST))
                 .andRespond(withSuccess("{\"access_token\":\"atok\"}", MediaType.APPLICATION_JSON));
@@ -130,7 +132,7 @@ class GoogleAuthServiceImplTest {
     }
 
     @Test
-    void fetchGoogleProfile_ThrowsWhenEmailMissing() {
+    void fetchGoogleProfileThrowsWhenEmailMissing() {
         mockServer.expect(requestTo(startsWith("https://oauth2.googleapis.com/token")))
                 .andExpect(method(POST))
                 .andRespond(withSuccess("{\"access_token\":\"atok\"}", MediaType.APPLICATION_JSON));
@@ -139,6 +141,7 @@ class GoogleAuthServiceImplTest {
                 .andExpect(method(GET))
                 .andRespond(withSuccess("{\"name\":\"No Email\"}", MediaType.APPLICATION_JSON));
 
-        assertThrows(ExternalServiceException.class, () -> service.authenticateWithAuthorizationCode("c"));
+        ExternalServiceException ex = assertThrows(ExternalServiceException.class, () -> service.authenticateWithAuthorizationCode("c"));
+        assertNotNull(ex);
     }
 }

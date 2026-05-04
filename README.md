@@ -4,7 +4,7 @@
 [![Java](https://img.shields.io/badge/Java-17-orange.svg?style=flat-square)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.0-brightgreen.svg?style=flat-square)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/Maven-3.9+-blue.svg?style=flat-square)](https://maven.apache.org/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+![License](https://img.shields.io/badge/license-GPL%203.0-blue.svg)
 
 > The core backend API for the SmarTrip tourism intelligent platform, providing user management, travel planning, and AI-powered recommendations.
 
@@ -18,7 +18,7 @@
 - [Testing](#testing)
 - [Security](#security)
 - [Deployment](#deployment)
-- [Contributing](#contributing)
+- [Contributors](#contributors)
 - [License](#license)
 
 ## Background
@@ -46,8 +46,8 @@ The API follows REST best practices and implements the Richardson Maturity Model
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/voyager/smartrip-backend.git
-   cd smartrip-backend
+   git clone https://github.com/LePeanutButter/voyager-backend-core.git
+   cd voyager-backend-core
    ```
 
 2. **Set up the database**
@@ -330,29 +330,13 @@ The application includes built-in health endpoints:
 - **Performance Metrics**: Micrometer integration
 - **Database Monitoring**: Hikari connection pool metrics
 
-## Contributing
+## Contributors
 
-We welcome contributions! Please follow these guidelines:
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit your changes**: `git commit -m 'Add amazing feature'`
-4. **Push to the branch**: `git push origin feature/amazing-feature`
-5. **Open a Pull Request**
-
-### Code Style
-
-- Follow Java naming conventions
-- Use Lombok annotations to reduce boilerplate
-- Write comprehensive tests for new features
-- Update documentation for API changes
-
-### Pull Request Process
-
-- Ensure all tests pass
-- Update relevant documentation
-- Request code review from team members
-- Address feedback promptly
+- Andrés Felipe Calderón Ramírez - [AndresFelipeCalderonRamirez](https://github.com/AndresFelipeCalderonRamirez)
+- Laura Natalia Perilla Quintero - [Lanapequin](https://github.com/Lanapequin)
+- Ricardo Andres Ayala Garzon - [lRicardol](https://github.com/lRicardol)
+- Santiago Amaya Zapata - [SantiagoAmaya21](https://github.com/SantiagoAmaya21)
+- Santiago Botero Garcia - [LePeanutButter](https://github.com/LePeanutButter)
 
 ## License
 
@@ -360,10 +344,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Copyright
 
-© 2024 Voyager Team. All rights reserved.
-
----
-
-**SmarTrip Backend API** - Intelligent Tourism Platform Backend
-
-For support and questions, please contact the Voyager team or open an issue on GitHub.
+© 2026 Voyager Team. All rights reserved.

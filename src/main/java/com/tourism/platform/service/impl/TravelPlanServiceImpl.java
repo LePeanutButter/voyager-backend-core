@@ -21,7 +21,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 /**
  * Implementation of TravelPlanService
@@ -34,6 +34,9 @@ import java.util.stream.Collectors;
 @Slf4j
 @Transactional(readOnly = true)
 public class TravelPlanServiceImpl implements TravelPlanService {
+
+    // Constants for duplicated literals
+    private static final String TRAVEL_PLAN_NOT_FOUND = "Travel plan not found with id: ";
 
     private final TravelPlanRepository travelPlanRepository;
     private final UserRepository userRepository;
@@ -91,7 +94,7 @@ public class TravelPlanServiceImpl implements TravelPlanService {
 
     @Override
     public TravelPlan getTravelPlanById(Long travelPlanId) {
-        return travelPlanRepository.findById(travelPlanId)
+        return travelPlanRepository.findById(Objects.requireNonNull(travelPlanId))
                 .orElseThrow(() -> new EntityNotFoundException("Travel plan not found with ID: " + travelPlanId));
     }
 
@@ -112,7 +115,7 @@ public class TravelPlanServiceImpl implements TravelPlanService {
             throw new BusinessException("Invalid date range: endDate cannot be before startDate");
         }
 
-        var user = userRepository.findById(userId)
+        var user = userRepository.findById(Objects.requireNonNull(userId))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         TravelPlan plan = new TravelPlan();
@@ -153,8 +156,8 @@ public class TravelPlanServiceImpl implements TravelPlanService {
             throw new BusinessException("Invalid date range: endDate cannot be before startDate");
         }
 
-        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+        TravelPlan existing = travelPlanRepository.findById(Objects.requireNonNull(travelPlanId))
+                .orElseThrow(() -> new ResourceNotFoundException(TRAVEL_PLAN_NOT_FOUND + travelPlanId));
 
         if (!existing.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("You are not allowed to update this travel plan");
@@ -186,8 +189,8 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     @Override
     @Transactional
     public void deleteTravelPlan(Long travelPlanId, Long userId) {
-        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+        TravelPlan existing = travelPlanRepository.findById(Objects.requireNonNull(travelPlanId))
+                .orElseThrow(() -> new ResourceNotFoundException(TRAVEL_PLAN_NOT_FOUND + travelPlanId));
 
         if (!existing.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("You are not allowed to delete this travel plan");
@@ -199,8 +202,8 @@ public class TravelPlanServiceImpl implements TravelPlanService {
     @Override
     @Transactional
     public TravelPlanDto updateTravelPlanStatus(Long travelPlanId, Long userId, TravelPlanStatus status) {
-        TravelPlan existing = travelPlanRepository.findById(travelPlanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Travel plan not found with id: " + travelPlanId));
+        TravelPlan existing = travelPlanRepository.findById(Objects.requireNonNull(travelPlanId))
+                .orElseThrow(() -> new ResourceNotFoundException(TRAVEL_PLAN_NOT_FOUND + travelPlanId));
         if (!existing.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("You are not allowed to update this travel plan");
         }

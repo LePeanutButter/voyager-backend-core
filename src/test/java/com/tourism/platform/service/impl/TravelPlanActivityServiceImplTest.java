@@ -18,11 +18,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TravelPlanActivityServiceImplTest {
@@ -75,7 +81,7 @@ class TravelPlanActivityServiceImplTest {
     @Test
     void createActivity_ShouldReturnActivityDto_WhenValidRequest() {
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(travelPlan));
-        when(activityRepository.save(any(TravelPlanActivity.class))).thenReturn(activity);
+        when(activityRepository.save(Objects.requireNonNull(any(TravelPlanActivity.class)))).thenReturn(activity);
 
         TravelPlanActivityDto result = service.createActivity(1L, createRequest);
 
@@ -85,18 +91,18 @@ class TravelPlanActivityServiceImplTest {
         assertEquals(ActivityType.SIGHTSEEING, result.getType());
         assertFalse(result.getIsConfirmed());
 
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository).save(any(TravelPlanActivity.class));
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 
     @Test
     void createActivity_ShouldThrowException_WhenTravelPlanNotFound() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.empty());
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.createActivity(1L, createRequest));
 
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository, never()).save(any());
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 
     @Test
@@ -105,45 +111,45 @@ class TravelPlanActivityServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.createActivity(1L, createRequest));
 
-        verify(travelPlanRepository, never()).findById(any());
-        verify(activityRepository, never()).save(any());
+        verify(travelPlanRepository, never()).findById(Objects.requireNonNull(any()));
+        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 
     @Test
     void updateActivity_ShouldReturnUpdatedActivityDto_WhenValidRequest() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(travelPlan));
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.of(travelPlan));
         when(activityRepository.findByIdAndTravelPlanId(1L, 1L)).thenReturn(Optional.of(activity));
-        when(activityRepository.save(any(TravelPlanActivity.class))).thenReturn(activity);
+        when(activityRepository.save(Objects.requireNonNull(any(TravelPlanActivity.class)))).thenReturn(activity);
 
         TravelPlanActivityDto result = service.updateActivity(1L, 1L, updateRequest);
 
         assertNotNull(result);
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository).findByIdAndTravelPlanId(1L, 1L);
-        verify(activityRepository).save(activity);
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository).findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L));
+        verify(activityRepository).save(Objects.requireNonNull(activity));
     }
 
     @Test
     void updateActivity_ShouldThrowException_WhenActivityNotFound() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(travelPlan));
-        when(activityRepository.findByIdAndTravelPlanId(1L, 1L)).thenReturn(Optional.empty());
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.of(travelPlan));
+        when(activityRepository.findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.updateActivity(1L, 1L, updateRequest));
 
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository).findByIdAndTravelPlanId(1L, 1L);
-        verify(activityRepository, never()).save(any());
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository).findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L));
+        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 
     @Test
     void updateActivity_ShouldThrowException_WhenTravelPlanNotFound() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.empty());
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.updateActivity(1L, 1L, updateRequest));
 
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository, never()).findByIdAndTravelPlanId(any(), any());
-        verify(activityRepository, never()).save(any());
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository, never()).findByIdAndTravelPlanId(Objects.requireNonNull(any()), Objects.requireNonNull(any()));
+        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 
     @Test
@@ -152,15 +158,15 @@ class TravelPlanActivityServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.updateActivity(1L, 1L, updateRequest));
 
-        verify(travelPlanRepository, never()).findById(any());
-        verify(activityRepository, never()).findByIdAndTravelPlanId(any(), any());
-        verify(activityRepository, never()).save(any());
+        verify(travelPlanRepository, never()).findById(Objects.requireNonNull(any()));
+        verify(activityRepository, never()).findByIdAndTravelPlanId(Objects.requireNonNull(any()), Objects.requireNonNull(any()));
+        verify(activityRepository, never()).save(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 
     @Test
     void getActivities_ShouldReturnActivityDtos_WhenTravelPlanExists() {
         List<TravelPlanActivity> activities = List.of(activity);
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(travelPlan));
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.of(travelPlan));
         when(activityRepository.findByTravelPlanIdOrderByStartTimeAsc(1L)).thenReturn(activities);
 
         List<TravelPlanActivityDto> result = service.getActivities(1L);
@@ -169,52 +175,52 @@ class TravelPlanActivityServiceImplTest {
         assertEquals(1, result.size());
         assertEquals("Visit Eiffel Tower", result.get(0).getName());
 
-        verify(travelPlanRepository).findById(1L);
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
         verify(activityRepository).findByTravelPlanIdOrderByStartTimeAsc(1L);
     }
 
     @Test
     void getActivities_ShouldThrowException_WhenTravelPlanNotFound() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.empty());
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.getActivities(1L));
 
-        verify(travelPlanRepository).findById(1L);
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
         verify(activityRepository, never()).findByTravelPlanIdOrderByStartTimeAsc(any());
     }
 
     @Test
     void deleteActivity_ShouldDeleteActivity_WhenActivityExists() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(travelPlan));
-        when(activityRepository.findByIdAndTravelPlanId(1L, 1L)).thenReturn(Optional.of(activity));
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.of(travelPlan));
+        when(activityRepository.findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L))).thenReturn(Optional.of(activity));
 
         service.deleteActivity(1L, 1L);
 
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository).findByIdAndTravelPlanId(1L, 1L);
-        verify(activityRepository).delete(activity);
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository).findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L));
+        verify(activityRepository).delete(Objects.requireNonNull(activity));
     }
 
     @Test
     void deleteActivity_ShouldThrowException_WhenActivityNotFound() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(travelPlan));
-        when(activityRepository.findByIdAndTravelPlanId(1L, 1L)).thenReturn(Optional.empty());
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.of(travelPlan));
+        when(activityRepository.findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.deleteActivity(1L, 1L));
 
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository).findByIdAndTravelPlanId(1L, 1L);
-        verify(activityRepository, never()).delete(any());
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository).findByIdAndTravelPlanId(Objects.requireNonNull(1L), Objects.requireNonNull(1L));
+        verify(activityRepository, never()).delete(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 
     @Test
     void deleteActivity_ShouldThrowException_WhenTravelPlanNotFound() {
-        when(travelPlanRepository.findById(1L)).thenReturn(Optional.empty());
+        when(travelPlanRepository.findById(Objects.requireNonNull(1L))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.deleteActivity(1L, 1L));
 
-        verify(travelPlanRepository).findById(1L);
-        verify(activityRepository, never()).findByIdAndTravelPlanId(any(), any());
-        verify(activityRepository, never()).delete(any());
+        verify(travelPlanRepository).findById(Objects.requireNonNull(1L));
+        verify(activityRepository, never()).findByIdAndTravelPlanId(Objects.requireNonNull(any()), Objects.requireNonNull(any()));
+        verify(activityRepository, never()).delete(Objects.requireNonNull(any(TravelPlanActivity.class)));
     }
 }

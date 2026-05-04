@@ -10,6 +10,7 @@ import org.springframework.web.socket.config.annotation.StompWebSocketEndpointRe
 class WebSocketConfigTest {
 
     @Test
+    @SuppressWarnings("null")
     void configuresBrokerAndRegistersEndpoint() {
         WebSocketConfig cfg = new WebSocketConfig();
 
@@ -22,7 +23,7 @@ class WebSocketConfigTest {
         StompWebSocketEndpointRegistration reg = Mockito.mock(StompWebSocketEndpointRegistration.class);
         SockJsServiceRegistration sockJs = Mockito.mock(SockJsServiceRegistration.class);
         Mockito.when(stomp.addEndpoint("/ws-chat")).thenReturn(reg);
-        Mockito.when(reg.setAllowedOriginPatterns(Mockito.any())).thenReturn(reg);
+        Mockito.when(reg.setAllowedOriginPatterns(Mockito.any(String[].class))).thenReturn(reg);
         Mockito.when(reg.withSockJS()).thenReturn(sockJs);
 
         cfg.registerStompEndpoints(stomp);

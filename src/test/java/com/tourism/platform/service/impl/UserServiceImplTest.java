@@ -1,31 +1,38 @@
 package com.tourism.platform.service.impl;
 
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.dto.UserRegistrationDto;
 import com.tourism.platform.dto.UserUpdateDto;
-import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.User;
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.UserService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class UserServiceImplTest {
 
     @Mock
@@ -59,7 +66,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserById_WhenUserExists_ReturnsUserDto() {
+    void getUserByIdWhenUserExistsReturnsUserDto() {
         // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
@@ -74,7 +81,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserById_WhenUserNotFound_ReturnsEmpty() {
+    void getUserByIdWhenUserNotFoundReturnsEmpty() {
         // Given
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -87,7 +94,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserByEmail_WhenUserExists_ReturnsUserDto() {
+    void getUserByEmailWhenUserExistsReturnsUserDto() {
         // Given
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
 
@@ -101,7 +108,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserByEmail_WhenUserNotFound_ReturnsEmpty() {
+    void getUserByEmailWhenUserNotFoundReturnsEmpty() {
         // Given
         when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
 
@@ -114,7 +121,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void updateUser_WhenUserExistsAndValidData_ReturnsUpdatedUserDto() {
+    void updateUserWhenUserExistsAndValidDataReturnsUpdatedUserDto() {
         // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.save(any(User.class))).thenReturn(testUser);
@@ -132,7 +139,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void updateUser_WhenUserNotFound_ReturnsEmpty() {
+    void updateUserWhenUserNotFoundReturnsEmpty() {
         // Given
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -146,31 +153,33 @@ class UserServiceImplTest {
     }
 
     @Test
-    void updateUser_WhenFirstNameIsEmpty_ThrowsIllegalArgumentException() {
+    void updateUserWhenFirstNameIsEmptyThrowsIllegalArgumentException() {
         // Given
         updateDto.setFirstName("");
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
         // When & Then
-        assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        IllegalArgumentException firstNameException = assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        assertNotNull(firstNameException);
         verify(userRepository).findById(1L);
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
-    void updateUser_WhenBioIsEmpty_ThrowsIllegalArgumentException() {
+    void updateUserWhenBioIsEmptyThrowsIllegalArgumentException() {
         // Given
         updateDto.setBio("");
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
         // When & Then
-        assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        IllegalArgumentException bioException = assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        assertNotNull(bioException);
         verify(userRepository).findById(1L);
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
-    void updateUser_WithNullFields_UpdatesOnlyNonNullFields() {
+    void updateUserWithNullFieldsUpdatesOnlyNonNullFields() {
         // Given
         updateDto.setLastName(null);
         updateDto.setPhoneNumber(null);
@@ -193,7 +202,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void changePassword_WithValidCurrentPassword_ReturnsTrue() {
+    void changePasswordWithValidCurrentPasswordReturnsTrue() {
         // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("currentPassword", "encodedPassword")).thenReturn(true);
@@ -209,7 +218,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void changePassword_WithInvalidCurrentPassword_ReturnsFalse() {
+    void changePasswordWithInvalidCurrentPasswordReturnsFalse() {
         // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("wrongPassword", "encodedPassword")).thenReturn(false);
@@ -224,7 +233,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void changePassword_WhenUserNotFound_ReturnsFalse() {
+    void changePasswordWhenUserNotFoundReturnsFalse() {
         // Given
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -239,7 +248,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void updateUserRole_WhenUserExists_ReturnsUpdatedUserDto() {
+    void updateUserRoleWhenUserExistsReturnsUpdatedUserDto() {
         // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.save(any(User.class))).thenReturn(testUser);
@@ -255,7 +264,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void updateUserRole_WhenUserNotFound_ReturnsEmpty() {
+    void updateUserRoleWhenUserNotFoundReturnsEmpty() {
         // Given
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -269,7 +278,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void updateUser_WithInterests_UpdatesInterestsSet() {
+    void updateUserWithInterestsUpdatesInterestsSet() {
         // Given
         updateDto.setInterests(java.util.List.of("travel", "music", "food"));
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
@@ -289,7 +298,7 @@ class UserServiceImplTest {
     // ── registerUser ──────────────────────────────────────────────────────────────
 
     @Test
-    void registerUser_WhenValidData_ReturnsUserDto() {
+    void registerUserWhenValidDataReturnsUserDto() {
         UserRegistrationDto dto = new UserRegistrationDto();
         dto.setUsername("newuser");
         dto.setEmail("new@example.com");
@@ -319,7 +328,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void registerUser_WhenUsernameAlreadyExists_ThrowsIllegalArgumentException() {
+    void registerUserWhenUsernameAlreadyExistsThrowsIllegalArgumentException() {
         UserRegistrationDto dto = new UserRegistrationDto();
         dto.setUsername("testuser");
         dto.setEmail("new@example.com");
@@ -334,7 +343,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void registerUser_WhenEmailAlreadyExists_ThrowsIllegalArgumentException() {
+    void registerUserWhenEmailAlreadyExistsThrowsIllegalArgumentException() {
         UserRegistrationDto dto = new UserRegistrationDto();
         dto.setUsername("brandnewuser");
         dto.setEmail("test@example.com");
@@ -352,7 +361,7 @@ class UserServiceImplTest {
 // ── authenticateUser ──────────────────────────────────────────────────────────
 
     @Test
-    void authenticateUser_WhenValidCredentialsAndEnabled_ReturnsUserDto() {
+    void authenticateUserWhenValidCredentialsAndEnabledReturnsUserDto() {
         testUser.setEnabled(true);
         when(userRepository.findByUsernameOrEmail("testuser", "testuser"))
                 .thenReturn(Optional.of(testUser));
@@ -365,7 +374,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void authenticateUser_WhenWrongPassword_ReturnsEmpty() {
+    void authenticateUserWhenWrongPasswordReturnsEmpty() {
         testUser.setEnabled(true);
         when(userRepository.findByUsernameOrEmail("testuser", "testuser"))
                 .thenReturn(Optional.of(testUser));
@@ -377,7 +386,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void authenticateUser_WhenUserIsDisabled_ReturnsEmpty() {
+    void authenticateUserWhenUserIsDisabledReturnsEmpty() {
         testUser.setEnabled(false);
         when(userRepository.findByUsernameOrEmail("testuser", "testuser"))
                 .thenReturn(Optional.of(testUser));
@@ -389,7 +398,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void authenticateUser_WhenUserNotFound_ReturnsEmpty() {
+    void authenticateUserWhenUserNotFoundReturnsEmpty() {
         when(userRepository.findByUsernameOrEmail("ghost", "ghost"))
                 .thenReturn(Optional.empty());
 
@@ -402,7 +411,7 @@ class UserServiceImplTest {
 // ── getUserByUsername ─────────────────────────────────────────────────────────
 
     @Test
-    void getUserByUsername_WhenUserExists_ReturnsUserDto() {
+    void getUserByUsernameWhenUserExistsReturnsUserDto() {
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
 
         Optional<UserDto> result = userService.getUserByUsername("testuser");
@@ -413,7 +422,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserByUsername_WhenUserNotFound_ReturnsEmpty() {
+    void getUserByUsernameWhenUserNotFoundReturnsEmpty() {
         when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
 
         Optional<UserDto> result = userService.getUserByUsername("ghost");
@@ -424,7 +433,7 @@ class UserServiceImplTest {
 // ── updateUserStatus ──────────────────────────────────────────────────────────
 
     @Test
-    void updateUserStatus_WhenUserExists_ReturnsUpdatedUserDto() {
+    void updateUserStatusWhenUserExistsReturnsUpdatedUserDto() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
@@ -436,7 +445,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void updateUserStatus_WhenUserNotFound_ReturnsEmpty() {
+    void updateUserStatusWhenUserNotFoundReturnsEmpty() {
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
         Optional<UserDto> result = userService.updateUserStatus(999L, UserStatus.DEACTIVATED);
@@ -448,7 +457,7 @@ class UserServiceImplTest {
 // ── deleteUser ────────────────────────────────────────────────────────────────
 
     @Test
-    void deleteUser_WhenUserExists_ReturnsTrueAndDeletes() {
+    void deleteUserWhenUserExistsReturnsTrueAndDeletes() {
         when(userRepository.existsById(1L)).thenReturn(true);
 
         boolean result = userService.deleteUser(1L);
@@ -458,7 +467,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void deleteUser_WhenUserNotFound_ReturnsFalse() {
+    void deleteUserWhenUserNotFoundReturnsFalse() {
         when(userRepository.existsById(999L)).thenReturn(false);
 
         boolean result = userService.deleteUser(999L);
@@ -470,7 +479,7 @@ class UserServiceImplTest {
 // ── getAllUsers ───────────────────────────────────────────────────────────────
 
     @Test
-    void getAllUsers_ShouldReturnPageOfUserDtos() {
+    void getAllUsersShouldReturnPageOfUserDtos() {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.Page<User> page =
                 new org.springframework.data.domain.PageImpl<>(List.of(testUser));
@@ -486,7 +495,7 @@ class UserServiceImplTest {
 // ── getUsersByRole ────────────────────────────────────────────────────────────
 
     @Test
-    void getUsersByRole_ShouldReturnFilteredPage() {
+    void getUsersByRoleShouldReturnFilteredPage() {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.Page<User> page =
                 new org.springframework.data.domain.PageImpl<>(List.of(testUser));
@@ -503,7 +512,7 @@ class UserServiceImplTest {
 // ── getUsersByStatus ──────────────────────────────────────────────────────────
 
     @Test
-    void getUsersByStatus_ShouldReturnFilteredPage() {
+    void getUsersByStatusShouldReturnFilteredPage() {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.Page<User> page =
                 new org.springframework.data.domain.PageImpl<>(List.of(testUser));
@@ -520,7 +529,7 @@ class UserServiceImplTest {
 // ── searchUsersByName ─────────────────────────────────────────────────────────
 
     @Test
-    void searchUsersByName_ShouldReturnMatchingPage() {
+    void searchUsersByNameShouldReturnMatchingPage() {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.Page<User> page =
                 new org.springframework.data.domain.PageImpl<>(List.of(testUser));
@@ -537,14 +546,14 @@ class UserServiceImplTest {
 // ── isUsernameAvailable ───────────────────────────────────────────────────────
 
     @Test
-    void isUsernameAvailable_WhenUsernameNotTaken_ReturnsTrue() {
+    void isUsernameAvailableWhenUsernameNotTakenReturnsTrue() {
         when(userRepository.existsByUsername("freeuser")).thenReturn(false);
 
         assertTrue(userService.isUsernameAvailable("freeuser"));
     }
 
     @Test
-    void isUsernameAvailable_WhenUsernameTaken_ReturnsFalse() {
+    void isUsernameAvailableWhenUsernameTakenReturnsFalse() {
         when(userRepository.existsByUsername("testuser")).thenReturn(true);
 
         assertFalse(userService.isUsernameAvailable("testuser"));
@@ -553,14 +562,14 @@ class UserServiceImplTest {
 // ── isEmailAvailable ──────────────────────────────────────────────────────────
 
     @Test
-    void isEmailAvailable_WhenEmailNotTaken_ReturnsTrue() {
+    void isEmailAvailableWhenEmailNotTakenReturnsTrue() {
         when(userRepository.existsByEmail("free@example.com")).thenReturn(false);
 
         assertTrue(userService.isEmailAvailable("free@example.com"));
     }
 
     @Test
-    void isEmailAvailable_WhenEmailTaken_ReturnsFalse() {
+    void isEmailAvailableWhenEmailTakenReturnsFalse() {
         when(userRepository.existsByEmail("test@example.com")).thenReturn(true);
 
         assertFalse(userService.isEmailAvailable("test@example.com"));
@@ -569,7 +578,7 @@ class UserServiceImplTest {
 // ── setUserEnabled ────────────────────────────────────────────────────────────
 
     @Test
-    void setUserEnabled_WhenUserExists_EnablesAndReturnsDto() {
+    void setUserEnabledWhenUserExistsEnablesAndReturnsDto() {
         testUser.setEnabled(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.save(any(User.class))).thenReturn(testUser);
@@ -582,7 +591,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void setUserEnabled_WhenUserExists_DisablesAndReturnsDto() {
+    void setUserEnabledWhenUserExistsDisablesAndReturnsDto() {
         testUser.setEnabled(true);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.save(any(User.class))).thenReturn(testUser);
@@ -595,7 +604,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void setUserEnabled_WhenUserNotFound_ReturnsEmpty() {
+    void setUserEnabledWhenUserNotFoundReturnsEmpty() {
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
         Optional<UserDto> result = userService.setUserEnabled(999L, true);
@@ -607,7 +616,7 @@ class UserServiceImplTest {
 // ── getUserStatistics ─────────────────────────────────────────────────────────
 
     @Test
-    void getUserStatistics_ShouldReturnCorrectCounts() {
+    void getUserStatisticsShouldReturnCorrectCounts() {
         when(userRepository.count()).thenReturn(50L);
         when(userRepository.countByStatus(UserStatus.ACTIVE)).thenReturn(35L);
 
@@ -620,7 +629,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserStatistics_WhenNoUsers_ReturnsZeroCounts() {
+    void getUserStatisticsWhenNoUsersReturnsZeroCounts() {
         when(userRepository.count()).thenReturn(0L);
         when(userRepository.countByStatus(UserStatus.ACTIVE)).thenReturn(0L);
 
@@ -633,20 +642,22 @@ class UserServiceImplTest {
 // ── updateUser — null firstName branch ───────────────────────────────────────
 
     @Test
-    void updateUser_WhenFirstNameIsNull_ThrowsIllegalArgumentException() {
+    void updateUserWhenFirstNameIsNullThrowsIllegalArgumentException() {
         updateDto.setFirstName(null);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
-        assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        assertNotNull(ex);
         verify(userRepository, never()).save(any());
     }
 
     @Test
-    void updateUser_WhenBioIsNull_ThrowsIllegalArgumentException() {
+    void updateUserWhenBioIsNullThrowsIllegalArgumentException() {
         updateDto.setBio(null);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
-        assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.updateUser(1L, updateDto));
+        assertNotNull(ex);
         verify(userRepository, never()).save(any());
     }
 }

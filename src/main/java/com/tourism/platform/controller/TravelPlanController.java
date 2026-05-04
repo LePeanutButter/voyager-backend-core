@@ -9,10 +9,8 @@ import com.tourism.platform.dto.UpdateTravelPlanActivityRequestDto;
 import com.tourism.platform.dto.ReservationDto;
 import com.tourism.platform.dto.TravelConnectionDto;
 import com.tourism.platform.dto.TravelerMatchDto;
-import com.tourism.platform.model.TravelPlan;
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.model.TravelType;
-import com.tourism.platform.repository.TravelPlanRepository;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.TravelPlanActivityService;
 import com.tourism.platform.service.TravelPlanService;
@@ -55,9 +53,12 @@ import java.util.List;
 @Validated
 public class TravelPlanController {
 
+    // Constants for duplicated literals
+    private static final String TRAVEL_PLANS_RETRIEVED_SUCCESSFULLY = "Travel plans retrieved successfully";
+    private static final String CREATED_AT = "createdAt";
+
     private final TravelPlanActivityService travelPlanActivityService;
     private final SocialService socialService;
-    private final TravelPlanRepository travelPlanRepository;
     private final UserRepository userRepository;
     private final TravelPlanService travelPlanService;
 
@@ -117,7 +118,7 @@ public class TravelPlanController {
 
         ApiResponse<List<TravelPlanDto>> response = ApiResponse.success(
                 HttpStatus.OK.value(),
-                "Travel plans retrieved successfully",
+                TRAVEL_PLANS_RETRIEVED_SUCCESSFULLY,
                 plans,
                 request.getRequestURI()
         );
@@ -134,14 +135,14 @@ public class TravelPlanController {
             HttpServletRequest request) {
         
         List<TravelPlanDto> plans = travelPlanService.getTravelPlanDtosByUser(userId);
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<TravelPlanDto> pageResult = new org.springframework.data.domain.PageImpl<>(
                 plans, pageable, plans.size()
         );
 
         PagedResponse<TravelPlanDto> response = PagedResponse.fromPage(
                 pageResult,
-                "Travel plans retrieved successfully",
+                TRAVEL_PLANS_RETRIEVED_SUCCESSFULLY,
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );
@@ -378,14 +379,14 @@ public class TravelPlanController {
                 TravelPlanDto.builder().id(2L).title("Another Plan").status(status).build()
         );
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<TravelPlanDto> pageResult = new org.springframework.data.domain.PageImpl<>(
                 plans, pageable, plans.size()
         );
 
         PagedResponse<TravelPlanDto> response = PagedResponse.fromPage(
                 pageResult,
-                "Travel plans retrieved successfully",
+                TRAVEL_PLANS_RETRIEVED_SUCCESSFULLY,
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );
@@ -407,14 +408,14 @@ public class TravelPlanController {
                 TravelPlanDto.builder().id(2L).title("Another Trip").travelType(type).build()
         );
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<TravelPlanDto> pageResult = new org.springframework.data.domain.PageImpl<>(
                 plans, pageable, plans.size()
         );
 
         PagedResponse<TravelPlanDto> response = PagedResponse.fromPage(
                 pageResult,
-                "Travel plans retrieved successfully",
+                TRAVEL_PLANS_RETRIEVED_SUCCESSFULLY,
                 HttpStatus.OK.value(),
                 request.getRequestURI()
         );

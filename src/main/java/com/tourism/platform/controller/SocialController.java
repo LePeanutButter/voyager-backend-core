@@ -42,6 +42,20 @@ import java.util.Map;
 @Validated
 public class SocialController {
 
+    // Constants for duplicated literals
+    private static final String RATING = "rating";
+    private static final String COMMENT = "comment";
+    private static final String AUTHOR = "author";
+    private static final String CREATED_AT = "createdAt";
+    private static final String PARTICIPANT = "participant";
+    private static final String LAST_MESSAGE = "lastMessage";
+    private static final String UNREAD_COUNT = "unreadCount";
+    private static final String CONTENT = "content";
+    private static final String POST_ID = "postId";
+    private static final String JOHN_DOE = "John Doe";
+    private static final String JANE_SMITH = "Jane Smith";
+    private static final String MIKE_JOHNSON = "Mike Johnson";
+
     private final SocialService socialService;
     private final JwtTokenProvider tokenProvider;
 
@@ -235,8 +249,8 @@ public class SocialController {
                 "reviewId", 1L,
                 "targetId", reviewData.get("targetId"),
                 "targetType", reviewData.get("targetType"),
-                "rating", reviewData.get("rating"),
-                "comment", reviewData.get("comment"),
+                RATING, reviewData.get(RATING),
+                COMMENT, reviewData.get(COMMENT),
                 "status", "PUBLISHED"
         );
         
@@ -260,12 +274,12 @@ public class SocialController {
             HttpServletRequest request) {
         
         List<Map<String, Object>> reviews = List.of(
-                Map.of("id", 1L, "rating", 5, "comment", "Great experience!", "author", "John Doe"),
-                Map.of("id", 2L, "rating", 4, "comment", "Amazing place!", "author", "Jane Smith"),
-                Map.of("id", 3L, "rating", 5, "comment", "Would recommend!", "author", "Mike Johnson")
+                Map.of("id", 1L, RATING, 5, COMMENT, "Great experience!", AUTHOR, JOHN_DOE),
+                Map.of("id", 2L, RATING, 4, COMMENT, "Amazing place!", AUTHOR, JANE_SMITH),
+                Map.of("id", 3L, RATING, 5, COMMENT, "Would recommend!", AUTHOR, MIKE_JOHNSON)
         );
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<Map<String, Object>> pageResult = new org.springframework.data.domain.PageImpl<>(
                 reviews, pageable, reviews.size()
         );
@@ -289,8 +303,8 @@ public class SocialController {
         
         Map<String, Object> responseData = Map.of(
                 "reviewId", reviewId,
-                "rating", updateData.get("rating"),
-                "comment", updateData.get("comment"),
+                RATING, updateData.get(RATING),
+                COMMENT, updateData.get(COMMENT),
                 "updatedAt", java.time.LocalDateTime.now()
         );
         
@@ -326,9 +340,9 @@ public class SocialController {
             HttpServletRequest request) {
         
         List<Map<String, Object>> conversations = List.of(
-                Map.of("id", 1L, "participant", "John Doe", "lastMessage", "Hi there!", "unreadCount", 2),
-                Map.of("id", 2L, "participant", "Jane Smith", "lastMessage", "See you soon!", "unreadCount", 0),
-                Map.of("id", 3L, "participant", "Mike Johnson", "lastMessage", "Thanks!", "unreadCount", 1)
+                Map.of("id", 1L, PARTICIPANT, JOHN_DOE, LAST_MESSAGE, "Hi there!", UNREAD_COUNT, 2),
+                Map.of("id", 2L, PARTICIPANT, JANE_SMITH, LAST_MESSAGE, "See you soon!", UNREAD_COUNT, 0),
+                Map.of("id", 3L, PARTICIPANT, MIKE_JOHNSON, LAST_MESSAGE, "Thanks!", UNREAD_COUNT, 1)
         );
         
         ApiResponse<List<Map<String, Object>>> response = ApiResponse.success(
@@ -393,12 +407,12 @@ public class SocialController {
             HttpServletRequest request) {
         
         List<Map<String, Object>> posts = List.of(
-                Map.of("id", 1L, "author", "John Doe", "content", "Traveling to Paris!", "type", "POST"),
-                Map.of("id", 2L, "author", "Jane Smith", "content", "Sharing photos from Rome", "type", "PHOTO"),
-                Map.of("id", 3L, "author", "Mike Johnson", "content", "Tokyo is amazing!", "type", "POST")
+                Map.of("id", 1L, AUTHOR, JOHN_DOE, CONTENT, "Traveling to Paris!", "type", "POST"),
+                Map.of("id", 2L, AUTHOR, JANE_SMITH, CONTENT, "Sharing photos from Rome", "type", "PHOTO"),
+                Map.of("id", 3L, AUTHOR, MIKE_JOHNSON, CONTENT, "Tokyo is amazing!", "type", "POST")
         );
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<Map<String, Object>> pageResult = new org.springframework.data.domain.PageImpl<>(
                 posts, pageable, posts.size()
         );
@@ -420,10 +434,10 @@ public class SocialController {
             HttpServletRequest request) {
         
         Map<String, Object> responseData = Map.of(
-                "postId", 1L,
-                "content", postData.get("content"),
+                POST_ID, 1L,
+                CONTENT, postData.get(CONTENT),
                 "type", postData.getOrDefault("type", "POST"),
-                "createdAt", java.time.LocalDateTime.now()
+                CREATED_AT, java.time.LocalDateTime.now()
         );
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(
@@ -443,7 +457,7 @@ public class SocialController {
             HttpServletRequest request) {
         
         Map<String, Object> responseData = Map.of(
-                "postId", postId,
+                POST_ID, postId,
                 "liked", true,
                 "likeCount", 42,
                 "likedAt", java.time.LocalDateTime.now()
@@ -466,7 +480,7 @@ public class SocialController {
             HttpServletRequest request) {
         
         Map<String, Object> responseData = Map.of(
-                "postId", postId,
+                POST_ID, postId,
                 "liked", false,
                 "likeCount", 41,
                 "unlikedAt", java.time.LocalDateTime.now()
@@ -491,9 +505,9 @@ public class SocialController {
         
         Map<String, Object> responseData = Map.of(
                 "commentId", 1L,
-                "postId", postId,
-                "content", commentData.get("content"),
-                "createdAt", java.time.LocalDateTime.now()
+                POST_ID, postId,
+                CONTENT, commentData.get(CONTENT),
+                CREATED_AT, java.time.LocalDateTime.now()
         );
         
         ApiResponse<Map<String, Object>> response = ApiResponse.success(
@@ -515,11 +529,11 @@ public class SocialController {
             HttpServletRequest request) {
         
         List<Map<String, Object>> comments = List.of(
-                Map.of("id", 1L, "author", "John Doe", "content", "Great post!", "createdAt", java.time.LocalDateTime.now()),
-                Map.of("id", 2L, "author", "Jane Smith", "content", "Thanks for sharing!", "createdAt", java.time.LocalDateTime.now())
+                Map.of("id", 1L, AUTHOR, JOHN_DOE, CONTENT, "Great post!", CREATED_AT, java.time.LocalDateTime.now()),
+                Map.of("id", 2L, AUTHOR, JANE_SMITH, CONTENT, "Thanks for sharing!", CREATED_AT, java.time.LocalDateTime.now())
         );
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(CREATED_AT).descending());
         Page<Map<String, Object>> pageResult = new org.springframework.data.domain.PageImpl<>(
                 comments, pageable, comments.size()
         );

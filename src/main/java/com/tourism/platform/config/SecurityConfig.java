@@ -1,20 +1,20 @@
 package com.tourism.platform.config;
 
-import com.tourism.platform.security.JwtAuthenticationFilter;
-import com.tourism.platform.security.JwtTokenProvider;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -23,7 +23,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import com.tourism.platform.security.JwtAuthenticationFilter;
+import com.tourism.platform.security.JwtTokenProvider;
 
 /**
  * Security Configuration for the Tourism Platform
@@ -36,6 +37,8 @@ import java.util.List;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
+    // Constants for duplicated literals
+    private static final String USERS_ENDPOINT = "/users/**";
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -60,8 +63,9 @@ public class SecurityConfig {
      * JWT authentication filter bean
      */
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider tokenProvider,
+                                                           UserDetailsService userDetailsService) {
+        return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
     }
 
     /**
@@ -87,7 +91,8 @@ public class SecurityConfig {
      * Main security filter chain configuration
      */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtTokenProvider tokenProvider,
+                                           UserDetailsService userDetailsService) throws Exception {
         http
             // Disable CSRF as we're using JWT
             .csrf(AbstractHttpConfigurer::disable)
@@ -139,9 +144,9 @@ public class SecurityConfig {
                 .requestMatchers("/social/**").authenticated()
 
                 // User management endpoints
-                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/users/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("SUPER_ADMIN")
+                .requestMatchers(HttpMethod.GET, USERS_ENDPOINT).authenticated()
+                .requestMatchers(HttpMethod.PUT, USERS_ENDPOINT).authenticated()
+                .requestMatchers(HttpMethod.DELETE, USERS_ENDPOINT).hasRole("SUPER_ADMIN")
                 
                 // Admin endpoints
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
@@ -150,8 +155,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             
-            // Add JWT filter
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter(tokenProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

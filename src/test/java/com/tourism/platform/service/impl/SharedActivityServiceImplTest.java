@@ -3,8 +3,18 @@ package com.tourism.platform.service.impl;
 import com.tourism.platform.dto.SharedActivityDecisionRequest;
 import com.tourism.platform.exception.BadRequestException;
 import com.tourism.platform.exception.ConflictException;
-import com.tourism.platform.model.*;
-import com.tourism.platform.repository.*;
+import com.tourism.platform.model.ConnectionStatus;
+import com.tourism.platform.model.SharedActivity;
+import com.tourism.platform.model.SharedActivityDecisionAction;
+import com.tourism.platform.model.SharedActivityStatus;
+import com.tourism.platform.model.TravelPlan;
+import com.tourism.platform.model.TravelPlanActivity;
+import com.tourism.platform.model.User;
+import com.tourism.platform.repository.SharedActivityRepository;
+import com.tourism.platform.repository.TravelPlanActivityRepository;
+import com.tourism.platform.repository.TravelPlanParticipantRepository;
+import com.tourism.platform.repository.UserConnectionRepository;
+import com.tourism.platform.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,10 +24,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SharedActivityServiceImplTest {
@@ -136,7 +150,7 @@ class SharedActivityServiceImplTest {
 
         when(userRepository.findByUsername("receiver")).thenReturn(Optional.of(receiver));
         when(sharedActivityRepository.findById(1L)).thenReturn(Optional.of(sharedActivity));
-        when(sharedActivityRepository.save(any(SharedActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sharedActivityRepository.save(Objects.requireNonNull(any(SharedActivity.class)))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = service.resolveSharedActivity(1L, request, "receiver");
         assertEquals(SharedActivityStatus.ACCEPTED, response.getStatus());

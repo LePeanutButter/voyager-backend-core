@@ -12,6 +12,7 @@ import com.tourism.platform.repository.*;
 import com.tourism.platform.service.SharedActivityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +46,7 @@ public class SharedActivityServiceImpl implements SharedActivityService {
     }
 
     @Override
-    public SharedActivityResponse shareActivity(Long activityId, Long receiverId, String senderUsername) {
+    public SharedActivityResponse shareActivity(@NonNull Long activityId, @NonNull Long receiverId, String senderUsername) {
         log.info("event=shared_activity_share_start activityId={} receiverId={}", activityId, receiverId);
         User sender = userRepository.findByUsername(senderUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
@@ -107,7 +108,7 @@ public class SharedActivityServiceImpl implements SharedActivityService {
     }
 
     @Override
-    public SharedActivityResponse resolveSharedActivity(Long sharedActivityId, SharedActivityDecisionRequest request, String receiverUsername) {
+    public SharedActivityResponse resolveSharedActivity(@NonNull Long sharedActivityId, SharedActivityDecisionRequest request, String receiverUsername) {
         log.info("event=shared_activity_resolve_start sharedActivityId={}", sharedActivityId);
         User receiver = userRepository.findByUsername(receiverUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Receiver not found"));

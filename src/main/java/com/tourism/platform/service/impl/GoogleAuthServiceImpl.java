@@ -1,5 +1,24 @@
 package com.tourism.platform.service.impl;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tourism.platform.config.GoogleOAuthProperties;
@@ -12,20 +31,8 @@ import com.tourism.platform.model.UserStatus;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.GoogleAuthService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -79,7 +86,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         try {
             ResponseEntity<String> response = restTemplate.exchange(
                     tokenUrl,
-                    HttpMethod.POST,
+                    Objects.requireNonNull(HttpMethod.POST),
                     new HttpEntity<>(form, headers),
                     String.class
             );
@@ -95,21 +102,21 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             }
             return accessToken.asText();
         } catch (RestClientException e) {
-            throw new ExternalServiceException("Google token exchange failed: " + e.getMessage());
-        } catch (Exception e) {
-            throw new ExternalServiceException("Google token exchange parse failed: " + e.getMessage());
+            throw new ExternalServiceException("Google token exchange failed: " + e.getMessage(), e);
+        } catch (java.io.IOException e) {
+            throw new ExternalServiceException("Google token exchange parse failed: " + e.getMessage(), e);
         }
     }
 
     private GoogleProfile fetchGoogleProfile(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+        headers.setBearerAuth(Objects.requireNonNull(accessToken));
+        headers.setAccept(Objects.requireNonNull(java.util.List.of(MediaType.APPLICATION_JSON)));
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(
                     "https://www.googleapis.com/oauth2/v2/userinfo",
-                    HttpMethod.GET,
+                    Objects.requireNonNull(HttpMethod.GET),
                     new HttpEntity<>(headers),
                     String.class
             );
@@ -128,9 +135,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
             return new GoogleProfile(email, name);
         } catch (RestClientException e) {
-            throw new ExternalServiceException("Google userinfo request failed: " + e.getMessage());
-        } catch (Exception e) {
-            throw new ExternalServiceException("Google userinfo parse failed: " + e.getMessage());
+            throw new ExternalServiceException("Google userinfo request failed: " + e.getMessage(), e);
+        } catch (java.io.IOException e) {
+            throw new ExternalServiceException("Google userinfo parse failed: " + e.getMessage(), e);
         }
     }
 

@@ -15,9 +15,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.Objects;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -45,7 +45,7 @@ class UserControllerLoginTest {
     }
 
     @Test
-    void login_Success_ReturnsTokenWithUserIdClaimSource() throws Exception {
+    void loginSuccessReturnsTokenWithUserIdClaimSource() throws Exception {
         UserDto dto = UserDto.builder()
                 .id(42L)
                 .username("alice")
@@ -53,7 +53,7 @@ class UserControllerLoginTest {
                 .firstName("A")
                 .lastName("B")
                 .build();
-        when(userService.authenticateUser(eq("alice"), eq("secret"))).thenReturn(Optional.of(dto));
+        when(userService.authenticateUser("alice", "secret")).thenReturn(Optional.of(dto));
         when(tokenProvider.generateTokenFromUsernameAndUserId("alice", 42L)).thenReturn("jwt-token");
 
         UserLoginDto login = UserLoginDto.builder()
@@ -62,22 +62,22 @@ class UserControllerLoginTest {
                 .build();
 
         mockMvc.perform(post("/users/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(login)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(login))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.token").value("jwt-token"))
                 .andExpect(jsonPath("$.data.id").value(42));
     }
 
     @Test
-    void login_InvalidCredentials_Unauthorized() throws Exception {
-        when(userService.authenticateUser(eq("x"), eq("y"))).thenReturn(Optional.empty());
+    void loginInvalidCredentialsUnauthorized() throws Exception {
+        when(userService.authenticateUser("x", "y")).thenReturn(Optional.empty());
 
         UserLoginDto login = UserLoginDto.builder().usernameOrEmail("x").password("y").build();
 
         mockMvc.perform(post("/users/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(login)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(login))))
                 .andExpect(status().isUnauthorized());
     }
 }

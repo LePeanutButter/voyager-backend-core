@@ -92,10 +92,10 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtRefreshExpirationInMs);
 
         return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .subject(username)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -157,16 +157,9 @@ public class JwtTokenProvider {
                     .build()
                     .parseSignedClaims(token);
             return true;
-        } catch (SecurityException ex) {
-            // Invalid signature
-        } catch (MalformedJwtException ex) {
-            // Invalid token
-        } catch (ExpiredJwtException ex) {
-            // Expired token
-        } catch (UnsupportedJwtException ex) {
-            // Unsupported token
-        } catch (IllegalArgumentException ex) {
-            // Token claims string is empty
+        } catch (SecurityException | MalformedJwtException | ExpiredJwtException | 
+                 UnsupportedJwtException | IllegalArgumentException ex) {
+            // Log the exception if needed, but return false for all JWT validation failures
         }
         return false;
     }
