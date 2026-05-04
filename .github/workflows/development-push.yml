@@ -83,20 +83,22 @@ jobs:
       - name: Run unit tests
         run: mvn -B test
 
-      - name: Build package
-        run: mvn -B -DskipTests package
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Prepare JAR artifact
+      - name: Build Docker image
         run: |
           mkdir -p release
-          JAR_FILE=$(find target -maxdepth 1 -name "*.jar" ! -name "*original*" | head -n 1)
-          cp "$JAR_FILE" release/backend-app.jar
+          docker build -t voyager-backend:latest .
 
-      - name: Upload backend artifact
+      - name: Save image for Learner Lab
+        run: docker save voyager-backend:latest -o release/voyager-backend-image.tar
+
+      - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jar
-          path: release/backend-app.jar
+          name: backend-docker-image
+          path: release/voyager-backend-image.tar
 
   deploy:
     if: github.event_name == 'push'
@@ -104,10 +106,16 @@ jobs:
     needs: build_and_test
     runs-on: ubuntu-latest
     steps:
-      - name: Download backend artifact
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make deploy script executable
+        run: chmod +x scripts/ec2-deploy-backend.sh
+
+      - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
-          name: backend-jar
+          name: backend-docker-image
           path: release
 
       - name: Upload manual deployment package
@@ -115,5 +123,5 @@ jobs:
         with:
           name: backend-manual-deploy
           path: |
-            release/backend-app.jar
-            scripts/deploy-backend-manual.sh
+            release/voyager-backend-image.tar
+            scripts/ec2-deploy-backend.sh

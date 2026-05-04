@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,7 +22,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
-import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
 
@@ -34,28 +33,30 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SecurityConfigTest {
 
-    @InjectMocks
-    private SecurityConfig securityConfig;
-
     @Mock
     private JwtTokenProvider tokenProvider;
 
     @Mock
     private UserDetailsService userDetailsService;
 
+    private CorsProperties corsProperties;
+    private SecurityConfig securityConfig;
+
     @BeforeEach
-    void setUp() throws Exception {
-        // Inject @Value field since there's no Spring context
-        Field field = SecurityConfig.class.getDeclaredField("allowedOrigins");
-        field.setAccessible(true);
-        field.set(securityConfig, "http://localhost:3000,https://example.com");
+    void setUp() {
+        corsProperties = new CorsProperties();
+        corsProperties.setAllowedOrigins("http://localhost:3000,https://example.com");
+        corsProperties.setAllowedOriginPatterns("");
+        corsProperties.setAllowAllOrigins(false);
+        corsProperties.setUseAwsHostnamePatterns(false);
+        corsProperties.setAllowCredentials(true);
+        securityConfig = new SecurityConfig(corsProperties);
     }
 
     private HttpSecurity createMockHttpSecurity() throws Exception {
         HttpSecurity httpSecurity = mock(HttpSecurity.class);
         DefaultSecurityFilterChain filterChain = mock(DefaultSecurityFilterChain.class);
-        
-        // Mock the fluent API chain
+
         when(httpSecurity.csrf(any())).thenReturn(httpSecurity);
         when(httpSecurity.cors(any())).thenReturn(httpSecurity);
         when(httpSecurity.headers(any())).thenReturn(httpSecurity);
@@ -63,11 +64,9 @@ class SecurityConfigTest {
         when(httpSecurity.authorizeHttpRequests(any())).thenReturn(httpSecurity);
         when(httpSecurity.addFilterBefore(any(), any())).thenReturn(httpSecurity);
         when(httpSecurity.build()).thenReturn(filterChain);
-        
+
         return httpSecurity;
     }
-
-    // ── passwordEncoder ───────────────────────────────────────────────────────
 
     @Test
     void passwordEncoderShouldReturnBCryptPasswordEncoder() {
@@ -94,7 +93,6 @@ class SecurityConfigTest {
         String encoded1 = encoder.encode(rawPassword);
         String encoded2 = encoder.encode(rawPassword);
 
-        // BCrypt uses a random salt each time
         assertThat(encoded1).isNotEqualTo(encoded2);
     }
 
@@ -106,8 +104,6 @@ class SecurityConfigTest {
 
         assertThat(encoder.matches("wrongPassword", encoded)).isFalse();
     }
-
-    // ── jwtAuthenticationFilter ───────────────────────────────────────────────
 
     @Test
     void jwtAuthenticationFilterShouldReturnNonNullInstance() {
@@ -121,11 +117,8 @@ class SecurityConfigTest {
         JwtAuthenticationFilter filter1 = securityConfig.jwtAuthenticationFilter(tokenProvider, userDetailsService);
         JwtAuthenticationFilter filter2 = securityConfig.jwtAuthenticationFilter(tokenProvider, userDetailsService);
 
-        // Bean is not scoped as singleton in this unit context, each call creates one
         assertThat(filter1).isNotSameAs(filter2);
     }
-
-    // ── authenticationManager ─────────────────────────────────────────────────
 
     @Test
     void authenticationManagerShouldReturnManagerFromConfig() throws Exception {
@@ -138,8 +131,6 @@ class SecurityConfigTest {
         assertThat(result).isSameAs(mockManager);
         verify(config).getAuthenticationManager();
     }
-
-    // ── corsConfigurationSource ───────────────────────────────────────────────
 
     @Test
     void corsConfigurationSourceShouldReturnUrlBasedSource() {
@@ -169,8 +160,8 @@ class SecurityConfigTest {
         request.setRequestURI("/any");
         CorsConfiguration config = source.getCorsConfiguration(request);
         assertThat(config).isNotNull();
-        assertThat(Objects.requireNonNull(config).getAllowedOrigins())
-                .containsExactlyInAnyOrder("http://localhost:3000", "https://example.com");
+        assertThat(Objects.requireNonNull(config).getAllowedOriginPatterns())
+                .contains("http://localhost:3000", "https://example.com");
     }
 
     @Test
@@ -236,11 +227,41 @@ class SecurityConfigTest {
         assertThat(Objects.requireNonNull(config).getMaxAge()).isEqualTo(3600L);
     }
 
-    // ── parseAllowedOrigins (existing tests kept, duplicates removed) ─────────
+    @Test
+    void corsAllowAllOriginsShouldUseWildcardAndDisableCredentials() {
+        corsProperties.setAllowAllOrigins(true);
+        corsProperties.setAllowCredentials(true);
+        securityConfig = new SecurityConfig(corsProperties);
+
+        UrlBasedCorsConfigurationSource source =
+                (UrlBasedCorsConfigurationSource) securityConfig.corsConfigurationSource();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        CorsConfiguration config = source.getCorsConfiguration(request);
+
+        assertThat(config).isNotNull();
+        assertThat(Objects.requireNonNull(config).getAllowedOriginPatterns()).containsExactly("*");
+        assertThat(config.getAllowCredentials()).isFalse();
+    }
 
     @Test
-    void parseAllowedOriginsWithValidOriginsShouldReturnList() {
-        List<String> result = invokeParseAllowedOrigins("http://localhost:3000,https://example.com, http://test.com");
+    void corsUseAwsHostnamePatternsShouldAddPresetPatterns() {
+        corsProperties.setAllowedOrigins("");
+        corsProperties.setAllowedOriginPatterns("");
+        corsProperties.setUseAwsHostnamePatterns(true);
+        securityConfig = new SecurityConfig(corsProperties);
+
+        UrlBasedCorsConfigurationSource source =
+                (UrlBasedCorsConfigurationSource) securityConfig.corsConfigurationSource();
+        CorsConfiguration config = source.getCorsConfiguration(new MockHttpServletRequest());
+
+        assertThat(config).isNotNull();
+        assertThat(Objects.requireNonNull(config).getAllowedOriginPatterns())
+                .contains("http://*.amazonaws.com", "https://*.amazonaws.com");
+    }
+
+    @Test
+    void parseCommaSeparatedWithValidOriginsShouldReturnList() {
+        List<String> result = invokeParseCommaSeparated("http://localhost:3000,https://example.com, http://test.com");
 
         assertThat(result)
                 .hasSize(3)
@@ -248,20 +269,19 @@ class SecurityConfigTest {
     }
 
     @Test
-    void parseAllowedOriginsWithEmptyStringShouldReturnEmptyList() {
-        assertThat(invokeParseAllowedOrigins("")).isEmpty();
+    void parseCommaSeparatedWithEmptyStringShouldReturnEmptyList() {
+        assertThat(invokeParseCommaSeparated("")).isEmpty();
     }
 
     @Test
-    void parseAllowedOriginsWithConsecutiveCommasShouldFilterOutEmptyStrings() {
-        List<String> result = invokeParseAllowedOrigins("http://localhost:3000,,https://example.com,");
+    void parseCommaSeparatedWithConsecutiveCommasShouldFilterOutEmptyStrings() {
+        List<String> result = invokeParseCommaSeparated("http://localhost:3000,,https://example.com,");
 
         assertThat(result)
                 .hasSize(2)
                 .doesNotContain("");
     }
 
-    // ── Security Configuration Tests ─────────────────────────────────────────
     @ParameterizedTest
     @ValueSource(strings = {
             "filterChainShouldDisableCsrf",
@@ -274,20 +294,19 @@ class SecurityConfigTest {
     void securityConfigurationShouldConfigureCorrectly(String testName) throws Exception {
         HttpSecurity httpSecurity = createMockHttpSecurity();
         SecurityFilterChain chain = securityConfig.filterChain(httpSecurity, tokenProvider, userDetailsService);
-        
-        // Verify that chain is configured correctly
+
         assertThat(chain).isNotNull();
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> invokeParseAllowedOrigins(String originsProperty) {
+    private List<String> invokeParseCommaSeparated(String property) {
         try {
-            java.lang.reflect.Method method = SecurityConfig.class
-                    .getDeclaredMethod("parseAllowedOrigins", String.class);
+            Method method = SecurityConfig.class
+                    .getDeclaredMethod("parseCommaSeparated", String.class);
             method.setAccessible(true);
-            return (List<String>) method.invoke(securityConfig, originsProperty);
+            return (List<String>) method.invoke(securityConfig, property);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to invoke parseAllowedOrigins", e);
+            throw new RuntimeException("Failed to invoke parseCommaSeparated", e);
         }
     }
 }

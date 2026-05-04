@@ -47,8 +47,8 @@ RUN chown -R appuser:appgroup /app
 # Switch to non-root user
 USER appuser
 
-# Expose application port
-EXPOSE 8080
+# API (8080) and Actuator management (8081) when SPRING_PROFILES_ACTIVE=prod — map both on the host for ALB health checks.
+EXPOSE 8080 8081
 
 # Set JVM arguments for production
 ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"

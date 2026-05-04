@@ -1,8 +1,10 @@
 package com.tourism.platform.config;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -40,8 +42,22 @@ public class SecurityConfig {
     // Constants for duplicated literals
     private static final String USERS_ENDPOINT = "/users/**";
 
-    @Value("${app.cors.allowed-origins}")
-    private String allowedOrigins;
+    /**
+     * Patterns that match common AWS frontends (ALB, CloudFront, S3 static website, execute-api)
+     * without opening CORS to arbitrary non-AWS domains.
+     */
+    private static final List<String> AWS_HOSTNAME_LAB_PATTERNS = List.of(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "http://*.amazonaws.com",
+            "https://*.amazonaws.com"
+    );
+
+    private final CorsProperties corsProperties;
+
+    public SecurityConfig(CorsProperties corsProperties) {
+        this.corsProperties = corsProperties;
+    }
 
     /**
      * Password encoder bean for hashing and verifying user passwords.
@@ -87,13 +103,28 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(parseAllowedOrigins(allowedOrigins));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Request-Id"));
         configuration.setExposedHeaders(List.of("X-Trace-Id", "X-Request-Id"));
-        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-        
+
+        if (corsProperties.isAllowAllOrigins()) {
+            configuration.setAllowedOriginPatterns(List.of("*"));
+            configuration.setAllowCredentials(false);
+        } else {
+            Set<String> patterns = new LinkedHashSet<>();
+            patterns.addAll(parseCommaSeparated(corsProperties.getAllowedOriginPatterns()));
+            if (corsProperties.isUseAwsHostnamePatterns()) {
+                patterns.addAll(AWS_HOSTNAME_LAB_PATTERNS);
+            }
+            // Exact URLs from allowed-origins also work as origin patterns (same matching for normal hosts).
+            patterns.addAll(parseCommaSeparated(corsProperties.getAllowedOrigins()));
+            if (!patterns.isEmpty()) {
+                configuration.setAllowedOriginPatterns(new ArrayList<>(patterns));
+                configuration.setAllowCredentials(corsProperties.isAllowCredentials());
+            }
+        }
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         // With server.servlet.context-path=/api/v1, Spring matches CORS paths relative to the app context.
         source.registerCorsConfiguration("/**", configuration);
@@ -179,16 +210,13 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Parse the configured allowed origins property into a list of origins.
-     *
-     * @param originsProperty comma-separated allowed origins property from configuration
-     * @return list of trimmed, non-empty origin strings
-     */
-    private List<String> parseAllowedOrigins(String originsProperty) {
-        return java.util.Arrays.stream(originsProperty.split(","))
+    private List<String> parseCommaSeparated(String property) {
+        if (property == null || property.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(property.split(","))
                 .map(String::trim)
-                .filter(origin -> !origin.isEmpty())
+                .filter(s -> !s.isEmpty())
                 .toList();
     }
 }

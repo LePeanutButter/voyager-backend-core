@@ -2,11 +2,11 @@
 
 [![Standard Readme](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 [![Java](https://img.shields.io/badge/Java-17-orange.svg?style=flat-square)](https://www.oracle.com/java/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.0-brightgreen.svg?style=flat-square)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.x-brightgreen.svg?style=flat-square)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/Maven-3.9+-blue.svg?style=flat-square)](https://maven.apache.org/)
 ![License](https://img.shields.io/badge/license-GPL%203.0-blue.svg)
 
-> The core backend API for the SmarTrip tourism intelligent platform, providing user management, travel planning, and AI-powered recommendations.
+> The core backend API for the SmarTrip tourism platform: REST services for users, travel plans, social features, traveler matching and compatibility, and Google OAuth—persisted on PostgreSQL with Flyway migrations.
 
 ## Table of Contents
 
@@ -16,6 +16,7 @@
 - [API Documentation](#api-documentation)
 - [Development](#development)
 - [Testing](#testing)
+- [Postman (local API tests)](#postman-local-api-tests)
 - [Security](#security)
 - [Deployment](#deployment)
 - [Contributors](#contributors)
@@ -23,13 +24,15 @@
 
 ## Background
 
-SmarTrip is a comprehensive tourism platform that connects travelers with personalized AI-powered recommendations, social features, and seamless trip planning capabilities. This backend API serves as the central nervous system of the platform, handling:
+This repository is the **Spring Boot** service for SmarTrip. It exposes REST APIs under `/api/v1` and persists data with **JPA** and **PostgreSQL**. In scope for this codebase:
 
-- **User Management**: Authentication, authorization, and profile management
-- **Travel Planning**: Itinerary creation, activity scheduling, and reservation management
-- **Social Features**: User connections, reviews, and community interactions
-- **AI Integration**: Personalized recommendations and intelligent matching
-- **External Services**: Payment processing and third-party tourism provider integrations
+- **User management**: Registration, login (JWT), profiles, and role-based admin operations where implemented
+- **Travel planning**: CRUD for travel plans, plan activities, reservations, sharing tokens, and status updates
+- **Social**: Connections between travelers, feed/posts, reviews, comments, likes, and messaging-related endpoints
+- **Matching & compatibility**: Traveler matching (`GET /matches`) and compatibility scoring (`POST /compatibility/matches`) implemented in this service
+- **Activity sharing**: Canonical and legacy HTTP endpoints to share activities between users
+- **Google OAuth**: Browser-based sign-in flow endpoints under `/auth/google`
+- **Integrations**: Configurable outbound URLs (for example the notification service base URL in `application.yml`)
 
 The API follows REST best practices and implements the Richardson Maturity Model Level 3, ensuring consistent, scalable, and maintainable endpoints.
 
@@ -39,8 +42,8 @@ The API follows REST best practices and implements the Richardson Maturity Model
 
 - Java 17 or higher
 - Maven 3.9 or higher
-- PostgreSQL 14 or higher
-- Docker (optional, for containerized deployment)
+- PostgreSQL 14 or higher (for local or external RDS)
+- Docker (optional: local image build, Docker Compose stack, or EC2 deployment)
 
 ### Local Development Setup
 
@@ -54,12 +57,11 @@ The API follows REST best practices and implements the Richardson Maturity Model
 2. **Set up the database**
 
    ```bash
-   # Create PostgreSQL database
+   # Example: create PostgreSQL database and user (adjust names to match your env)
    createdb -U postgres tourism_platform
-
-   # Update application.yml with your database credentials
-   cp src/main/resources/application.yml.example src/main/resources/application.yml
    ```
+
+   Configure the datasource via environment variables or a local `.env` file (see [Environment Variables](#environment-variables)). Defaults in `src/main/resources/application.yml` point at `localhost` for development.
 
 3. **Build the application**
 
@@ -68,34 +70,48 @@ The API follows REST best practices and implements the Richardson Maturity Model
    ```
 
 4. **Run the application**
+
    ```bash
    mvn spring-boot:run
    ```
 
 The application will start on `http://localhost:8080/api/v1`
 
-### Docker Setup
+### Docker (local image)
 
 1. **Build the Docker image**
 
    ```bash
-   docker build -t smartrip-backend:latest .
+   docker build -t voyager-backend:latest .
    ```
 
-2. **Run with Docker Compose**
+2. **Run the container** (database must be reachable from the container; use host networking or point `DB_URL` to your PostgreSQL host)
+
    ```bash
-   docker-compose up -d
+   docker run --rm -p 8080:8080 -p 8081:8081 \
+     -e SPRING_PROFILES_ACTIVE=prod \
+     -e DB_URL=jdbc:postgresql://host.docker.internal:5432/tourism_platform \
+     -e DB_USERNAME=... \
+     -e DB_PASSWORD=... \
+     -e JWT_SECRET=... \
+     voyager-backend:latest
    ```
+
+   With `SPRING_PROFILES_ACTIVE=prod`, Actuator management listens on **8081** inside the container (API remains on **8080**), which aligns with ALB health checks in the companion infrastructure scripts.
+
+### Docker Compose (optional)
+
+`docker-compose.yml` is **optional**: it is useful for a quick local stack (PostgreSQL + backend) when you do not use an external database. Production-style deployments target **EC2 + RDS** and the manual deploy script below, not Compose.
 
 ## Usage
 
 ### Authentication
 
-All API endpoints (except authentication endpoints) require a valid JWT token. Include the token in the Authorization header:
+Most API endpoints require a valid JWT token. Include the token in the Authorization header:
 
 ```bash
 curl -H "Authorization: Bearer <your-jwt-token>" \
-     http://localhost:8080/api/v1/users/profile
+     http://localhost:8080/api/v1/users/1
 ```
 
 ### Key Endpoints
@@ -156,25 +172,34 @@ curl -X POST http://localhost:8080/api/v1/social/connections \
 
 ### Environment Variables
 
-Configure the application using environment variables:
+Configure the application using environment variables (also supported via Spring Boot relaxed binding in `application.yml`):
 
 ```bash
-# Database configuration
+# Database
+export DB_URL=jdbc:postgresql://localhost:5432/tourism_platform
 export DB_USERNAME=your_db_user
 export DB_PASSWORD=your_db_password
-export DB_URL=jdbc:postgresql://localhost:5432/tourism_platform
 
-# Application configuration
+# Application
 export SPRING_PROFILES_ACTIVE=prod
+export JWT_SECRET=your-long-random-secret
+
+# CORS (see application.yml — patterns for AWS Academy / ALB, or explicit allow-all)
+export CORS_USE_AWS_HOSTNAME_PATTERNS=true
+export CORS_ALLOW_ALL_ORIGINS=false
+
+# Optional
 export SERVER_PORT=8080
 ```
+
+For **RDS**, append SSL parameters as needed, for example: `DB_URL=jdbc:postgresql://your-host:5432/tourism_platform?sslmode=require`.
 
 ## API Documentation
 
 The API includes comprehensive Swagger/OpenAPI documentation:
 
 - **Swagger UI**: `http://localhost:8080/api/v1/swagger-ui.html`
-- **OpenAPI JSON**: `http://localhost:8080/api/v1/api-docs`
+- **OpenAPI JSON**: `http://localhost:8080/api/v1/api-docs` (see `springdoc.api-docs.path` in `application.yml`)
 
 ### Response Format
 
@@ -185,7 +210,7 @@ All API responses follow a consistent format:
   "timestamp": "2024-04-21T12:00:00Z",
   "status": 200,
   "message": "Operation successful",
-  "data": { ... },
+  "data": { },
   "path": "/api/v1/users/123"
 }
 ```
@@ -264,6 +289,15 @@ mvn test -Dtest=UserServiceTest
 - **API Tests**: Test REST endpoints
 - **Coverage**: JaCoCo reports generated in `target/site/jacoco/`
 
+## Postman (local API tests)
+
+A ready-to-import Postman collection and local environment live at the **repository root**:
+
+- `Voyager-Backend.postman_collection.json` - grouped requests (health, auth, users, travel plans, social, matching, activity sharing)
+- `Voyager-Backend.local.postman_environment.json` - `baseUrl`, test username/password
+
+Import both files in Postman, select the **Voyager Backend - Local** environment, run **Health** then **Login** (tests persist the JWT into collection variables). See **[POSTMAN.md](POSTMAN.md)** for the recommended flow and variable notes.
+
 ## Security
 
 ### Authentication
@@ -281,53 +315,61 @@ mvn test -Dtest=UserServiceTest
 ### Data Protection
 
 - **Password Encryption**: BCrypt hashing
-- **HTTPS**: TLS encryption in transit
+- **HTTPS**: TLS encryption in transit (recommended in production)
 - **Environment Variables**: Sensitive configuration externalized
 - **SQL Injection**: JPA parameterized queries
 
+### CORS
+
+CORS is driven by `app.cors` properties (exact origins, origin patterns, optional AWS hostname patterns for Academy/ALB frontends, and an explicit allow-all escape hatch). See `src/main/resources/application.yml` and environment variables `CORS_*`.
+
 ## Deployment
 
-### Production Deployment
+### CI (GitHub Actions)
 
-1. **Environment Setup**
+Workflows under `.github/workflows/` build and test the project, run SonarCloud/Trivy where configured, and produce a **Docker image tarball** for manual handoff (AWS Academy Learner Lab: no automated push to a registry required):
+
+- `docker build -t voyager-backend:latest .`
+- `docker save voyager-backend:latest` → artifact consumed on the EC2 instance
+
+Download the deployment artifact from the workflow run (image `.tar` + `scripts/ec2-deploy-backend.sh`).
+
+### EC2 + RDS (manual script)
+
+The database runs on **RDS** (or any external PostgreSQL). The container only runs the Spring Boot app.
+
+1. **Prepare environment file** on the instance (default path used by the script: `/opt/voyager-backend/environment`). Use `KEY=value` lines, for example:
 
    ```bash
-   # Set production environment variables
-   export SPRING_PROFILES_ACTIVE=prod
-   export DB_URL=jdbc:postgresql://prod-db:5432/tourism_platform
-   export DB_USERNAME=${DB_USERNAME}
-   export DB_PASSWORD=${DB_PASSWORD}
+   SPRING_PROFILES_ACTIVE=prod
+   DB_HOST=your-rds-endpoint.region.rds.amazonaws.com
+   DB_PORT=5432
+   DB_NAME=tourism_platform
+   DB_USERNAME=your_user
+   DB_PASSWORD=your_password
+   DB_URL=jdbc:postgresql://your-rds-endpoint.region.rds.amazonaws.com:5432/tourism_platform?sslmode=require
+   JWT_SECRET=your-long-random-secret
    ```
 
-2. **Docker Deployment**
+2. **Copy** the image tarball from CI and `scripts/ec2-deploy-backend.sh` onto the server.
+
+3. **Run the deploy script** (as root):
 
    ```bash
-   # Build production image
-   docker build -t smartrip-backend:1.0.0 .
-
-   # Run with production configuration
-   docker run -d \
-     --name smartrip-backend \
-     -p 8080:8080 \
-     -e SPRING_PROFILES_ACTIVE=prod \
-     -e DB_URL=${DB_URL} \
-     -e DB_USERNAME=${DB_USERNAME} \
-     -e DB_PASSWORD=${DB_PASSWORD} \
-     smartrip-backend:1.0.0
+   sudo chmod +x ec2-deploy-backend.sh
+   sudo ./ec2-deploy-backend.sh /path/to/voyager-backend-image.tar
    ```
 
-3. **Kubernetes Deployment**
-   ```bash
-   # Apply Kubernetes manifests
-   kubectl apply -f k8s/
-   ```
+The script installs Docker if needed, ensures the PostgreSQL **database** exists on RDS (empty schema is fine), loads the image, and registers a **systemd** unit that runs `docker run` with `--env-file`, publishing **8080** and **8081**. Schema migrations are applied by **Flyway** when the application starts.
+
+Optional overrides: `VOYAGER_INSTALL_ROOT`, `VOYAGER_ENV_FILE`, `VOYAGER_IMAGE`, `VOYAGER_SERVICE_NAME` (see script header comments).
+
+Infrastructure (VPC, RDS instances, ALB, etc.) is maintained separately in the **voyager-infrastructure** repository; align health checks with Actuator on port **8081** when using the `prod` profile.
 
 ### Health Checks
 
-The application includes built-in health endpoints:
-
-- **Health Check**: `GET /api/v1/actuator/health`
-- **Metrics**: `GET /api/v1/actuator/metrics`
+- **Health (API context)**: `GET /api/v1/actuator/health`
+- **Metrics**: `GET /api/v1/actuator/metrics` (restricted for non-admin callers as configured)
 - **Info**: `GET /api/v1/actuator/info`
 
 ### Monitoring
