@@ -99,7 +99,7 @@ public class User implements UserDetails {
     private String bio;
 
     @ElementCollection
-    @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
+    @CollectionTable(name = "user_interest_tags", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "interest")
     private Set<String> interests;
 

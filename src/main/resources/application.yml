@@ -13,7 +13,12 @@ server:
 spring:
   application:
     name: tourism-platform
-  
+
+  # Load project-root .env into the Environment (same KEY=value syntax as .properties). File is optional.
+  # Working directory must be the module root when running from the IDE, or set spring.config.import explicitly.
+  config:
+    import: optional:file:.env[.properties]
+
   # Database Configuration
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/tourism_platform}
@@ -43,6 +48,8 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    # Allows a later-added V0 baseline to run on DBs that already applied the old V1 hardening-only migration first.
+    out-of-order: true
   
   # Security Configuration
   security:
