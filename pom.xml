@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version> <!-- era 3.2.0 — resuelve Tomcat, Spring Security, Spring Core, logback -->
+        <version>3.5.12</version>
         <relativePath/>
     </parent>
 
@@ -20,16 +20,15 @@
 
     <properties>
         <java.version>17</java.version>
-        <spring-cloud.version>2024.0.1</spring-cloud.version>
+        <!-- BOM alineado con Spring Boot 3.5.x (Northfields) -->
+        <spring-cloud.version>2025.0.2</spring-cloud.version>
         <jjwt.version>0.12.6</jjwt.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <!-- 2.6.x hits NoSuchMethodError ControllerAdviceBean with Spring Framework 6.2 / Boot 3.4 -->
         <springdoc.version>2.8.9</springdoc.version>
         <lombok.version>1.18.38</lombok.version>
-        <!-- Forzar versiones para resolver CVEs restantes -->
+        <!-- Boot 3.5.12 trae Tomcat 10.1.52 (CVE-2026-29145, 29129, 34483, 34487); forzar parche mínimo recomendado por NVD. -->
         <tomcat.version>10.1.54</tomcat.version>
-        <spring-security.version>6.4.6</spring-security.version>
-        <spring-framework.version>6.2.11</spring-framework.version>
         <!-- JaCoCo 0.8.13+: soporte JDK 24 (major 68); 0.8.8 falla al instrumentar con JVM reciente -->
         <jacoco.version>0.8.13</jacoco.version>
     </properties>

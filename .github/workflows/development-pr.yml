@@ -32,8 +32,13 @@ jobs:
           sudo apt-get install trivy -y
 
       - name: Run Trivy FS Scan
-        run: |
-          trivy fs . --severity HIGH,CRITICAL --format table --exit-code 0
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
 
   sonar_scan:
     name: SonarCloud Analysis (Java)

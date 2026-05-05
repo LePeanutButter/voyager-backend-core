@@ -1,12 +1,5 @@
 package com.tourism.platform.dto;
 
-/**
- * Standard API response wrapper used across controllers to return status and
- * payload data in a consistent structure.
- *
- * @param <T> payload type
- */
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,10 +10,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Standard API Response wrapper for consistent REST responses
- * 
- * This class provides a standardized response format for all API endpoints,
- * following REST best practices and providing consistent structure.
+ * Standard API response wrapper for consistent REST responses across controllers
+ * (status, message, payload, path, validation errors when applicable).
+ *
+ * @param <T> type of the response {@code data} payload
  */
 @Data
 @Builder
@@ -61,9 +54,6 @@ public class ApiResponse<T> {
     }
 
     /**
-     * Success response factory method
-     */
-    /**
      * Create a successful ApiResponse with a payload.
      *
      * @param status  HTTP status code representing the result
@@ -84,9 +74,6 @@ public class ApiResponse<T> {
     }
 
     /**
-     * Success response without data
-     */
-    /**
      * Create a successful ApiResponse without a payload.
      *
      * @param status  HTTP status code representing the result
@@ -103,9 +90,6 @@ public class ApiResponse<T> {
                 .build();
     }
 
-    /**
-     * Error response factory method
-     */
     /**
      * Create an error ApiResponse including validation errors.
      *
@@ -126,9 +110,6 @@ public class ApiResponse<T> {
                 .build();
     }
 
-    /**
-     * Error response without validation errors
-     */
     /**
      * Create an error ApiResponse without validation details.
      *

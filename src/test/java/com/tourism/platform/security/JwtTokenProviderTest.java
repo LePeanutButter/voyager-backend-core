@@ -1,12 +1,19 @@
 package com.tourism.platform.security;
 
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Objects;
 
@@ -16,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class JwtTokenProviderTest {
@@ -31,6 +39,18 @@ class JwtTokenProviderTest {
         ReflectionTestUtils.setField(Objects.requireNonNull(jwtTokenProvider), "jwtSecret", TEST_SECRET);
         ReflectionTestUtils.setField(Objects.requireNonNull(jwtTokenProvider), "jwtExpirationInMs", JWT_EXPIRATION_IN_MS);
         ReflectionTestUtils.setField(Objects.requireNonNull(jwtTokenProvider), "jwtRefreshExpirationInMs", JWT_REFRESH_EXPIRATION_IN_MS);
+    }
+
+    @Test
+    void generateToken_fromAuthentication_delegatesToUsername() {
+        Authentication auth = Mockito.mock(Authentication.class);
+        UserDetails principal = User.withUsername("bob").password("x").roles("USER").build();
+        when(auth.getPrincipal()).thenReturn(principal);
+
+        String token = jwtTokenProvider.generateToken(auth);
+
+        assertEquals("bob", jwtTokenProvider.getUsernameFromJWT(token));
+        assertTrue(jwtTokenProvider.validateToken(token));
     }
 
     @Test
@@ -223,6 +243,28 @@ class JwtTokenProviderTest {
     }
 
     @Test
+    void isTokenExpired_falseForValidToken() {
+        String token = jwtTokenProvider.generateTokenFromUsername("u");
+        assertFalse(jwtTokenProvider.isTokenExpired(token));
+    }
+
+    @Test
+    void isTokenExpired_trueForMalformedToken() {
+        assertTrue(jwtTokenProvider.isTokenExpired("not-a-jwt"));
+    }
+
+    @Test
+    void getRemainingValidity_positiveForValidToken() {
+        String token = jwtTokenProvider.generateTokenFromUsername("u");
+        assertTrue(jwtTokenProvider.getRemainingValidity(token) > 0);
+    }
+
+    @Test
+    void getRemainingValidity_zeroForInvalidToken() {
+        assertEquals(0, jwtTokenProvider.getRemainingValidity("bad"));
+    }
+
+    @Test
     void generateRefreshToken_ShouldCreateTokenWithRefreshExpiration() {
         // Given
         String username = "testuser";
@@ -241,5 +283,19 @@ class JwtTokenProviderTest {
         
         assertTrue(expiration.getTime() >= expectedMinExpiration - 1000); // Allow 1s tolerance
         assertTrue(expiration.getTime() <= expectedMaxExpiration + 1000); // Allow 1s tolerance
+    }
+
+    @Test
+    void getUserIdFromJWT_coercesIntegerClaimFromRawJwt() {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + 60_000);
+        String token = Jwts.builder()
+                .subject("sub")
+                .claim("userId", 99)
+                .issuedAt(now)
+                .expiration(exp)
+                .signWith(Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+        assertEquals(99L, jwtTokenProvider.getUserIdFromJWT(token));
     }
 }

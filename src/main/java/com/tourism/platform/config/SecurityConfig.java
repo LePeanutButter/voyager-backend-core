@@ -97,10 +97,15 @@ public class SecurityConfig {
 
     /**
      * Build the CORS configuration used by the application.
+     * <p>
+     * When {@link CorsProperties#isAllowAllOrigins()} is true, wildcard origins are used only with
+     * {@code allowCredentials(false)} (required by the CORS model for {@code *}); production should keep
+     * {@code allow-all-origins} disabled and rely on explicit origin patterns.
      *
      * @return a {@link CorsConfigurationSource} exposing allowed origins, headers and methods
      */
     @Bean
+    @SuppressWarnings("java:S5122") // reviewed: wildcard branch pairs * with credentials off; else explicit patterns
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
