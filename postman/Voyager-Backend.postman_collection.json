@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "574b4096-61cd-4189-9e32-b38e309aa6af",
     "name": "Voyager Backend — API completa (local)",
-    "description": "## Voyager Backend — suite local (Postman)\n\n### Requisitos\n1. Backend en ejecución (por defecto `http://localhost:8080`).\n2. Context path: **`/api/v1`** → variable `baseUrl`.\n3. Importar **colección** + entorno **`Voyager-Backend.local`** y seleccionarlo.\n\n### Flujo\n1. **00 — Salud** para verificar el servicio.\n2. **02 — Registro y autenticación**: **Login** guarda `accessToken` y `currentUserId` en variables de **colección**.\n3. Carpetas con **Bearer** usan `{{accessToken}}`.\n\n### Formato de respuesta\n`ApiResponse`: `status`, `message`, `data`, `path`. JWT en login: `data.token`.\n\n### Notas\n- **GET /destinations|activities|services**: permitidos en seguridad; pueden devolver **404** si no hay controlador.\n- Endpoints **ADMIN**: requieren rol y token adecuados.\n\nRegenerar: `python postman/build_postman_collection.py`\n",
+    "description": "## Voyager Backend — suite local (Postman)\n\n### Requisitos\n1. Backend en ejecución (por defecto `http://localhost:8080`).\n2. Context path: **`/api/v1`** → variable `baseUrl`.\n3. Importar **colección** + entorno **`Voyager-Backend.local`** y seleccionarlo.\n\n### Flujo\n1. **00 — Salud** para verificar el servicio.\n2. **02 — Registro y autenticación**: **Login** guarda `accessToken` y `currentUserId` en variables de **colección**.\n3. **02b — Catálogo viaje Amadeus**: vuelos, hoteles y actividades (`/catalog/*`, JWT). Ejecutar tras el login.\n4. El resto de carpetas **Bearer** usan `{{accessToken}}`.\n\n### Formato de respuesta\n`ApiResponse`: `status`, `message`, `data`, `path`. JWT en login: `data.token`.\n\n### Catálogo Amadeus\n- Por defecto el backend suele tener **`AMADEUS_MOCK_MODE=true`**: respuestas con forma Amadeus sin llamar a la API real.\n- Con **`AMADEUS_MOCK_MODE=false`** hace falta configurar credenciales en el servidor.\n- Rutas **`GET /destinations`**, **`/activities`**, **`/services`** en la raíz del API **no están implementadas** en este servicio (404); usar **`/catalog/*`**.\n\n### Notas\n- Endpoints **ADMIN**: requieren rol y token adecuados.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "1.0.0"
   },
@@ -106,40 +106,9 @@
       ]
     },
     {
-      "name": "01 — Catálogo público (puede 404)",
-      "description": "Security permite GET; si no hay controlador → 404.",
-      "item": [
-        {
-          "name": "GET destinations",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/destinations",
-            "description": ""
-          },
-          "response": []
-        },
-        {
-          "name": "GET activities",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/activities",
-            "description": ""
-          },
-          "response": []
-        },
-        {
-          "name": "GET services",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/services",
-            "description": ""
-          },
-          "response": []
-        }
-      ]
+      "name": "01 — Rutas de catálogo raíz (no implementadas)",
+      "description": "La seguridad puede permitir GET en `/destinations`, `/activities` y `/services`, pero **no hay controladores** para esas rutas en este backend → **404**. Usa la carpeta **02b — Catálogo viaje Amadeus** (`/catalog/*`) tras el login.",
+      "item": []
     },
     {
       "name": "02 — Registro y autenticación",
@@ -266,6 +235,62 @@
             "header": [],
             "url": "{{baseUrl}}/auth/google/callback?code=MANUAL&state=STATE",
             "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02b — Catálogo viaje Amadeus (Bearer)",
+      "description": "Requiere **Login** en `02`. Proxies a Amadeus (`TravelCatalogController` → `/catalog/*`). Con mock activo (`AMADEUS_MOCK_MODE=true`) las respuestas son deterministas; fechas de ejemplo dentro de la ventana mock **2026-05-25** en adelante.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{accessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Vuelos — ofertas (GET /catalog/flights)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/flights?originLocationCode=MAD&destinationLocationCode=BCN&departureDate=2026-06-01&adults=1&max=5",
+            "description": "Equivale a Amadeus GET /v2/shopping/flight-offers. Opcionales: `returnDate`, `children`, `travelClass`, `nonStop`, `currencyCode`."
+          },
+          "response": []
+        },
+        {
+          "name": "Hoteles por ciudad (GET /catalog/hotels/by-city)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/hotels/by-city?cityCode=PAR",
+            "description": "Amadeus GET /v1/reference-data/locations/hotels/by-city. `cityCode`: 3 letras (ej. PAR, MAD, BCN)."
+          },
+          "response": []
+        },
+        {
+          "name": "Ofertas de hotel (GET /catalog/hotels/offers)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/hotels/offers?hotelIds=PARMOK000,PARMOK001&checkInDate=2026-06-15&checkOutDate=2026-06-17&adults=1&rooms=1&currency=EUR",
+            "description": "Amadeus GET /v3/shopping/hotel-offers. `hotelIds`: CSV de IDs devueltos por **Hoteles por ciudad** (en mock: formato `PARMOK000`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Actividades cercanas (GET /catalog/activities)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/activities?latitude=48.8566&longitude=2.3522&radius=5&radiusUnit=KM",
+            "description": "Amadeus GET /v1/shopping/activities. `radiusUnit`: KM o MILE."
           },
           "response": []
         }

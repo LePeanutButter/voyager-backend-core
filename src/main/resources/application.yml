@@ -111,8 +111,21 @@ external-services:
     base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
     timeout: ${NOTIFICATION_SERVICE_TIMEOUT:10000}
 
-# Application Configuration
+# Application Configuration (+ Amadeus travel catalog OAuth2 credentials)
 app:
+  integrations:
+    amadeus:
+      # Master switch for /catalog/* (mock or live).
+      enabled: ${AMADEUS_CATALOG_ENABLED:true}
+      # true = Amadeus-compatible JSON generated locally (no API key). false = real Amadeus (needs client-id/secret).
+      mock-mode: ${AMADEUS_MOCK_MODE:true}
+      api-host: ${AMADEUS_API_HOST:https://test.api.amadeus.com}
+      client-id: ${AMADEUS_CLIENT_ID:}
+      client-secret: ${AMADEUS_CLIENT_SECRET:}
+      token-path: ${AMADEUS_TOKEN_PATH:/v1/security/oauth2/token}
+      connect-timeout-millis: ${AMADEUS_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-millis: ${AMADEUS_READ_TIMEOUT_MS:20000}
+
   cors:
     # Exact origins (comma-separated). Used when no origin patterns are configured.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
