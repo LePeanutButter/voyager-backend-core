@@ -13,8 +13,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
+import java.util.SplittableRandom;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
@@ -29,6 +29,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *
  * <p>Populates 540+ records across cities and dates from {@value #MOCK_WINDOW_START} to {@value #MOCK_WINDOW_END}
  * so clients can migrate to real Amadeus without changing parsing code.
+ *
+ * <p><strong>Pseudorandom use:</strong> a fixed-seed {@link SplittableRandom} only drives synthetic prices, times, and
+ * coordinates for demo JSON. It is never used for secrets, identifiers in security paths, or cryptographic material;
+ * {@link java.security.SecureRandom} would be inappropriate here and would break stable snapshots/tests.
  */
 @Component
 public class AmadeusMockCatalogData {
@@ -70,11 +74,12 @@ public class AmadeusMockCatalogData {
     /** hotelId -> template row for offer synthesis */
     private final Map<String, ObjectNode> hotelRefById = new HashMap<>();
 
+    @SuppressWarnings("java:S2245") // seeded non-crypto PRNG: reproducible mock payloads only (see class Javadoc)
     public AmadeusMockCatalogData(ObjectMapper mapper) {
         this.mapper = mapper;
         List<City> cities = cities();
         long days = ChronoUnit.DAYS.between(LocalDate.parse(MOCK_WINDOW_START), LocalDate.parse(MOCK_WINDOW_END)) + 1;
-        Random rng = new Random(42L);
+        SplittableRandom rng = new SplittableRandom(42L);
 
         allFlights = buildFlights(cities, days, rng);
         allHotelRefs = buildHotelRefs(cities, rng);
@@ -386,7 +391,7 @@ public class AmadeusMockCatalogData {
         return wrap;
     }
 
-    private ArrayNode buildFlights(List<City> cities, long daySpan, Random rng) {
+    private ArrayNode buildFlights(List<City> cities, long daySpan, SplittableRandom rng) {
         ArrayNode data = mapper.createArrayNode();
         LocalDate start = LocalDate.parse(MOCK_WINDOW_START);
         String[] carriers = {"IB", "BA", "AF", "LH", "KL", "UX", "VY", "AA", "UA", "AV", "LA", "AM", "CM", "TK", "EK"};
@@ -473,7 +478,7 @@ public class AmadeusMockCatalogData {
         return data;
     }
 
-    private ArrayNode buildHotelRefs(List<City> cities, Random rng) {
+    private ArrayNode buildHotelRefs(List<City> cities, SplittableRandom rng) {
         ArrayNode data = mapper.createArrayNode();
         String[] chains = {"RT", "HI", "MC", "BW", "YX"};
         for (int i = 0; i < HOTEL_REF_COUNT; i++) {
@@ -501,7 +506,7 @@ public class AmadeusMockCatalogData {
         return data;
     }
 
-    private ArrayNode buildActivities(List<City> cities, Random rng) {
+    private ArrayNode buildActivities(List<City> cities, SplittableRandom rng) {
         ArrayNode data = mapper.createArrayNode();
         String[] themes = {
             "Walking tour", "Food & market", "Museum pass", "Bike experience",
