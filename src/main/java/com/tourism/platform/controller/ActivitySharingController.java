@@ -1,5 +1,6 @@
 package com.tourism.platform.controller;
 
+import com.tourism.platform.config.OpenApiConfig;
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.ShareActivityRequest;
 import com.tourism.platform.dto.SharedActivityActionRequest;
@@ -9,6 +10,10 @@ import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.SharedActivityDecisionAction;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.SharedActivityService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +31,8 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @Validated
 @RequestMapping("/legacy")
+@Tag(name = "Activity sharing (legacy)", description = "Same behaviour as Activity sharing but under the /legacy path prefix for backward compatibility.")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 public class ActivitySharingController {
     private static final Logger log = LoggerFactory.getLogger(ActivitySharingController.class);
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={} resourceId={}";
@@ -37,6 +44,9 @@ public class ActivitySharingController {
     private final UserRepository userRepository;
 
     @PostMapping("/activities/{activityId}/share")
+    @Operation(
+            summary = "Share a travel-plan activity (legacy path)",
+            description = "POST /legacy/activities/{activityId}/share — equivalent to the canonical share endpoint.")
         /**
          * Share an activity with another user.
          *
@@ -53,7 +63,7 @@ public class ActivitySharingController {
          * @throws IllegalArgumentException for invalid input
          */
         public ResponseEntity<ApiResponse<SharedActivityResponse>> shareActivity(
-            @PathVariable Long activityId,
+            @Parameter(description = "Travel-plan activity id", required = true) @PathVariable Long activityId,
             @Valid @RequestBody ShareActivityRequest requestBody,
             HttpServletRequest request,
             Authentication authentication) {
@@ -82,6 +92,9 @@ public class ActivitySharingController {
     }
 
     @PatchMapping("/shared-activities/{id}")
+    @Operation(
+            summary = "Accept or reject shared activity (legacy path)",
+            description = "PATCH /legacy/shared-activities/{id} with SharedActivityActionRequest (ACCEPT or REJECT).")
         /**
          * Resolve (accept/reject) a pending shared activity.
          *
@@ -97,7 +110,7 @@ public class ActivitySharingController {
          * @throws IllegalArgumentException if the caller is not authorized to perform the action
          */
         public ResponseEntity<ApiResponse<SharedActivityResponse>> updateSharedActivity(
-            @PathVariable Long id,
+            @Parameter(description = "shared_activities.id", required = true) @PathVariable Long id,
             @Valid @RequestBody SharedActivityActionRequest requestBody,
             HttpServletRequest request,
             Authentication authentication) {

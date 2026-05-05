@@ -7,6 +7,8 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
+
 import com.tourism.platform.dto.ChatMessage;
 import com.tourism.platform.model.Message;
 import com.tourism.platform.service.SocialService;
@@ -17,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @Controller
 @RequiredArgsConstructor
 @Slf4j
+@Hidden
 public class ChatWebSocketController {
 
         private static final String USER_QUEUE_PREFIX = "/queue/user/";

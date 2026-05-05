@@ -1,10 +1,15 @@
 package com.tourism.platform.controller;
 
+import com.tourism.platform.config.OpenApiConfig;
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.ShareActivityRequest;
 import com.tourism.platform.dto.SharedActivityDecisionRequest;
 import com.tourism.platform.dto.SharedActivityResponse;
 import com.tourism.platform.service.SharedActivityService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -20,6 +25,8 @@ import java.util.Objects;
 @RestController
 @RequestMapping
 @Validated
+@Tag(name = "Activity sharing", description = "Share a travel-plan activity with another user; accept or reject shares (JWT required).")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 public class SharedActivityController {
     private static final Logger log = LoggerFactory.getLogger(SharedActivityController.class);
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={} resourceId={}";
@@ -34,6 +41,10 @@ public class SharedActivityController {
     }
 
     @PostMapping("/activities/{activityId}/share")
+    @Operation(
+            summary = "Share a travel-plan activity",
+            description = "Creates a pending shared-activity request from the authenticated user to the receiver for the given travel-plan activity id. "
+                    + "Returns 201 on success; 400/404/409 for validation, not found, or conflict.")
     /**
      * Share an activity with another user.
      *
@@ -44,6 +55,7 @@ public class SharedActivityController {
      * @return ResponseEntity with ApiResponse containing the created SharedActivityResponse and HTTP 201
      */
     public ResponseEntity<ApiResponse<SharedActivityResponse>> shareActivity(
+            @Parameter(description = "Travel-plan activity id (travel_plan_activities.id)", required = true)
             @PathVariable Long activityId,
             @Valid @RequestBody ShareActivityRequest request,
             Authentication authentication,
@@ -67,6 +79,10 @@ public class SharedActivityController {
     }
 
     @PatchMapping("/shared-activities/{id}")
+    @Operation(
+            summary = "Update shared-activity decision",
+            description = "Accept, reject, or cancel a shared activity. The authenticated user must be allowed to act on the record. "
+                    + "Returns 200 on success; 400/404/409 otherwise.")
     /**
      * Update the status of a previously shared activity (accept/reject/cancel).
      *
@@ -77,7 +93,7 @@ public class SharedActivityController {
      * @return ResponseEntity with ApiResponse containing the updated SharedActivityResponse
      */
     public ResponseEntity<ApiResponse<SharedActivityResponse>> updateSharedActivityStatus(
-            @PathVariable Long id,
+            @Parameter(description = "shared_activities.id", required = true) @PathVariable Long id,
             @Valid @RequestBody SharedActivityDecisionRequest request,
             Authentication authentication,
             HttpServletRequest httpServletRequest) {

@@ -5,6 +5,8 @@ import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.exception.BusinessException;
 import com.tourism.platform.service.GoogleAuthService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ import java.util.UUID;
 @RequestMapping("/auth/google")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Google OAuth2", description = "Starts the Google login redirect and handles the OAuth callback (302 redirects, not JSON APIs).")
 public class GoogleAuthController {
 
     private static final String LOCATION_HEADER = "Location";
@@ -59,7 +62,7 @@ public class GoogleAuthController {
     }
 
     @GetMapping("/callback")
-    @Operation(summary = "Google OAuth2 callback", description = "Exchanges code for Google token, fetches profile, upserts user, and redirects frontend with JWT")
+    @Operation(summary = "Google OAuth2 callback", description = "Exchanges code for Google token, fetches profile, upserts user, and redirects the browser to the frontend with JWT query params (or error).")
     /**
      * OAuth2 callback endpoint that receives the authorization code from Google.
      *
@@ -72,8 +75,11 @@ public class GoogleAuthController {
      * @param response         HTTP servlet response used to redirect the client
      */
     public void callback(
+            @Parameter(description = "Authorization code returned by Google after user consent")
             @RequestParam(required = false) String code,
+            @Parameter(description = "OAuth error code when Google redirects with an error")
             @RequestParam(required = false) String error,
+            @Parameter(description = "Human-readable OAuth error description from Google")
             @RequestParam(name = "error_description", required = false) String errorDescription,
             HttpServletResponse response) {
 

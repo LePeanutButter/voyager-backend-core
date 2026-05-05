@@ -15,8 +15,10 @@ import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.TravelPlanActivityService;
 import com.tourism.platform.service.TravelPlanService;
 import com.tourism.platform.service.SocialService;
+import com.tourism.platform.config.OpenApiConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -50,6 +52,7 @@ import java.util.List;
 @RequestMapping("/travel-plans")
 @RequiredArgsConstructor
 @Tag(name = "Travel Planning", description = "APIs for managing travel plans and itineraries")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 @Validated
 public class TravelPlanController {
 
@@ -66,7 +69,8 @@ public class TravelPlanController {
     private static final String TRAVEL_PLAN_NOT_FOUND_MSG = "Travel plan not found with ID: ";
 
     @PostMapping
-    @Operation(summary = "Create a new travel plan")
+    @Operation(summary = "Create a new travel plan",
+            description = "Creates a travel plan for the authenticated user from the request body.")
     /**
      * Create a new travel plan for the authenticated user.
      *

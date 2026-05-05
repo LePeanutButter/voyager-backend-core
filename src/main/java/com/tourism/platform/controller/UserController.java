@@ -1,5 +1,6 @@
 package com.tourism.platform.controller;
 
+import com.tourism.platform.config.OpenApiConfig;
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.PagedResponse;
 import com.tourism.platform.dto.UserDto;
@@ -12,6 +13,7 @@ import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -43,6 +45,7 @@ import java.util.Optional;
 @RequestMapping("/users")
 @RequiredArgsConstructor
 @Tag(name = "User Management", description = "APIs for managing user accounts and authentication")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 @Validated
 public class UserController {
     private static final String USER_NOT_FOUND = "User not found";
@@ -54,7 +57,7 @@ public class UserController {
     private final JwtTokenProvider tokenProvider;
 
     @PostMapping
-    @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
+    @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information", security = {})
     /**
      * Register a new user account.
      *
@@ -76,7 +79,7 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information")
+    @Operation(summary = "Register a new user", description = "Creates a new user account with the provided information", security = {})
     public ResponseEntity<ApiResponse<UserDto>> registerUserAlias(
             @Valid @RequestBody UserRegistrationDto registrationDto,
             HttpServletRequest request) {
@@ -84,7 +87,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information with JWT token")
+    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information with JWT token", security = {})
     /**
      * Authenticate a user with username/email and password. On success returns user details including JWT.
      *
@@ -443,7 +446,7 @@ public class UserController {
         }
 
     @GetMapping("/check-username")
-    @Operation(summary = "Check username availability", description = "Checks if a username is available for registration")
+    @Operation(summary = "Check username availability", description = "Checks if a username is available for registration", security = {})
     public ResponseEntity<ApiResponse<Boolean>> checkUsernameAvailability(
             @Parameter(description = "Username to check") @RequestParam @NonNull String username,
             HttpServletRequest request) {
@@ -465,7 +468,7 @@ public class UserController {
     }
 
     @GetMapping("/check-email")
-    @Operation(summary = "Check email availability", description = "Checks if an email is available for registration")
+    @Operation(summary = "Check email availability", description = "Checks if an email is available for registration", security = {})
     public ResponseEntity<ApiResponse<Boolean>> checkEmailAvailability(
             @Parameter(description = "Email to check") @RequestParam @NonNull String email,
             HttpServletRequest request) {

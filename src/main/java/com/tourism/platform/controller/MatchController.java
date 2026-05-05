@@ -1,8 +1,13 @@
 package com.tourism.platform.controller;
 
+import com.tourism.platform.config.OpenApiConfig;
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.MatchResponseDto;
 import com.tourism.platform.service.MatchingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -28,6 +33,8 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequiredArgsConstructor
 @Validated
+@Tag(name = "Traveler matching", description = "Destination and date-range based traveler discovery (authenticated).")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 public class MatchController {
     private static final Logger log = LoggerFactory.getLogger(MatchController.class);
     private static final int MAX_LIMIT = 100;
@@ -39,6 +46,10 @@ public class MatchController {
     private final MeterRegistry meterRegistry;
 
     @GetMapping("/matches")
+    @Operation(
+            summary = "Find matching travelers",
+            description = "Returns travelers whose plans overlap the given destination and date window. "
+                    + "Optional `interests` query params bias ranking. Result size is capped by `limit` (default 20, max 100).")
         /**
          * Endpoint to find matching travelers based on destination, date range and interests.
          *
@@ -52,10 +63,15 @@ public class MatchController {
          * @throws IllegalArgumentException for invalid input
          */
         public ResponseEntity<ApiResponse<List<MatchResponseDto>>> getMatches(
+            @Parameter(description = "Destination label or place name", required = true, example = "Paris")
             @RequestParam @NotBlank @Size(max = 120) String destination,
+            @Parameter(description = "Inclusive range start (ISO-8601 date)", required = true, example = "2026-06-01")
             @RequestParam LocalDate startDate,
+            @Parameter(description = "Inclusive range end (ISO-8601 date)", required = true, example = "2026-06-14")
             @RequestParam LocalDate endDate,
+            @Parameter(description = "Optional interest tags to bias matches (repeat param for multiple values)")
             @RequestParam(required = false) List<String> interests,
+            @Parameter(description = "Maximum number of results after server-side ranking (1–100)", example = "20")
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
             HttpServletRequest request) {
         String endpoint = request.getRequestURI();

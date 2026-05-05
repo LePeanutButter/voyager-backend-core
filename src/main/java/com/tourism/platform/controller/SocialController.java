@@ -1,5 +1,6 @@
 package com.tourism.platform.controller;
 
+import com.tourism.platform.config.OpenApiConfig;
 import com.tourism.platform.dto.*;
 import com.tourism.platform.model.Message;
 import com.tourism.platform.model.User;
@@ -8,6 +9,7 @@ import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.SocialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -44,6 +46,7 @@ import java.util.Map;
 @RequestMapping("/social")
 @RequiredArgsConstructor
 @Tag(name = "Social Features", description = "APIs for traveler social interactions")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 @Validated
 public class SocialController {
 

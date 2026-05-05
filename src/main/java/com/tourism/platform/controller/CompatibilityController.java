@@ -1,9 +1,13 @@
 package com.tourism.platform.controller;
 
+import com.tourism.platform.config.OpenApiConfig;
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.CompatibilityMatchRequest;
 import com.tourism.platform.dto.CompatibilityMatchResponse;
 import com.tourism.platform.service.CompatibilityMatchingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -21,6 +25,8 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/compatibility")
 @Validated
+@Tag(name = "Compatibility matching", description = "Scores candidate travelers against the authenticated user using interests, destination overlap, and other signals.")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 public class CompatibilityController {
     private static final Logger log = LoggerFactory.getLogger(CompatibilityController.class);
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={}";
@@ -35,6 +41,9 @@ public class CompatibilityController {
     }
 
     @PostMapping("/matches")
+    @Operation(
+            summary = "Find compatibility-ranked travelers",
+            description = "Computes compatibility scores for the authenticated user from the JSON body (destination, dates, optional interests).")
     /**
      * Compute compatibility matches for the authenticated user based on the request payload.
      *
