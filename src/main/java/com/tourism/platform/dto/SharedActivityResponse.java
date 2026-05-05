@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * Response DTO returned after sharing an activity. Includes identifiers and
+ * any metadata required by the client to render shared activity information.
+ */
+
 import com.tourism.platform.model.SharedActivityStatus;
 
 public class SharedActivityResponse {

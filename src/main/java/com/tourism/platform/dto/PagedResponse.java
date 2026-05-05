@@ -1,5 +1,12 @@
 package com.tourism.platform.dto;
 
+/**
+ * Generic paged response wrapper used by endpoints that return lists of data.
+ * Encapsulates pagination metadata (page, size, total) alongside the items list.
+ *
+ * @param <T> the response item type
+ */
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

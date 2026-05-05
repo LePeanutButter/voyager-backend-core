@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO representing a traveler match result with identifying information and
+ * travel date/location details. Used by matching endpoints to return concise
+ * match summaries.
+ */
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

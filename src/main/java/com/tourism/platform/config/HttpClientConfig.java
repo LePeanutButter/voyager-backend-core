@@ -8,6 +8,11 @@ import org.springframework.web.client.RestTemplate;
 public class HttpClientConfig {
 
     @Bean
+    /**
+     * Create and configure a `RestTemplate` bean for performing HTTP requests.
+     *
+     * @return a new RestTemplate instance suitable for synchronous HTTP calls
+     */
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }

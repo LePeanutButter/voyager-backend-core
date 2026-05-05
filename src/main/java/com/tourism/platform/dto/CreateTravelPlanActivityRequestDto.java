@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * Request DTO used when creating a new activity inside a travel plan.
+ * Contains fields necessary for activity creation and is validated by the
+ * controller layer before being mapped into domain entities.
+ */
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

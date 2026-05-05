@@ -8,10 +8,21 @@ package com.tourism.platform.exception;
  */
 public class BusinessException extends RuntimeException {
 
+    /**
+     * Create a new BusinessException with a message.
+     *
+     * @param message explanation of the business rule violation
+     */
     public BusinessException(String message) {
         super(message);
     }
 
+    /**
+     * Create a new BusinessException with a message and cause.
+     *
+     * @param message detail message
+     * @param cause   underlying cause of the business exception
+     */
     public BusinessException(String message, Throwable cause) {
         super(message, cause);
     }

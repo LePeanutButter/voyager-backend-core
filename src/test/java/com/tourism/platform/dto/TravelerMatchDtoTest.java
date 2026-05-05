@@ -1,5 +1,12 @@
 package com.tourism.platform.dto;
 
+/**
+ * Unit tests for {@link com.tourism.platform.dto.TravelerMatchDto}.
+ * <p>
+ * These tests verify construction and factory behavior for typical and edge-case
+ * input values used to build traveler match DTOs.
+ */
+
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;

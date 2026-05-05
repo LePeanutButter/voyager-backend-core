@@ -2,7 +2,10 @@ package com.tourism.platform.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.tourism.platform.dto.*;
+import com.tourism.platform.dto.ReservationDto;
+import com.tourism.platform.dto.TravelPlanActivityDto;
+import com.tourism.platform.dto.TravelPlanDto;
+import com.tourism.platform.dto.TravelerMatchDto;
 import com.tourism.platform.model.TravelPlanStatus;
 import com.tourism.platform.model.TravelType;
 import com.tourism.platform.model.User;
@@ -25,17 +28,26 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import java.math.BigDecimal;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class TravelPlanControllerTest {
@@ -100,15 +112,15 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void createTravelPlan_WithValidRequest_ShouldReturnCreated() throws Exception {
+    void createTravelPlanWithValidRequestShouldReturnCreated() throws Exception {
         // Given
         when(travelPlanService.createTravelPlan(any(TravelPlanDto.class), eq(1L)))
                 .thenReturn(testTravelPlan);
 
         // When & Then
         mockMvc.perform(post("/travel-plans")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testTravelPlan)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(testTravelPlan))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value(201))
                 .andExpect(jsonPath("$.message").value("Travel plan created successfully"))
@@ -120,7 +132,7 @@ class TravelPlanControllerTest {
     
 
     @Test
-    void getMyTravelPlans_ShouldReturnUserPlans() throws Exception {
+    void getMyTravelPlansShouldReturnUserPlans() throws Exception {
         // Given
         when(travelPlanService.getTravelPlanDtosByUser(1L))
                 .thenReturn(List.of(testTravelPlan));
@@ -137,7 +149,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void getTravelPlansByUser_ShouldReturnPagedResponse() throws Exception {
+    void getTravelPlansByUserShouldReturnPagedResponse() throws Exception {
         // Given
         when(travelPlanService.getTravelPlanDtosByUser(2L))
                 .thenReturn(List.of(testTravelPlan));
@@ -155,15 +167,15 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void updateTravelPlan_WithValidRequest_ShouldReturnUpdatedPlan() throws Exception {
+    void updateTravelPlanWithValidRequestShouldReturnUpdatedPlan() throws Exception {
         // Given
         when(travelPlanService.updateTravelPlan(eq(1L), eq(1L), any(TravelPlanDto.class)))
                 .thenReturn(testTravelPlan);
 
         // When & Then
         mockMvc.perform(put("/travel-plans/{id}", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testTravelPlan)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(testTravelPlan))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Travel plan updated successfully"))
@@ -173,7 +185,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void deleteTravelPlan_WithValidId_ShouldReturnSuccess() throws Exception {
+    void deleteTravelPlanWithValidIdShouldReturnSuccess() throws Exception {
         // When & Then
         mockMvc.perform(delete("/travel-plans/{id}", 1L))
                 .andExpect(status().isOk())
@@ -185,7 +197,7 @@ class TravelPlanControllerTest {
 
     
     @Test
-    void getActivities_ShouldReturnActivityList() throws Exception {
+    void getActivitiesShouldReturnActivityList() throws Exception {
         // Given
         TravelPlanActivityDto activityDto = TravelPlanActivityDto.builder()
                 .id(1L)
@@ -209,7 +221,7 @@ class TravelPlanControllerTest {
     
 
     @Test
-    void deleteActivity_ShouldReturnSuccess() throws Exception {
+    void deleteActivityShouldReturnSuccess() throws Exception {
         // When & Then
         mockMvc.perform(delete("/travel-plans/{id}/activities/{activityId}", 1L, 1L))
                 .andExpect(status().isOk())
@@ -221,7 +233,7 @@ class TravelPlanControllerTest {
 
 
     @Test
-    void getTravelPlanConnections_WithNonAcceptedStatus_ShouldReturnEmptyList() throws Exception {
+    void getTravelPlanConnectionsWithNonAcceptedStatusShouldReturnEmptyList() throws Exception {
         // When & Then
         mockMvc.perform(get("/travel-plans/{id}/connections", 1L)
                         .param("status", "PENDING"))
@@ -234,7 +246,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void addReservation_ShouldReturnCreatedReservation() throws Exception {
+    void addReservationShouldReturnCreatedReservation() throws Exception {
         // Given
         ReservationDto reservationRequest = ReservationDto.builder()
                 .name("Hotel Booking")
@@ -244,8 +256,8 @@ class TravelPlanControllerTest {
 
         // When & Then
         mockMvc.perform(post("/travel-plans/{id}/reservations", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reservationRequest)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(reservationRequest))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value(201))
                 .andExpect(jsonPath("$.message").value("Reservation added successfully"))
@@ -254,7 +266,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void getReservations_ShouldReturnReservationList() throws Exception {
+    void getReservationsShouldReturnReservationList() throws Exception {
         // When & Then
         mockMvc.perform(get("/travel-plans/{id}/reservations", 1L))
                 .andExpect(status().isOk())
@@ -265,7 +277,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void shareTravelPlan_ShouldReturnShareUrl() throws Exception {
+    void shareTravelPlanShouldReturnShareUrl() throws Exception {
         // When & Then
         mockMvc.perform(post("/travel-plans/{id}/share", 1L))
                 .andExpect(status().isOk())
@@ -275,7 +287,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void getSharedTravelPlan_ShouldReturnSharedPlan() throws Exception {
+    void getSharedTravelPlanShouldReturnSharedPlan() throws Exception {
         // When & Then
         mockMvc.perform(get("/travel-plans/shared/{shareToken}", "abc123xyz789"))
                 .andExpect(status().isOk())
@@ -287,7 +299,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void getTravelPlansByStatus_ShouldReturnPagedPlans() throws Exception {
+    void getTravelPlansByStatusShouldReturnPagedPlans() throws Exception {
         // When & Then
         mockMvc.perform(get("/travel-plans/status/{status}", TravelPlanStatus.ACTIVE)
                         .param("page", "0")
@@ -299,7 +311,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void getTravelPlansByType_ShouldReturnPagedPlans() throws Exception {
+    void getTravelPlansByTypeShouldReturnPagedPlans() throws Exception {
         // When & Then
         mockMvc.perform(get("/travel-plans/type/{type}", TravelType.LEISURE)
                         .param("page", "0")
@@ -311,7 +323,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void updateTravelPlanStatus_ShouldReturnUpdatedPlan() throws Exception {
+    void updateTravelPlanStatusShouldReturnUpdatedPlan() throws Exception {
         TravelPlanDto completed = TravelPlanDto.builder()
                 .id(1L)
                 .title(testTravelPlan.getTitle())
@@ -326,7 +338,7 @@ class TravelPlanControllerTest {
                 .isPublic(testTravelPlan.getIsPublic())
                 .build();
 
-        when(travelPlanService.updateTravelPlanStatus(eq(1L), eq(1L), eq(TravelPlanStatus.COMPLETED)))
+        when(travelPlanService.updateTravelPlanStatus(1L, 1L, TravelPlanStatus.COMPLETED))
                 .thenReturn(completed);
 
         mockMvc.perform(put("/travel-plans/{id}/status", 1L)
@@ -342,7 +354,7 @@ class TravelPlanControllerTest {
     }
 
     @Test
-    void findCompatibleTravelers_WithExistingPlan_ShouldReturnMatches() throws Exception {
+    void findCompatibleTravelersWithExistingPlanShouldReturnMatches() throws Exception {
         TravelerMatchDto match = TravelerMatchDto.builder()
                 .userId(2L)
                 .username("otheruser")
@@ -370,7 +382,7 @@ class TravelPlanControllerTest {
 
 
     @Test
-    void getAuthenticatedUser_WithNonExistentUser_ShouldThrowException() {
+    void getAuthenticatedUserWithNonExistentUserShouldThrowException() {
         // Given
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.empty());
 

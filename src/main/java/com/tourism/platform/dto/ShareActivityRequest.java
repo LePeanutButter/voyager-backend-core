@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * Request DTO used to share an activity with another user. Contains the
+ * receiver identifier and optional message or metadata for the share operation.
+ */
+
 import jakarta.validation.constraints.NotNull;
 
 public class ShareActivityRequest {

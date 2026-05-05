@@ -10,10 +10,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Standard API Response wrapper for consistent REST responses
- * 
- * This class provides a standardized response format for all API endpoints,
- * following REST best practices and providing consistent structure.
+ * Standard API response wrapper for consistent REST responses across controllers
+ * (status, message, payload, path, validation errors when applicable).
+ *
+ * @param <T> type of the response {@code data} payload
  */
 @Data
 @Builder
@@ -54,7 +54,14 @@ public class ApiResponse<T> {
     }
 
     /**
-     * Success response factory method
+     * Create a successful ApiResponse with a payload.
+     *
+     * @param status  HTTP status code representing the result
+     * @param message human-readable message describing the result
+     * @param data    payload data to include in the response
+     * @param path    endpoint path that produced the response
+     * @param <T>     type of the payload
+     * @return ApiResponse containing the provided payload and metadata
      */
     public static <T> ApiResponse<T> success(int status, String message, T data, String path) {
         return ApiResponse.<T>builder()
@@ -67,7 +74,12 @@ public class ApiResponse<T> {
     }
 
     /**
-     * Success response without data
+     * Create a successful ApiResponse without a payload.
+     *
+     * @param status  HTTP status code representing the result
+     * @param message human-readable message describing the result
+     * @param path    endpoint path that produced the response
+     * @return ApiResponse without payload
      */
     public static ApiResponse<Void> success(int status, String message, String path) {
         return ApiResponse.<Void>builder()
@@ -79,7 +91,14 @@ public class ApiResponse<T> {
     }
 
     /**
-     * Error response factory method
+     * Create an error ApiResponse including validation errors.
+     *
+     * @param status  HTTP status code representing the error
+     * @param message human-readable error message
+     * @param path    endpoint path that produced the error
+     * @param errors  list of validation errors to include
+     * @param <T>     type parameter for completeness (usually Void)
+     * @return ApiResponse containing error details
      */
     public static <T> ApiResponse<T> error(int status, String message, String path, List<ValidationError> errors) {
         return ApiResponse.<T>builder()
@@ -92,7 +111,13 @@ public class ApiResponse<T> {
     }
 
     /**
-     * Error response without validation errors
+     * Create an error ApiResponse without validation details.
+     *
+     * @param status  HTTP status code representing the error
+     * @param message human-readable error message
+     * @param path    endpoint path that produced the error
+     * @param <T>     type parameter for completeness (usually Void)
+     * @return ApiResponse containing high-level error information
      */
     public static <T> ApiResponse<T> error(int status, String message, String path) {
         return ApiResponse.<T>builder()

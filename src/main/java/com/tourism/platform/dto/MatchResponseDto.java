@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO used to return a match result to the client. Wraps compatibility and
+ * traveler identity information returned by the matching service.
+ */
+
 import lombok.Builder;
 import lombok.Value;
 

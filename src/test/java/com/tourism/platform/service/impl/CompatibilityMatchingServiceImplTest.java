@@ -2,6 +2,8 @@ package com.tourism.platform.service.impl;
 
 import com.tourism.platform.dto.CompatibilityMatchRequest;
 import com.tourism.platform.dto.CompatibilityMatchResponse;
+import com.tourism.platform.exception.BadRequestException;
+import com.tourism.platform.exception.ResourceNotFoundException;
 import com.tourism.platform.model.TravelPlan;
 import com.tourism.platform.model.User;
 import com.tourism.platform.repository.TravelPlanRepository;
@@ -132,6 +134,133 @@ class CompatibilityMatchingServiceImplTest {
 
         List<CompatibilityMatchResponse> result = service.findMatches(noInterestFilterRequest, "requester");
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void throwsBadRequestWhenStartAfterEnd() {
+        CompatibilityMatchRequest bad = new CompatibilityMatchRequest();
+        bad.setStartDate(LocalDate.of(2026, 8, 10));
+        bad.setEndDate(LocalDate.of(2026, 8, 1));
+
+        assertThrows(BadRequestException.class, () -> service.findMatches(bad, "requester"));
+    }
+
+    @Test
+    void throwsWhenRequesterNotFound() {
+        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.findMatches(request, "ghost"));
+    }
+
+    @Test
+    void returnsEmptyWhenNoOtherUsers() {
+        when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
+        when(userRepository.findAll()).thenReturn(List.of(requester));
+        when(travelPlanRepository.findByUserIdIn(Collections.emptySet())).thenReturn(List.of());
+
+        assertTrue(service.findMatches(request, "requester").isEmpty());
+    }
+
+    @Test
+    void includesMatchWhenInterestsEmptyAndDestinationMatches() {
+        User candidate = user(2L, "c");
+        TravelPlan plan = plan(2L, "Paris",
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 5, 0, 0));
+
+        CompatibilityMatchRequest wide = new CompatibilityMatchRequest();
+        wide.setDestination("Paris");
+        wide.setStartDate(LocalDate.of(2026, 6, 1));
+        wide.setEndDate(LocalDate.of(2026, 6, 30));
+        wide.setInterests(null);
+
+        when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
+        when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(List.of(plan));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L))).thenReturn(List.of());
+
+        List<CompatibilityMatchResponse> result = service.findMatches(wide, "requester");
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).getTotalScore() > 0);
+    }
+
+    @Test
+    void skipsInterestRowsWithNullOrBlank() {
+        User candidate = user(2L, "c");
+        TravelPlan plan = plan(2L, "Paris",
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 10, 0, 0));
+
+        when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
+        when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(List.of(plan));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, null}, new Object[]{2L, "  "}, new Object[]{2L, "Food"}));
+
+        CompatibilityMatchRequest r = new CompatibilityMatchRequest();
+        r.setDestination("Paris");
+        r.setStartDate(LocalDate.of(2026, 6, 1));
+        r.setEndDate(LocalDate.of(2026, 6, 10));
+        r.setInterests(List.of("food"));
+
+        List<CompatibilityMatchResponse> result = service.findMatches(r, "requester");
+        assertEquals(1, result.size());
+        assertEquals(List.of("food"), result.get(0).getMatchedInterests());
+    }
+
+    @Test
+    void planWithNullDatesGetsZeroDateScore() {
+        User candidate = user(2L, "c");
+        TravelPlan p = plan(2L, "Paris", null, null);
+
+        when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
+        when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(List.of(p));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, "food"}));
+
+        List<CompatibilityMatchResponse> result = service.findMatches(request, "requester");
+        assertEquals(1, result.size());
+        assertEquals(0.0, result.get(0).getDateProximityScore());
+    }
+
+    @Test
+    void picksBestOverlapAmongMultiplePlans() {
+        User candidate = user(2L, "c");
+        TravelPlan weak = plan(2L, "Paris",
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 1, 0, 0));
+        TravelPlan strong = plan(2L, "Paris",
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 10, 0, 0));
+
+        when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
+        when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(List.of(weak, strong));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, "food"}));
+
+        List<CompatibilityMatchResponse> result = service.findMatches(request, "requester");
+        assertEquals(1, result.size());
+        assertEquals(30.0, result.get(0).getDateProximityScore());
+    }
+
+    @Test
+    void noDestinationMatchWhenPlanDestinationNull() {
+        User candidate = user(2L, "c");
+        TravelPlan p = plan(2L, null,
+                LocalDateTime.of(2026, 6, 1, 0, 0),
+                LocalDateTime.of(2026, 6, 10, 0, 0));
+
+        when(userRepository.findByUsername("requester")).thenReturn(Optional.of(requester));
+        when(userRepository.findAll()).thenReturn(List.of(requester, candidate));
+        when(travelPlanRepository.findByUserIdIn(Set.of(2L))).thenReturn(List.of(p));
+        when(userInterestRepository.findUserInterestsByUserIds(Set.of(2L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, "food"}));
+
+        List<CompatibilityMatchResponse> result = service.findMatches(request, "requester");
+        assertEquals(1, result.size());
+        assertEquals(0.0, result.get(0).getDestinationScore());
     }
 
     private User user(Long id, String username) {

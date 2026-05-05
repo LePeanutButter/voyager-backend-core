@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO representing a connection (friendship) request between travelers.
+ * Used to transfer the minimal information required when sending or
+ * responding to connection requests.
+ */
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

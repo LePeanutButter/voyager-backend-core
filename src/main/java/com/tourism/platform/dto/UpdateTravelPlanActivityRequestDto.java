@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * Request DTO used to update an existing travel plan activity. Carries fields
+ * that can be modified by the client and validated in the controller layer.
+ */
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * Request DTO used to ask the matching service to compute compatibility between
+ * the current traveler and a set of candidate travelers. Includes matching
+ * preferences and filters.
+ */
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 

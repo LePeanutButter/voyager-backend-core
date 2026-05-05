@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * Response DTO returned after successful authentication. Contains token
+ * information and optional `UserDto` details used by the client to establish
+ * an authenticated session.
+ */
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

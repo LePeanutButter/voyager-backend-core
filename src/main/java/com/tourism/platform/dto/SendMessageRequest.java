@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * Request DTO used when sending a chat message. Contains connection, sender
+ * identifiers and the text content sent to the recipient.
+ */
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

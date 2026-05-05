@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO used for user login requests. Carries username/email and password fields
+ * required by authentication endpoints.
+ */
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

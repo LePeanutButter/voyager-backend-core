@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * Lightweight DTO representing a chat message exchanged between travelers.
+ * Used by messaging endpoints and WebSocket payloads.
+ */
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -1,0 +1,1222 @@
+{
+  "info": {
+    "_postman_id": "574b4096-61cd-4189-9e32-b38e309aa6af",
+    "name": "Voyager Backend — API completa (local)",
+    "description": "## Voyager Backend — suite local (Postman)\n\n### Requisitos\n1. Backend en ejecución (por defecto `http://localhost:8080`).\n2. Context path: **`/api/v1`** → variable `baseUrl`.\n3. Importar **colección** + entorno **`Voyager-Backend.local`** y seleccionarlo.\n\n### Flujo\n1. **00 — Salud** para verificar el servicio.\n2. **02 — Registro y autenticación**: **Login** guarda `accessToken` y `currentUserId` en variables de **colección**.\n3. Carpetas con **Bearer** usan `{{accessToken}}`.\n\n### Formato de respuesta\n`ApiResponse`: `status`, `message`, `data`, `path`. JWT en login: `data.token`.\n\n### Notas\n- **GET /destinations|activities|services**: permitidos en seguridad; pueden devolver **404** si no hay controlador.\n- Endpoints **ADMIN**: requieren rol y token adecuados.\n\nRegenerar: `python postman/build_postman_collection.py`\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api/v1"
+    },
+    {
+      "key": "testUsername",
+      "value": "postman_tester"
+    },
+    {
+      "key": "testPassword",
+      "value": "PostmanTest123!"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "currentUserId",
+      "value": "1"
+    },
+    {
+      "key": "secondUserId",
+      "value": "2"
+    },
+    {
+      "key": "travelPlanId",
+      "value": "1"
+    },
+    {
+      "key": "activityId",
+      "value": "1"
+    },
+    {
+      "key": "connectionRequestId",
+      "value": "1"
+    },
+    {
+      "key": "connectionId",
+      "value": "1"
+    },
+    {
+      "key": "postId",
+      "value": "1"
+    },
+    {
+      "key": "reviewId",
+      "value": "1"
+    },
+    {
+      "key": "messageId",
+      "value": "1"
+    },
+    {
+      "key": "sharedActivityId",
+      "value": "1"
+    },
+    {
+      "key": "shareToken",
+      "value": "demo-share-token"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 — Salud y documentación",
+      "description": "Actuator y OpenAPI bajo `/api/v1`.",
+      "item": [
+        {
+          "name": "Health (Actuator)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/actuator/health",
+            "description": "En `prod` el management puede estar en el puerto 8081 en el host; en local suele ser 8080."
+          },
+          "response": []
+        },
+        {
+          "name": "OpenAPI JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api-docs",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/swagger-ui.html",
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 — Catálogo público (puede 404)",
+      "description": "Security permite GET; si no hay controlador → 404.",
+      "item": [
+        {
+          "name": "GET destinations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/destinations",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "GET activities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/activities",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "GET services",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/services",
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 — Registro y autenticación",
+      "description": "Sin Bearer. Login guarda JWT en variables de colección.",
+      "item": [
+        {
+          "name": "Check username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/check-username?username={{testUsername}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Check email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/check-email?email={{testUsername}}@example.com",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Registrar (POST /users)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users",
+            "description": "Ajusta `testUsername` en variables si el usuario ya existe.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"email\": \"{{testUsername}}@example.com\",\n  \"password\": \"{{testPassword}}\",\n  \"firstName\": \"Postman\",\n  \"lastName\": \"Tester\",\n  \"phoneNumber\": \"+573001112233\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if ((pm.response.code === 200 || pm.response.code === 201) && j.data && j.data.id) {",
+                  "    pm.collectionVariables.set('currentUserId', String(j.data.id));",
+                  "  }",
+                  "} catch (e) { console.warn(e); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/login",
+            "description": "Guarda `accessToken` y `currentUserId`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"{{testUsername}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (pm.response.code === 200 && j.data && j.data.token) {",
+                  "    pm.collectionVariables.set('accessToken', j.data.token);",
+                  "    pm.collectionVariables.set('currentUserId', String(j.data.id));",
+                  "    console.log('Variables: accessToken, currentUserId');",
+                  "  }",
+                  "} catch (e) { console.warn(e); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Google OAuth — login",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/google/login",
+            "description": "Requiere `GOOGLE_CLIENT_ID` en el backend."
+          },
+          "response": []
+        },
+        {
+          "name": "Google OAuth — callback (ejemplo)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/google/callback?code=MANUAL&state=STATE",
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 — Usuarios (Bearer)",
+      "description": "Authorization: Bearer {{accessToken}}",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{accessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Usuario por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{currentUserId}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Por username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/username/{{testUsername}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Por email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/email/{{testUsername}}@example.com",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar perfil",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/users/{{currentUserId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Nombre\",\n  \"lastName\": \"Actualizado\",\n  \"bio\": \"Usuario de pruebas Postman\",\n  \"interests\": [\"museos\", \"playa\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar contraseña",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{currentUserId}}/password?currentPassword={{testPassword}}&newPassword=NewSecure456Pass!",
+            "description": "Query: currentPassword, newPassword. Tras ejecutar, actualiza `testPassword` en variables si quieres volver a hacer login."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar usuarios (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users?page=0&size=10&sortBy=createdAt&sortDir=desc",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Por rol (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/role/TRAVELER?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Por estado (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/status/ACTIVE?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Búsqueda (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/search?searchTerm=Postman&page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Estadísticas (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/statistics",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar rol (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{currentUserId}}/role?role=TRAVELER",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar estado (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{currentUserId}}/status?status=ACTIVE",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar usuario (SUPER_ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/users/999999",
+            "description": "ID de ejemplo; no usar en datos reales."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 — Travel plans (Bearer)",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{accessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Crear plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/travel-plans",
+            "description": "Script guarda `travelPlanId` en 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan de prueba Postman\",\n  \"description\": \"Creado desde la colección local\",\n  \"status\": \"DRAFT\",\n  \"travelType\": \"LEISURE\",\n  \"startDate\": \"2026-06-01T08:00:00\",\n  \"endDate\": \"2026-06-10T18:00:00\",\n  \"estimatedBudget\": 1500.00,\n  \"numberOfTravelers\": 2,\n  \"originLocation\": \"Bogotá\",\n  \"destinationLocation\": \"Cartagena\",\n  \"isPublic\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (pm.response.code === 201 && j.data && j.data.id) {",
+                  "    pm.collectionVariables.set('travelPlanId', String(j.data.id));",
+                  "  }",
+                  "} catch (e) { console.warn(e); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Listar (paginado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Por usuario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/user/{{currentUserId}}?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plan de prueba Postman\",\n  \"description\": \"Creado desde la colección local\",\n  \"status\": \"DRAFT\",\n  \"travelType\": \"LEISURE\",\n  \"startDate\": \"2026-06-01T08:00:00\",\n  \"endDate\": \"2026-06-10T18:00:00\",\n  \"estimatedBudget\": 1500.00,\n  \"numberOfTravelers\": 2,\n  \"originLocation\": \"Bogotá\",\n  \"destinationLocation\": \"Cartagena\",\n  \"isPublic\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Añadir actividad",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/activities",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"City tour\",\n  \"description\": \"Recorrido centro histórico\",\n  \"startTime\": \"2026-06-02T09:00:00\",\n  \"endTime\": \"2026-06-02T14:00:00\",\n  \"location\": \"Centro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar actividades",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/activities",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar actividad",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/activities/{{activityId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"City tour\",\n  \"description\": \"Recorrido centro histórico\",\n  \"startTime\": \"2026-06-02T09:00:00\",\n  \"endTime\": \"2026-06-02T14:00:00\",\n  \"location\": \"Centro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar actividad",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/activities/{{activityId}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Conexiones del plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/connections?status=ACCEPTED",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Crear reserva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/reservations",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hotel prueba\",\n  \"description\": \"Noche de alojamiento\",\n  \"type\": \"HOTEL\",\n  \"startDate\": \"2026-06-01T15:00:00\",\n  \"endDate\": \"2026-06-02T11:00:00\",\n  \"location\": \"Cartagena\",\n  \"totalCost\": 350.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/reservations",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Share link",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/share",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Plan compartido por token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/shared/{{shareToken}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Por estado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/status/DRAFT?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Por tipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/type/LEISURE?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar estado plan",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/status?status=ACTIVE",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Viajeros compatibles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}/compatible-travelers",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar plan",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/travel-plans/{{travelPlanId}}",
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 — Social (Bearer)",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{accessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Solicitud de conexión",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/social/connections",
+            "description": "`secondUserId`: otro usuario existente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipientId\": {{secondUserId}},\n  \"message\": \"Hola desde Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Conexiones de usuario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/connections/{{currentUserId}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Aceptar solicitud",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/social/connections/{{connectionRequestId}}/accept",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar solicitud",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/social/connections/{{connectionRequestId}}/reject",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Pendientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/connections/pending",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Enviadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/connections/sent",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar conexión",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/social/connections/{{connectionId}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Resumen viajero",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/travelers/{{currentUserId}}/summary",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Crear reseña",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/social/reviews",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetId\": 1,\n  \"targetType\": \"destination\",\n  \"rating\": 5,\n  \"comment\": \"Excelente desde Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar reseñas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/reviews/destination/1?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar reseña",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/social/reviews/{{reviewId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"rating\": 4, \"comment\": \"Actualizado\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar reseña",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/social/reviews/{{reviewId}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Conversaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/conversations/{{currentUserId}}",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Mensajes de conexión",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/connections/{{connectionId}}/messages",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Marcar mensaje leído",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/social/messages/{{messageId}}/read",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Feed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/feed/{{currentUserId}}?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Crear post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/social/posts",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hola desde Postman\",\n  \"type\": \"POST\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Like post",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/social/posts/{{postId}}/like",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Unlike post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/social/posts/{{postId}}/like",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Comentar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/social/posts/{{postId}}/comments",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"content\": \"Buen post\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar comentarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/social/posts/{{postId}}/comments?page=0&size=10",
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Enviar mensaje",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/social/messages",
+            "description": "Ajusta `connectionId`; `senderId` = usuario autenticado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectionId\": {{connectionId}},\n  \"senderId\": {{currentUserId}},\n  \"content\": \"Mensaje de prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 — Matching y compatibilidad (Bearer)",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{accessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "GET /matches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/matches?destination=Cartagena&startDate=2026-07-01&endDate=2026-07-15&limit=10",
+            "description": "Query: destination, startDate, endDate, interests (opcional), limit."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /compatibility/matches",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/compatibility/matches",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination\": \"Cartagena\",\n  \"startDate\": \"2026-07-01\",\n  \"endDate\": \"2026-07-15\",\n  \"interests\": [\"playa\", \"gastronomía\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 — Compartir actividades (Bearer)",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{accessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "POST /activities/{id}/share",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/activities/{{activityId}}/share",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverId\": {{secondUserId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /shared-activities/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/shared-activities/{{sharedActivityId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\": \"ACCEPT\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Legacy share",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/legacy/activities/{{activityId}}/share",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverId\": {{secondUserId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Legacy decisión",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/legacy/shared-activities/{{sharedActivityId}}",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"action\": \"REJECT\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

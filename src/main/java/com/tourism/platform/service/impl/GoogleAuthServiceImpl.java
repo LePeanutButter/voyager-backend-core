@@ -1,5 +1,24 @@
 package com.tourism.platform.service.impl;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tourism.platform.config.GoogleOAuthProperties;
@@ -12,20 +31,8 @@ import com.tourism.platform.model.UserStatus;
 import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.security.JwtTokenProvider;
 import com.tourism.platform.service.GoogleAuthService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +49,18 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     @Override
     public UserDto authenticateWithAuthorizationCode(String code) {
+        /**
+         * Authenticate or register a user using an OAuth2 authorization code from Google.
+         *
+         * This exchanges the code for an access token, fetches the user's profile,
+         * and either finds an existing user by email or creates a new one. A JWT token
+         * is generated and attached to the returned DTO.
+         *
+         * @param code OAuth2 authorization code received from Google
+         * @return UserDto populated with user information and JWT token
+         * @throws BusinessException when the code is missing or configuration is invalid
+         * @throws ExternalServiceException when Google token/profile endpoints fail
+         */
         if (code == null || code.isBlank()) {
             throw new BusinessException("Authorization code is required");
         }
@@ -57,6 +76,14 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     }
 
     private String exchangeCodeForAccessToken(String code) {
+        /**
+         * Exchange an OAuth2 authorization code for an access token using Google's token endpoint.
+         *
+         * @param code authorization code to exchange
+         * @return access token string
+         * @throws BusinessException if client configuration is missing
+         * @throws ExternalServiceException for HTTP or parsing errors from Google
+         */
         if (properties.getClientId() == null || properties.getClientId().isBlank()) {
             throw new BusinessException("Google client-id is not configured");
         }
@@ -79,7 +106,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         try {
             ResponseEntity<String> response = restTemplate.exchange(
                     tokenUrl,
-                    HttpMethod.POST,
+                    Objects.requireNonNull(HttpMethod.POST),
                     new HttpEntity<>(form, headers),
                     String.class
             );
@@ -95,21 +122,28 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             }
             return accessToken.asText();
         } catch (RestClientException e) {
-            throw new ExternalServiceException("Google token exchange failed: " + e.getMessage());
-        } catch (Exception e) {
-            throw new ExternalServiceException("Google token exchange parse failed: " + e.getMessage());
+            throw new ExternalServiceException("Google token exchange failed: " + e.getMessage(), e);
+        } catch (java.io.IOException e) {
+            throw new ExternalServiceException("Google token exchange parse failed: " + e.getMessage(), e);
         }
     }
 
     private GoogleProfile fetchGoogleProfile(String accessToken) {
+        /**
+         * Fetch a minimal Google profile (email and name) using the provided access token.
+         *
+         * @param accessToken OAuth2 access token
+         * @return GoogleProfile record with email and name
+         * @throws ExternalServiceException for HTTP or parsing errors
+         */
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+        headers.setBearerAuth(Objects.requireNonNull(accessToken));
+        headers.setAccept(Objects.requireNonNull(java.util.List.of(MediaType.APPLICATION_JSON)));
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(
                     "https://www.googleapis.com/oauth2/v2/userinfo",
-                    HttpMethod.GET,
+                    Objects.requireNonNull(HttpMethod.GET),
                     new HttpEntity<>(headers),
                     String.class
             );
@@ -128,13 +162,19 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
             return new GoogleProfile(email, name);
         } catch (RestClientException e) {
-            throw new ExternalServiceException("Google userinfo request failed: " + e.getMessage());
-        } catch (Exception e) {
-            throw new ExternalServiceException("Google userinfo parse failed: " + e.getMessage());
+            throw new ExternalServiceException("Google userinfo request failed: " + e.getMessage(), e);
+        } catch (java.io.IOException e) {
+            throw new ExternalServiceException("Google userinfo parse failed: " + e.getMessage(), e);
         }
     }
 
     private User findOrCreateGoogleUser(GoogleProfile profile) {
+        /**
+         * Find an existing user by email or create a new user populated from the Google profile.
+         *
+         * @param profile GoogleProfile containing email and name
+         * @return existing or newly created User entity
+         */
         Optional<User> existing = userRepository.findByEmail(profile.email());
         if (existing.isPresent()) {
             return existing.get();
@@ -164,6 +204,12 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     }
 
     private String ensureUniqueUsername(String base) {
+        /**
+         * Ensure a username candidate is unique in the system by iterating suffixes.
+         *
+         * @param base base username candidate
+         * @return unique username string
+         */
         String candidate = sanitizeUsername(base);
         if (candidate.isBlank()) {
             candidate = "google_user";
@@ -181,10 +227,22 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     }
 
     private String sanitizeUsername(String value) {
+        /**
+         * Sanitize a username by removing or replacing unsupported characters.
+         *
+         * @param value raw username candidate
+         * @return sanitized username
+         */
         return value == null ? "" : value.trim().replaceAll("[^a-zA-Z0-9_\\-.]", "_");
     }
 
     private String[] splitName(String name) {
+        /**
+         * Split a full name into first and last name components. Guarantees two elements.
+         *
+         * @param name full name string
+         * @return array with first name at index 0 and last name at index 1
+         */
         String safe = (name == null || name.isBlank()) ? "Google User" : name.trim();
         String[] parts = safe.split("\\s+");
         String first = parts.length > 0 ? parts[0] : "Google";
@@ -193,6 +251,13 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     }
 
     private String textOrNull(JsonNode node, String field) {
+        /**
+         * Safely extract text from a JsonNode field, returning null for missing or null nodes.
+         *
+         * @param node  parent JSON node
+         * @param field field name to extract
+         * @return string value or null
+         */
         JsonNode v = node.get(field);
         return v == null || v.isNull() ? null : v.asText();
     }
@@ -203,6 +268,12 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     }
 
     private UserDto toDto(User user) {
+        /**
+         * Map a User entity into a UserDto for API responses.
+         *
+         * @param user entity to map
+         * @return UserDto containing public user fields
+         */
         UserDto dto = new UserDto();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());

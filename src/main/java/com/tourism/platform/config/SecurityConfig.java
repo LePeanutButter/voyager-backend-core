@@ -1,20 +1,22 @@
 package com.tourism.platform.config;
 
-import com.tourism.platform.security.JwtAuthenticationFilter;
-import com.tourism.platform.security.JwtTokenProvider;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -23,7 +25,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import com.tourism.platform.security.JwtAuthenticationFilter;
+import com.tourism.platform.security.JwtTokenProvider;
 
 /**
  * Security Configuration for the Tourism Platform
@@ -36,12 +39,30 @@ import java.util.List;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-
-    @Value("${app.cors.allowed-origins}")
-    private String allowedOrigins;
+    // Constants for duplicated literals
+    private static final String USERS_ENDPOINT = "/users/**";
 
     /**
-     * Password encoder bean for hashing passwords
+     * Patterns that match common AWS frontends (ALB, CloudFront, S3 static website, execute-api)
+     * without opening CORS to arbitrary non-AWS domains.
+     */
+    private static final List<String> AWS_HOSTNAME_LAB_PATTERNS = List.of(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "http://*.amazonaws.com",
+            "https://*.amazonaws.com"
+    );
+
+    private final CorsProperties corsProperties;
+
+    public SecurityConfig(CorsProperties corsProperties) {
+        this.corsProperties = corsProperties;
+    }
+
+    /**
+     * Password encoder bean for hashing and verifying user passwords.
+     *
+     * @return a {@link PasswordEncoder} instance suitable for encoding passwords
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -49,7 +70,11 @@ public class SecurityConfig {
     }
 
     /**
-     * Authentication manager bean for JWT authentication
+     * Expose the {@link AuthenticationManager} from the provided configuration.
+     *
+     * @param config Spring {@link AuthenticationConfiguration} used to obtain the manager
+     * @return the resolved AuthenticationManager
+     * @throws Exception if the authentication manager cannot be created
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -57,26 +82,54 @@ public class SecurityConfig {
     }
 
     /**
-     * JWT authentication filter bean
+     * Create the JWT authentication filter responsible for extracting and validating
+     * JWT tokens from incoming requests.
+     *
+     * @param tokenProvider       provider responsible for token validation and claims extraction
+     * @param userDetailsService  service used to load user details for authentication context
+     * @return configured {@link JwtAuthenticationFilter} instance
      */
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider tokenProvider,
+                                                           UserDetailsService userDetailsService) {
+        return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
     }
 
     /**
-     * CORS configuration source
+     * Build the CORS configuration used by the application.
+     * <p>
+     * When {@link CorsProperties#isAllowAllOrigins()} is true, wildcard origins are used only with
+     * {@code allowCredentials(false)} (required by the CORS model for {@code *}); production should keep
+     * {@code allow-all-origins} disabled and rely on explicit origin patterns.
+     *
+     * @return a {@link CorsConfigurationSource} exposing allowed origins, headers and methods
      */
     @Bean
+    @SuppressWarnings("java:S5122") // reviewed: wildcard branch pairs * with credentials off; else explicit patterns
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(parseAllowedOrigins(allowedOrigins));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Request-Id"));
         configuration.setExposedHeaders(List.of("X-Trace-Id", "X-Request-Id"));
-        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-        
+
+        if (corsProperties.isAllowAllOrigins()) {
+            configuration.setAllowedOriginPatterns(List.of("*"));
+            configuration.setAllowCredentials(false);
+        } else {
+            Set<String> patterns = new LinkedHashSet<>();
+            patterns.addAll(parseCommaSeparated(corsProperties.getAllowedOriginPatterns()));
+            if (corsProperties.isUseAwsHostnamePatterns()) {
+                patterns.addAll(AWS_HOSTNAME_LAB_PATTERNS);
+            }
+            // Exact URLs from allowed-origins also work as origin patterns (same matching for normal hosts).
+            patterns.addAll(parseCommaSeparated(corsProperties.getAllowedOrigins()));
+            if (!patterns.isEmpty()) {
+                configuration.setAllowedOriginPatterns(new ArrayList<>(patterns));
+                configuration.setAllowCredentials(corsProperties.isAllowCredentials());
+            }
+        }
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         // With server.servlet.context-path=/api/v1, Spring matches CORS paths relative to the app context.
         source.registerCorsConfiguration("/**", configuration);
@@ -84,10 +137,17 @@ public class SecurityConfig {
     }
 
     /**
-     * Main security filter chain configuration
+     * Configure the main {@link SecurityFilterChain} for HTTP security.
+     *
+     * @param http               {@link HttpSecurity} builder provided by Spring Security
+     * @param tokenProvider      component used to validate JWT tokens
+     * @param userDetailsService service used to load user details for authentication
+     * @return the configured {@link SecurityFilterChain}
+     * @throws Exception if an error occurs while building the security chain
      */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtTokenProvider tokenProvider,
+                                           UserDetailsService userDetailsService) throws Exception {
         http
             // Disable CSRF as we're using JWT
             .csrf(AbstractHttpConfigurer::disable)
@@ -139,9 +199,9 @@ public class SecurityConfig {
                 .requestMatchers("/social/**").authenticated()
 
                 // User management endpoints
-                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/users/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("SUPER_ADMIN")
+                .requestMatchers(HttpMethod.GET, USERS_ENDPOINT).authenticated()
+                .requestMatchers(HttpMethod.PUT, USERS_ENDPOINT).authenticated()
+                .requestMatchers(HttpMethod.DELETE, USERS_ENDPOINT).hasRole("SUPER_ADMIN")
                 
                 // Admin endpoints
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
@@ -150,16 +210,18 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             
-            // Add JWT filter
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter(tokenProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    private List<String> parseAllowedOrigins(String originsProperty) {
-        return java.util.Arrays.stream(originsProperty.split(","))
+    private List<String> parseCommaSeparated(String property) {
+        if (property == null || property.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(property.split(","))
                 .map(String::trim)
-                .filter(origin -> !origin.isEmpty())
+                .filter(s -> !s.isEmpty())
                 .toList();
     }
 }

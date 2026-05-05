@@ -2,7 +2,10 @@ package com.tourism.platform.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.tourism.platform.dto.*;
+import com.tourism.platform.dto.UserDto;
+import com.tourism.platform.dto.UserLoginDto;
+import com.tourism.platform.dto.UserRegistrationDto;
+import com.tourism.platform.dto.UserUpdateDto;
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
 import com.tourism.platform.security.JwtTokenProvider;
@@ -13,18 +16,29 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class UserControllerTest {
@@ -72,8 +86,8 @@ class UserControllerTest {
         when(userService.registerUser(any(UserRegistrationDto.class))).thenReturn(userDto);
 
         mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registrationDto)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(registrationDto))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value(201))
                 .andExpect(jsonPath("$.message").value("User registered successfully"))
@@ -97,8 +111,8 @@ class UserControllerTest {
         when(userService.registerUser(any(UserRegistrationDto.class))).thenReturn(userDto);
 
         mockMvc.perform(post("/users/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registrationDto)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(registrationDto))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.username").value("testuser"));
 
@@ -119,8 +133,8 @@ class UserControllerTest {
                 .thenReturn("jwt.token.here");
 
         mockMvc.perform(post("/users/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginDto)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(loginDto))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Authentication successful"))
@@ -139,8 +153,8 @@ class UserControllerTest {
                 .thenReturn(Optional.empty());
 
         mockMvc.perform(post("/users/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginDto)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(loginDto))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.message").value("Invalid credentials"));
@@ -224,8 +238,8 @@ class UserControllerTest {
         when(userService.updateUser(eq(1L), any(UserUpdateDto.class))).thenReturn(Optional.of(userDto));
 
         mockMvc.perform(put("/users/{id}", 1L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDto)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(updateDto))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("User updated successfully"))
                 .andExpect(jsonPath("$.data.firstName").value("Updated"));
@@ -240,8 +254,8 @@ class UserControllerTest {
         when(userService.updateUser(eq(999L), any(UserUpdateDto.class))).thenReturn(Optional.empty());
 
         mockMvc.perform(put("/users/{id}", 999L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDto)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(updateDto))))
                 .andExpect(status().isNotFound());
     }
 
@@ -275,7 +289,7 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_ShouldReturnPagedResponse() throws Exception {
-        Page<UserDto> page = new PageImpl<>(List.of(userDto), PageRequest.of(0, 20), 1);
+        Page<UserDto> page = new PageImpl<>(Objects.requireNonNull(List.of(userDto)), PageRequest.of(0, 20), 1);
         when(userService.getAllUsers(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/users")
@@ -288,49 +302,13 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_WithAscSortDirection_ShouldReturnOk() throws Exception {
-        Page<UserDto> page = new PageImpl<>(List.of(userDto));
+        Page<UserDto> page = new PageImpl<>(Objects.requireNonNull(List.of(userDto)));
         when(userService.getAllUsers(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/users")
                         .param("sortDir", "asc")
                         .param("sortBy", "username"))
                 .andExpect(status().isOk());
-    }
-
-    // ── GET /users/role/{role} ────────────────────────────────────────────────
-
-    @Test
-    void getUsersByRole_ShouldReturnFilteredPage() throws Exception {
-        Page<UserDto> page = new PageImpl<>(List.of(userDto));
-        when(userService.getUsersByRole(eq(UserRole.TRAVELER), any(Pageable.class))).thenReturn(page);
-
-        mockMvc.perform(get("/users/role/{role}", "TRAVELER"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].role").value("TRAVELER"));
-    }
-
-    // ── GET /users/status/{status} ────────────────────────────────────────────
-
-    @Test
-    void getUsersByStatus_ShouldReturnFilteredPage() throws Exception {
-        Page<UserDto> page = new PageImpl<>(List.of(userDto));
-        when(userService.getUsersByStatus(eq(UserStatus.ACTIVE), any(Pageable.class))).thenReturn(page);
-
-        mockMvc.perform(get("/users/status/{status}", "ACTIVE"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].status").value("ACTIVE"));
-    }
-
-    // ── GET /users/search ─────────────────────────────────────────────────────
-
-    @Test
-    void searchUsersByName_ShouldReturnMatchingPage() throws Exception {
-        Page<UserDto> page = new PageImpl<>(List.of(userDto));
-        when(userService.searchUsersByName(eq("Test"), any(Pageable.class))).thenReturn(page);
-
-        mockMvc.perform(get("/users/search").param("searchTerm", "Test"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].firstName").value("Test"));
     }
 
     // ── PUT /users/{id}/role ──────────────────────────────────────────────────

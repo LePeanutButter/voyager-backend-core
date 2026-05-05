@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * Response DTO that aggregates compatibility scoring details for a matched
+ * traveler. Contains overall score components and matched interests used by
+ * the matching API to present compatibility information.
+ */
+
 import java.util.List;
 
 public class CompatibilityMatchResponse {

@@ -11,6 +11,7 @@ import com.tourism.platform.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,17 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    /**
+     * Register a new user in the system.
+     *
+     * This method validates that the requested username and email do not
+     * already exist, encodes the provided password and persists a new
+     * {@link com.tourism.platform.model.User} entity.
+     *
+     * @param registrationDto DTO containing registration fields (username, email, password, etc.)
+     * @return UserDto representing the newly created user
+     * @throws IllegalArgumentException if the username or email is already taken
+     */
     public UserDto registerUser(UserRegistrationDto registrationDto) {
         // Check if username or email already exists
         if (userRepository.existsByUsername(registrationDto.getUsername())) {
@@ -64,6 +76,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Authenticate a user using username or email and password.
+     *
+     * @param usernameOrEmail username or email provided by the client
+     * @param password        raw password to verify
+     * @return Optional containing UserDto when authentication succeeds and the user is enabled
+     */
     public Optional<UserDto> authenticateUser(String usernameOrEmail, String password) {
         return userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
                 .filter(user -> passwordEncoder.matches(password, user.getPassword()) && user.isEnabled())
@@ -72,13 +91,25 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UserDto> getUserById(Long userId) {
+    /**
+     * Retrieve a user by its identifier.
+     *
+     * @param userId id of the user to retrieve
+     * @return Optional containing UserDto when found
+     */
+    public Optional<UserDto> getUserById(@NonNull Long userId) {
         return userRepository.findById(userId)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Retrieve a user by username.
+     *
+     * @param username username to search for
+     * @return Optional containing UserDto when found
+     */
     public Optional<UserDto> getUserByUsername(String username) {
         return userRepository.findByUsername(username)
                 .map(this::convertToDto);
@@ -86,22 +117,43 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    /**
+     * Retrieve a user by email address.
+     *
+     * @param email email address to search for
+     * @return Optional containing UserDto when found
+     */
     public Optional<UserDto> getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .map(this::convertToDto);
     }
 
     @Override
-    public Optional<UserDto> updateUser(Long userId, UserUpdateDto updateDto) {
+    /**
+     * Update profile information for an existing user.
+     *
+     * @param userId    id of the user to update
+     * @param updateDto DTO with fields to update (nullable fields are ignored)
+     * @return Optional containing the updated UserDto when the user exists
+     * @throws IllegalArgumentException when required update fields are invalid
+     */
+    public Optional<UserDto> updateUser(@NonNull Long userId, @NonNull UserUpdateDto updateDto) {
         return userRepository.findById(userId)
                 .map(user -> {
                     validateUpdateDto(updateDto);
                     updateUserFields(user, updateDto);
+                    @SuppressWarnings("null")
                     User updatedUser = userRepository.save(user);
                     return convertToDto(updatedUser);
                 });
     }
 
+    /**
+     * Validate required fields in the update DTO.
+     *
+     * @param updateDto DTO to validate
+     * @throws IllegalArgumentException if validation fails
+     */
     private void validateUpdateDto(UserUpdateDto updateDto) {
         if (updateDto.getFirstName() == null || updateDto.getFirstName().trim().isEmpty()) {
             throw new IllegalArgumentException("firstName is required");
@@ -111,6 +163,12 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    /**
+     * Apply non-null fields from the update DTO to the user entity.
+     *
+     * @param user      entity to update
+     * @param updateDto DTO containing fields to apply
+     */
     private void updateUserFields(User user, UserUpdateDto updateDto) {
         updateOptionalField(user::setFirstName, updateDto.getFirstName());
         updateOptionalField(user::setLastName, updateDto.getLastName());
@@ -130,7 +188,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean changePassword(Long userId, String currentPassword, String newPassword) {
+    public boolean changePassword(@NonNull Long userId, @NonNull String currentPassword, @NonNull String newPassword) {
         return userRepository.findById(userId)
                 .map(user -> {
                     if (passwordEncoder.matches(currentPassword, user.getPassword())) {
@@ -144,7 +202,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<UserDto> updateUserRole(Long userId, UserRole role) {
+    public Optional<UserDto> updateUserRole(@NonNull Long userId, @NonNull UserRole role) {
         return userRepository.findById(userId)
                 .map(user -> {
                     user.setRole(role);
@@ -154,7 +212,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<UserDto> updateUserStatus(Long userId, UserStatus status) {
+    public Optional<UserDto> updateUserStatus(@NonNull Long userId, @NonNull UserStatus status) {
         return userRepository.findById(userId)
                 .map(user -> {
                     user.setStatus(status);
@@ -164,7 +222,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean deleteUser(Long userId) {
+    public boolean deleteUser(@NonNull Long userId) {
         if (userRepository.existsById(userId)) {
             userRepository.deleteById(userId);
             return true;
@@ -174,46 +232,46 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> getAllUsers(Pageable pageable) {
+    public Page<UserDto> getAllUsers(@NonNull Pageable pageable) {
         return userRepository.findAll(pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> getUsersByRole(UserRole role, Pageable pageable) {
+    public Page<UserDto> getUsersByRole(@NonNull UserRole role, @NonNull Pageable pageable) {
         return userRepository.findByRole(role, pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> getUsersByStatus(UserStatus status, Pageable pageable) {
+    public Page<UserDto> getUsersByStatus(@NonNull UserStatus status, @NonNull Pageable pageable) {
         return userRepository.findByStatus(status, pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserDto> searchUsersByName(String searchTerm, Pageable pageable) {
+    public Page<UserDto> searchUsersByName(@NonNull String searchTerm, @NonNull Pageable pageable) {
         return userRepository.searchByName(searchTerm, pageable)
                 .map(this::convertToDto);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isUsernameAvailable(String username) {
+    public boolean isUsernameAvailable(@NonNull String username) {
         return !userRepository.existsByUsername(username);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isEmailAvailable(String email) {
+    public boolean isEmailAvailable(@NonNull String email) {
         return !userRepository.existsByEmail(email);
     }
 
     @Override
-    public Optional<UserDto> setUserEnabled(Long userId, boolean enabled) {
+    public Optional<UserDto> setUserEnabled(@NonNull Long userId, boolean enabled) {
         return userRepository.findById(userId)
                 .map(user -> {
                     user.setEnabled(enabled);
@@ -233,7 +291,7 @@ public class UserServiceImpl implements UserService {
     /**
      * Convert User entity to UserDto
      */
-    private UserDto convertToDto(User user) {
+    private UserDto convertToDto(@NonNull User user) {
         UserDto dto = new UserDto();
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());

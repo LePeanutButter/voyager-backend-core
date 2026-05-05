@@ -8,10 +8,21 @@ package com.tourism.platform.exception;
  */
 public class ExternalServiceException extends RuntimeException {
 
+    /**
+     * Create a new ExternalServiceException with a message.
+     *
+     * @param message human-readable message describing the external failure
+     */
     public ExternalServiceException(String message) {
         super(message);
     }
 
+    /**
+     * Create a new ExternalServiceException with a message and underlying cause.
+     *
+     * @param message human-readable message
+     * @param cause   underlying exception thrown by the external integration
+     */
     public ExternalServiceException(String message, Throwable cause) {
         super(message, cause);
     }

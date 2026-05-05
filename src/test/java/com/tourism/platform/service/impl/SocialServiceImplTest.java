@@ -4,25 +4,47 @@ import com.tourism.platform.dto.ConnectionRequestDto;
 import com.tourism.platform.dto.SendConnectionRequestDto;
 import com.tourism.platform.dto.TravelConnectionDto;
 import com.tourism.platform.exception.ResourceNotFoundException;
-import com.tourism.platform.model.*;
-import com.tourism.platform.repository.*;
+import com.tourism.platform.model.Connection;
+import com.tourism.platform.model.ConnectionStatus;
+import com.tourism.platform.model.Message;
+import com.tourism.platform.model.MessageStatus;
+import com.tourism.platform.model.User;
+import com.tourism.platform.repository.ConnectionRepository;
+import com.tourism.platform.repository.MessageRepository;
+import com.tourism.platform.repository.SharedSpaceAccessRepository;
+import com.tourism.platform.repository.TravelPlanRepository;
+import com.tourism.platform.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 @ExtendWith(MockitoExtension.class)
 class SocialServiceImplTest {
@@ -212,37 +234,24 @@ class SocialServiceImplTest {
         verify(messageRepository, never()).save(any(Message.class));
     }
 
-    @Test
-    void sendMessage_WithUnauthorizedUser_ShouldThrowException() {
+    @ParameterizedTest
+    @MethodSource("invalidSendMessageInputs")
+    void sendMessage_WithInvalidInput_ShouldThrowException(Long senderId, String content) {
         // Given
         when(connectionRepository.findById(1L)).thenReturn(Optional.of(testConnection));
 
         // When & Then
-        assertThrows(IllegalArgumentException.class, () -> socialService.sendMessage(1L, 3L, "Hello"));
+        assertThrows(IllegalArgumentException.class, () -> socialService.sendMessage(1L, senderId, content));
         verify(connectionRepository).findById(1L);
         verify(messageRepository, never()).save(any(Message.class));
     }
 
-    @Test
-    void sendMessage_WithEmptyContent_ShouldThrowException() {
-        // Given
-        when(connectionRepository.findById(1L)).thenReturn(Optional.of(testConnection));
-
-        // When & Then
-        assertThrows(IllegalArgumentException.class, () -> socialService.sendMessage(1L, 1L, ""));
-        verify(connectionRepository).findById(1L);
-        verify(messageRepository, never()).save(any(Message.class));
-    }
-
-    @Test
-    void sendMessage_WithNullContent_ShouldThrowException() {
-        // Given
-        when(connectionRepository.findById(1L)).thenReturn(Optional.of(testConnection));
-
-        // When & Then
-        assertThrows(IllegalArgumentException.class, () -> socialService.sendMessage(1L, 1L, null));
-        verify(connectionRepository).findById(1L);
-        verify(messageRepository, never()).save(any(Message.class));
+    private static Stream<Arguments> invalidSendMessageInputs() {
+        return Stream.of(
+                arguments(3L, "Hello"),
+                arguments(1L, ""),
+                arguments(1L, null)
+        );
     }
 
     @Test
@@ -313,7 +322,7 @@ class SocialServiceImplTest {
         // Then
         assertEquals(MessageStatus.READ, message.getStatus());
         verify(messageRepository).findById(1L);
-        verify(messageRepository).save(message);
+        verify(messageRepository).save(Objects.requireNonNull(message));
     }
 
     @Test
@@ -500,7 +509,7 @@ class SocialServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals(ConnectionStatus.ACCEPTED.toString(), result.getStatus());
-        verify(connectionRepository).save(connection);
+        verify(connectionRepository).save(Objects.requireNonNull(connection));
     }
 
     @Test
@@ -569,7 +578,7 @@ class SocialServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals(ConnectionStatus.REJECTED.toString(), result.getStatus());
-        verify(connectionRepository).save(connection);
+        verify(connectionRepository).save(Objects.requireNonNull(connection));
     }
 
     @Test
@@ -617,7 +626,7 @@ class SocialServiceImplTest {
         connection2.setStatus(ConnectionStatus.PENDING);
         
         when(connectionRepository.findByRecipientIdAndStatus(2L, ConnectionStatus.PENDING))
-                .thenReturn(List.of(connection1, connection2));
+                .thenReturn(Objects.requireNonNull(List.of(connection1, connection2)));
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.findById(3L)).thenReturn(Optional.of(testUser));
         when(userRepository.findById(2L)).thenReturn(Optional.of(testUser));
@@ -666,7 +675,7 @@ class SocialServiceImplTest {
         connection2.setStatus(ConnectionStatus.PENDING);
         
         when(connectionRepository.findByRequesterIdAndStatus(1L, ConnectionStatus.PENDING))
-                .thenReturn(List.of(connection1, connection2));
+                .thenReturn(Objects.requireNonNull(List.of(connection1, connection2)));
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.findById(2L)).thenReturn(Optional.of(testUser));
         when(userRepository.findById(3L)).thenReturn(Optional.of(testUser));
@@ -727,9 +736,9 @@ class SocialServiceImplTest {
         user3.setLastName("Three");
         
         when(connectionRepository.findByRequesterIdAndStatus(1L, ConnectionStatus.ACCEPTED))
-                .thenReturn(new java.util.ArrayList<>(java.util.List.of(connection1)));
+                .thenReturn(Objects.requireNonNull(new java.util.ArrayList<>(java.util.List.of(connection1))));
         when(connectionRepository.findByRecipientIdAndStatus(1L, ConnectionStatus.ACCEPTED))
-                .thenReturn(new java.util.ArrayList<>(java.util.List.of(connection2)));
+                .thenReturn(Objects.requireNonNull(new java.util.ArrayList<>(java.util.List.of(connection2))));
         when(userRepository.findById(2L)).thenReturn(Optional.of(user2));
         when(userRepository.findById(3L)).thenReturn(Optional.of(user3));
 
@@ -751,9 +760,9 @@ class SocialServiceImplTest {
     void getUserConnections_WithNoConnections_ShouldReturnEmptyList() {
         // Given
         when(connectionRepository.findByRequesterIdAndStatus(1L, ConnectionStatus.ACCEPTED))
-                .thenReturn(new java.util.ArrayList<>());
+                .thenReturn(Objects.requireNonNull(new java.util.ArrayList<>()));
         when(connectionRepository.findByRecipientIdAndStatus(1L, ConnectionStatus.ACCEPTED))
-                .thenReturn(new java.util.ArrayList<>());
+                .thenReturn(Objects.requireNonNull(new java.util.ArrayList<>()));
 
         // When
         List<TravelConnectionDto> result = socialService.getUserConnections(1L);
@@ -769,31 +778,26 @@ class SocialServiceImplTest {
 
     @Test
     void getConversationMessagesPaginated_WithValidConnectionAndUser_ShouldReturnPage() {
-        // Given
         Message message1 = new Message();
         message1.setId(1L);
         message1.setConnectionId(1L);
         message1.setSenderId(1L);
         message1.setRecipientId(2L);
         message1.setContent("Hello");
-        
+
         Message message2 = new Message();
         message2.setId(2L);
         message2.setConnectionId(1L);
         message2.setSenderId(2L);
         message2.setRecipientId(1L);
-        message2.setContent("Hi back");
-        
-        Page<Message> messagePage = new PageImpl<>(List.of(message1, message2));
-        
-        when(connectionRepository.findById(1L)).thenReturn(Optional.of(testConnection));
-        when(messageRepository.findConversationMessages(eq(1L), any(Pageable.class)))
-                .thenReturn(messagePage);
+        message2.setContent("Hi");
 
-        // When
+        Page<Message> expectedPage = new PageImpl<>(List.of(message1, message2), PageRequest.of(0, 10), 2);
+        when(connectionRepository.findById(1L)).thenReturn(Optional.of(testConnection));
+        when(messageRepository.findConversationMessages(eq(1L), any(Pageable.class))).thenReturn(expectedPage);
+
         Page<Message> result = socialService.getConversationMessagesPaginated(1L, 1L, 0, 10);
 
-        // Then
         assertNotNull(result);
         assertEquals(2, result.getContent().size());
         verify(connectionRepository).findById(1L);

@@ -1,5 +1,12 @@
 package com.tourism.platform.dto;
 
+/**
+ * Unit tests for {@link com.tourism.platform.dto.LoginResponseDto}.
+ *
+ * Confirms token construction and the helper factory that maps a `UserDto` into
+ * a login response used by authentication endpoints.
+ */
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

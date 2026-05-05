@@ -13,9 +13,15 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CustomUserDetailsServiceTest {
@@ -38,7 +44,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithValidUsername_ShouldReturnUserDetails() throws Exception {
+    void loadUserByUsername_WithValidUsername_ShouldReturnUserDetails() {
         // Given
         when(userRepository.findByUsernameOrEmail("testuser", "testuser"))
                 .thenReturn(Optional.of(testUser));
@@ -56,7 +62,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithValidEmail_ShouldReturnUserDetails() throws Exception {
+    void loadUserByUsername_WithValidEmail_ShouldReturnUserDetails() {
         // Given
         when(userRepository.findByUsernameOrEmail("test@example.com", "test@example.com"))
                 .thenReturn(Optional.of(testUser));
@@ -73,7 +79,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithNonExistentUser_ShouldThrowUsernameNotFoundException() throws Exception {
+    void loadUserByUsername_WithNonExistentUser_ShouldThrowUsernameNotFoundException() {
         // Given
         when(userRepository.findByUsernameOrEmail("nonexistent", "nonexistent"))
                 .thenReturn(Optional.empty());
@@ -88,7 +94,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithNullUsername_ShouldThrowUsernameNotFoundException() throws Exception {
+    void loadUserByUsername_WithNullUsername_ShouldThrowUsernameNotFoundException() {
         // Given
         when(userRepository.findByUsernameOrEmail(isNull(), isNull()))
                 .thenReturn(Optional.empty());
@@ -101,7 +107,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithEmptyUsername_ShouldThrowUsernameNotFoundException() throws Exception {
+    void loadUserByUsername_WithEmptyUsername_ShouldThrowUsernameNotFoundException() {
         // Given
         when(userRepository.findByUsernameOrEmail("", ""))
                 .thenReturn(Optional.empty());
@@ -116,7 +122,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserById_WithValidId_ShouldReturnUserDetails() throws Exception {
+    void loadUserById_WithValidId_ShouldReturnUserDetails() {
         // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
@@ -132,7 +138,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserById_WithNonExistentId_ShouldThrowUsernameNotFoundException() throws Exception {
+    void loadUserById_WithNonExistentId_ShouldThrowUsernameNotFoundException() {
         // Given
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -146,7 +152,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserById_WithNullId_ShouldThrowUsernameNotFoundException() throws Exception {
+    void loadUserById_WithNullId_ShouldThrowUsernameNotFoundException() {
         // Given
         when(userRepository.findById(isNull())).thenReturn(Optional.empty());
 
@@ -158,7 +164,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithRepositoryException_ShouldPropagateException() throws Exception {
+    void loadUserByUsername_WithRepositoryException_ShouldPropagateException() {
         // Given
         when(userRepository.findByUsernameOrEmail(anyString(), anyString()))
                 .thenThrow(new RuntimeException("Database error"));
@@ -171,7 +177,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserById_WithRepositoryException_ShouldPropagateException() throws Exception {
+    void loadUserById_WithRepositoryException_ShouldPropagateException() {
         // Given
         when(userRepository.findById(anyLong()))
                 .thenThrow(new RuntimeException("Database error"));
@@ -184,7 +190,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithDifferentCase_ShouldWorkCorrectly() throws Exception {
+    void loadUserByUsername_WithDifferentCase_ShouldWorkCorrectly() {
         // Given
         User upperCaseUser = new User();
         upperCaseUser.setId(2L);
@@ -207,7 +213,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserById_WithDifferentIds_ShouldWorkCorrectly() throws Exception {
+    void loadUserById_WithDifferentIds_ShouldWorkCorrectly() {
         // Given
         User user1 = new User();
         user1.setId(1L);
@@ -237,7 +243,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    void loadUserByUsername_WithUserHavingAllFields_ShouldReturnCompleteUserDetails() throws Exception {
+    void loadUserByUsername_WithUserHavingAllFields_ShouldReturnCompleteUserDetails() {
         // Given
         User completeUser = new User();
         completeUser.setId(1L);

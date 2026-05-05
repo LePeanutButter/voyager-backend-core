@@ -1,5 +1,12 @@
 package com.tourism.platform.dto;
 
+/**
+ * Unit tests for {@link com.tourism.platform.dto.SendMessageRequest}.
+ *
+ * Validates construction and basic accessor behavior for message send request
+ * payloads used by messaging endpoints.
+ */
+
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 

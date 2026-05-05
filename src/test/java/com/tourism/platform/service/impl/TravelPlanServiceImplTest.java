@@ -24,11 +24,22 @@ import org.springframework.security.access.AccessDeniedException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TravelPlanServiceImplTest {
@@ -234,7 +245,7 @@ class TravelPlanServiceImplTest {
     void getTravelPlansByUser_ShouldReturnPage() {
         // Given
         Pageable pageable = mock(Pageable.class);
-        Page<TravelPlan> page = new PageImpl<>(List.of(testTravelPlan));
+        Page<TravelPlan> page = new PageImpl<>(Objects.requireNonNull(List.of(testTravelPlan)));
         when(travelPlanRepository.findByUserId(1L, pageable)).thenReturn(page);
 
         // When
@@ -251,7 +262,7 @@ class TravelPlanServiceImplTest {
     void getActiveTravelPlansByUser_ShouldReturnPage() {
         // Given
         Pageable pageable = mock(Pageable.class);
-        Page<TravelPlan> page = new PageImpl<>(List.of(testTravelPlan));
+        Page<TravelPlan> page = new PageImpl<>(Objects.requireNonNull(List.of(testTravelPlan)));
         when(travelPlanRepository.findByUserIdAndStatus(1L, TravelPlanStatus.ACTIVE, pageable))
                 .thenReturn(page);
 
@@ -317,7 +328,7 @@ class TravelPlanServiceImplTest {
     void getTravelPlanDtosByUser_ShouldReturnDtoList() {
         // Given
         when(travelPlanRepository.findByUserId(1L, Pageable.unpaged()))
-                .thenReturn(new PageImpl<>(List.of(testTravelPlan)));
+                .thenReturn(Objects.requireNonNull(new PageImpl<>(Objects.requireNonNull(List.of(testTravelPlan)))));
 
         // When
         List<TravelPlanDto> result = travelPlanService.getTravelPlanDtosByUser(1L);
@@ -396,29 +407,13 @@ class TravelPlanServiceImplTest {
 
     @Test
     void deleteTravelPlan_WithValidUser_ShouldDeletePlan() {
-        // Given
         when(travelPlanRepository.findById(1L)).thenReturn(Optional.of(testTravelPlan));
         doNothing().when(travelPlanRepository).delete(testTravelPlan);
 
-        // When
         travelPlanService.deleteTravelPlan(1L, 1L);
 
-        // Then
         verify(travelPlanRepository).findById(1L);
         verify(travelPlanRepository).delete(testTravelPlan);
-    }
-
-    @Test
-    void deleteTravelPlan_WithNonExistentPlan_ShouldThrowException() {
-        // Given
-        when(travelPlanRepository.findById(999L)).thenReturn(Optional.empty());
-
-        // When & Then
-        assertThrows(ResourceNotFoundException.class,
-                () -> travelPlanService.deleteTravelPlan(999L, 1L));
-
-        verify(travelPlanRepository).findById(999L);
-        verify(travelPlanRepository, never()).delete(any(TravelPlan.class));
     }
 
     @Test

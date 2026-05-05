@@ -12,7 +12,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import static org.hamcrest.Matchers.containsString;
+import java.util.Objects;
+
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,19 +41,19 @@ class GoogleAuthControllerTest {
     }
 
     @Test
-    void login_RedirectsToGoogle_WhenConfigured() throws Exception {
+    void loginRedirectsToGoogleWhenConfigured() throws Exception {
         when(properties.getClientId()).thenReturn("cid");
         when(properties.getRedirectUri()).thenReturn("http://localhost/cb");
         when(properties.getScopes()).thenReturn("openid email profile");
 
         mockMvc.perform(get("/auth/google/login"))
                 .andExpect(status().isFound())
-                .andExpect(header().string("Location", containsString("accounts.google.com")))
-                .andExpect(header().string("Location", containsString("client_id=cid")));
+                .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("accounts.google.com"))))
+                .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("client_id=cid"))));
     }
 
     @Test
-    void login_ReturnsBadRequest_WhenClientIdMissing() throws Exception {
+    void loginReturnsBadRequestWhenClientIdMissing() throws Exception {
         when(properties.getClientId()).thenReturn(" ");
 
         mockMvc.perform(get("/auth/google/login"))
@@ -60,7 +61,7 @@ class GoogleAuthControllerTest {
     }
 
     @Test
-    void callback_RedirectsWithToken_OnSuccess() throws Exception {
+    void callbackRedirectsWithTokenOnSuccess() throws Exception {
         when(properties.getFrontendRedirectUri()).thenReturn("http://frontend/app/oauth");
         UserDto dto = new UserDto();
         dto.setToken("jwt-value");
@@ -68,39 +69,39 @@ class GoogleAuthControllerTest {
 
         mockMvc.perform(get("/auth/google/callback").param("code", "abc"))
                 .andExpect(status().isFound())
-                .andExpect(header().string("Location", containsString("token=jwt-value")));
+                .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("token=jwt-value"))));
 
         verify(googleAuthService).authenticateWithAuthorizationCode("abc");
     }
 
     @Test
-    void callback_RedirectsWithError_WhenOAuthError() throws Exception {
+    void callbackRedirectsWithErrorWhenOAuthError() throws Exception {
         when(properties.getFrontendRedirectUri()).thenReturn("http://frontend/app/oauth");
 
         mockMvc.perform(get("/auth/google/callback")
                         .param("error", "access_denied")
                         .param("error_description", "User cancelled"))
                 .andExpect(status().isFound())
-                .andExpect(header().string("Location", containsString("error=oauth_error")));
+                .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("error=oauth_error"))));
     }
 
     @Test
-    void callback_RedirectsWithError_WhenCodeMissing() throws Exception {
+    void callbackRedirectsWithErrorWhenCodeMissing() throws Exception {
         when(properties.getFrontendRedirectUri()).thenReturn("http://frontend/app/oauth");
 
         mockMvc.perform(get("/auth/google/callback"))
                 .andExpect(status().isFound())
-                .andExpect(header().string("Location", containsString("error=missing_code")));
+                .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("error=missing_code"))));
     }
 
     @Test
-    void callback_RedirectsWithError_OnAuthFailure() throws Exception {
+    void callbackRedirectsWithErrorOnAuthFailure() throws Exception {
         when(properties.getFrontendRedirectUri()).thenReturn("http://frontend/app/oauth");
         when(googleAuthService.authenticateWithAuthorizationCode(anyString()))
                 .thenThrow(new RuntimeException("boom"));
 
         mockMvc.perform(get("/auth/google/callback").param("code", "x"))
                 .andExpect(status().isFound())
-                .andExpect(header().string("Location", containsString("error=auth_failed")));
+                .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("error=auth_failed"))));
     }
 }

@@ -16,6 +16,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @EnableJpaAuditing
 public class TourismPlatformApplication {
 
+    /**
+     * Application entry point.
+     *
+     * @param args command-line arguments passed to the application
+     */
     public static void main(String[] args) {
         SpringApplication.run(TourismPlatformApplication.class, args);
     }

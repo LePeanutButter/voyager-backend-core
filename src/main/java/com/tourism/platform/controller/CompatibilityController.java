@@ -1,9 +1,13 @@
 package com.tourism.platform.controller;
 
+import com.tourism.platform.config.OpenApiConfig;
 import com.tourism.platform.dto.ApiResponse;
 import com.tourism.platform.dto.CompatibilityMatchRequest;
 import com.tourism.platform.dto.CompatibilityMatchResponse;
 import com.tourism.platform.service.CompatibilityMatchingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -21,6 +25,8 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/compatibility")
 @Validated
+@Tag(name = "Compatibility matching", description = "Scores candidate travelers against the authenticated user using interests, destination overlap, and other signals.")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 public class CompatibilityController {
     private static final Logger log = LoggerFactory.getLogger(CompatibilityController.class);
     private static final String EVENT_ENTRY = "event=controller_entry endpoint={} userId={}";
@@ -35,6 +41,17 @@ public class CompatibilityController {
     }
 
     @PostMapping("/matches")
+    @Operation(
+            summary = "Find compatibility-ranked travelers",
+            description = "Computes compatibility scores for the authenticated user from the JSON body (destination, dates, optional interests).")
+    /**
+     * Compute compatibility matches for the authenticated user based on the request payload.
+     *
+     * @param request            compatibility match request containing criteria
+     * @param authentication     authentication principal of the requesting user
+     * @param httpServletRequest current HTTP request (used to populate response path)
+     * @return ResponseEntity wrapping an ApiResponse with a list of CompatibilityMatchResponse
+     */
     public ResponseEntity<ApiResponse<List<CompatibilityMatchResponse>>> findMatches(
             @Valid @RequestBody CompatibilityMatchRequest request,
             Authentication authentication,
@@ -53,10 +70,22 @@ public class CompatibilityController {
     }
 
     private String safePath(HttpServletRequest request) {
+        /**
+         * Safely extract the request URI or return an empty string when request is null.
+         *
+         * @param request HTTP servlet request or null
+         * @return request URI string or empty string
+         */
         return request != null ? request.getRequestURI() : "";
     }
 
     private String authenticatedUsername(Authentication authentication) {
+        /**
+         * Return the username from the Authentication object.
+         *
+         * @param authentication Spring Security authentication (must not be null)
+         * @return username string
+         */
         return Objects.requireNonNull(authentication, "authentication is required").getName();
     }
 }

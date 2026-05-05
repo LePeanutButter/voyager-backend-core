@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * Summary DTO exposing aggregated traveler information such as counts of
+ * connections, active plans and recent activity used on profile summary
+ * endpoints.
+ */
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

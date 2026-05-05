@@ -5,7 +5,7 @@
 #   - Restores, builds, and tests the Java backend
 #   - Performs static code analysis with SonarCloud
 #   - Performs security scanning with Trivy
-#   - Produces production deployment artifact and manual deployment handoff
+#   - Builds a Docker image and publishes a docker save tarball for manual EC2 deploy (RDS external)
 #   - Runs on every push or pull request to 'main'
 # ===========================================
 
@@ -39,7 +39,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Run Trivy filesystem scan
+      # Step 2: Install Trivy from official APT repo (avoids setup-trivy GitHub binary download failures)
+      - name: Install Trivy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -qq
+          sudo apt-get install -y trivy
+
+      # Step 3: Run Trivy filesystem scan (skip embedded setup; use APT-installed binary)
       - name: Run Trivy FS Scan
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
         with:
@@ -48,6 +58,7 @@ jobs:
           format: 'table'
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
+          skip-setup-trivy: 'true'
 
   # =========================================
   # Job: SonarCloud Scan
@@ -100,7 +111,7 @@ jobs:
 
   # =========================================
   # Job: Build Stage
-  # Purpose: Build, test and package Java backend
+  # Purpose: Run tests, build Docker image, export tarball for EC2 (RDS outside container)
   # =========================================
   build:
     name: Build & Test (Java)
@@ -123,23 +134,24 @@ jobs:
       - name: Run unit tests
         run: mvn -B test
 
-      # Step 4: Build package
-      - name: Build package
-        run: mvn -B -DskipTests package
+      # Step 4: Build Spring Boot package (Dockerfile multi-stage runs mvn package)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # Step 5: Prepare artifact
-      - name: Prepare JAR artifact
+      - name: Build Docker image
         run: |
           mkdir -p release
-          JAR_FILE=$(find target -maxdepth 1 -name "*.jar" ! -name "*original*" | head -n 1)
-          cp "$JAR_FILE" release/backend-app.jar
+          docker build -t voyager-backend:latest .
 
-      # Step 6: Upload build artifact for deployment
-      - name: Upload backend artifact
+      - name: Save image for Learner Lab (docker load on EC2)
+        run: docker save voyager-backend:latest -o release/voyager-backend-image.tar
+
+      # Step 5: Upload image tarball for deployment
+      - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jar
-          path: release/backend-app.jar
+          name: backend-docker-image
+          path: release/voyager-backend-image.tar
 
   # =========================================
   # Job: Deploy Stage (Manual)
@@ -154,18 +166,22 @@ jobs:
       AWS_REGION: us-east-1
       BACKEND_ASG_NAME: smarttrip-backend-asg
     steps:
-      # Step 1: Download packaged artifact
-      - name: Download backend artifact
+      - name: Checkout repository (for deploy script path)
+        uses: actions/checkout@v4
+
+      - name: Make deploy script executable
+        run: chmod +x scripts/ec2-deploy-backend.sh
+
+      - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
-          name: backend-jar
+          name: backend-docker-image
           path: release
 
-      # Step 2: Publish manual deployment package
-      - name: Upload manual deployment package
+      - name: Publish manual deployment package
         uses: actions/upload-artifact@v4
         with:
           name: backend-production-manual-deploy
           path: |
-            release/backend-app.jar
-            scripts/deploy-backend-manual.sh
+            release/voyager-backend-image.tar
+            scripts/ec2-deploy-backend.sh
