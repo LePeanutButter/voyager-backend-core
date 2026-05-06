@@ -192,6 +192,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/activities/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/services/**").permitAll()
                 
+                // Travel catalog (Amadeus) — JWT required (protects quotas and hides provider keys)
+                .requestMatchers("/catalog/**").authenticated()
+
                 // Travel planning endpoints (authenticated)
                 .requestMatchers("/travel-plans/**").authenticated()
                 

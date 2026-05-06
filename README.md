@@ -190,9 +190,35 @@ export CORS_ALLOW_ALL_ORIGINS=false
 
 # Optional
 export SERVER_PORT=8080
+
+# Travel catalog (GET /catalog/* — JWT required)
+# Default: mock Amadeus-shaped JSON (~560 records, dates 2026-05-25 … 2027-01-31), no API key.
+export AMADEUS_CATALOG_ENABLED=true
+export AMADEUS_MOCK_MODE=true
+# Live Amadeus (set mock false + OAuth2 app credentials):
+# export AMADEUS_MOCK_MODE=false
+# export AMADEUS_API_HOST=https://test.api.amadeus.com
+# export AMADEUS_CLIENT_ID=...
+# export AMADEUS_CLIENT_SECRET=...
+# Optional: AMADEUS_CONNECT_TIMEOUT_MS, AMADEUS_READ_TIMEOUT_MS
 ```
 
 For **RDS**, append SSL parameters as needed, for example: `DB_URL=jdbc:postgresql://your-host:5432/tourism_platform?sslmode=require`.
+
+### Travel catalog (Amadeus-compatible)
+
+Authenticated endpoints under **`/catalog`** (full path: `/api/v1/catalog/...`):
+
+| Method | Path | Amadeus API (approx.) |
+|--------|------|------------------------|
+| GET | `/catalog/flights` | Flight Offers Search v2 |
+| GET | `/catalog/hotels/by-city` | Hotel list by city |
+| GET | `/catalog/hotels/offers` | Hotel offers shopping v3 |
+| GET | `/catalog/activities` | Tours & activities by lat/long |
+
+**Default (`AMADEUS_MOCK_MODE=true`)**: responses are generated locally with the **same JSON shapes** as Amadeus (flight-offer, hotel refs, hotel-offers, activities) so the web/mobile client can switch to production later without changing parsers. The dataset includes **560+** mocked flights, hotels, and activities across many countries/cities and departure/stay dates from **2026-05-25** through **2027-01-31** (deterministic seed).
+
+**Live Amadeus**: set `AMADEUS_MOCK_MODE=false` and provide `AMADEUS_CLIENT_ID` / `AMADEUS_CLIENT_SECRET`; the server still uses **client credentials** only on the backend. Pricing and availability then come from [Amadeus Self-Service APIs](https://developers.amadeus.com) (`AMADEUS_API_HOST`).
 
 ## API Documentation
 
