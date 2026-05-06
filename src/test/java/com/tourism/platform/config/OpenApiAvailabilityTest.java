@@ -17,7 +17,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
+        // Satisfy application.yml placeholders before beans bind (CI has no .env)
+        "DB_USERNAME=sa",
+        "DB_PASSWORD=",
+        "JWT_SECRET=test-jwt-secret-for-openapi-test-1234567890",
         "spring.security.jwt.secret=test-jwt-secret-for-openapi-test-1234567890",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.flyway.enabled=false",
         "spring.sql.init.mode=never"
 })
