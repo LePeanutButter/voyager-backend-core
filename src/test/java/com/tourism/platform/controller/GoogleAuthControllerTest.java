@@ -67,7 +67,10 @@ class GoogleAuthControllerTest {
         dto.setToken("jwt-value");
         when(googleAuthService.authenticateWithAuthorizationCode("abc")).thenReturn(dto);
 
-        mockMvc.perform(get("/auth/google/callback").param("code", "abc"))
+        mockMvc.perform(get("/auth/google/callback")
+                        .param("code", "abc")
+                        .param("state", "ok-state")
+                        .cookie(new jakarta.servlet.http.Cookie("google_oauth_state", "ok-state")))
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("token=jwt-value"))));
 
@@ -100,7 +103,10 @@ class GoogleAuthControllerTest {
         when(googleAuthService.authenticateWithAuthorizationCode(anyString()))
                 .thenThrow(new RuntimeException("boom"));
 
-        mockMvc.perform(get("/auth/google/callback").param("code", "x"))
+        mockMvc.perform(get("/auth/google/callback")
+                        .param("code", "x")
+                        .param("state", "ok-state")
+                        .cookie(new jakarta.servlet.http.Cookie("google_oauth_state", "ok-state")))
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", Objects.requireNonNull(org.hamcrest.Matchers.containsString("error=auth_failed"))));
     }

@@ -1,6 +1,8 @@
 package com.tourism.platform.controller;
 
 import java.time.LocalDateTime;
+import java.security.Principal;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.tourism.platform.dto.ChatMessage;
 import com.tourism.platform.model.Message;
 import com.tourism.platform.model.MessageStatus;
+import com.tourism.platform.model.User;
+import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.SocialService;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +35,12 @@ class ChatWebSocketControllerTest {
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private Principal principal;
 
     @InjectMocks
     private ChatWebSocketController chatWebSocketController;
@@ -55,6 +65,17 @@ class ChatWebSocketControllerTest {
         savedMessage.setContent("Hello world");
         savedMessage.setStatus(MessageStatus.SENT);
         savedMessage.setCreatedAt(LocalDateTime.now());
+
+        User authUser = User.builder()
+                .id(1L)
+                .username("alice")
+                .email("alice@example.com")
+                .password("encoded")
+                .firstName("Alice")
+                .lastName("Doe")
+                .build();
+        when(principal.getName()).thenReturn("alice");
+        when(userRepository.findByUsernameOrEmail("alice", "alice")).thenReturn(Optional.of(authUser));
     }
 
     @Test
@@ -65,7 +86,7 @@ class ChatWebSocketControllerTest {
                 .thenReturn(savedMessage);
 
         // When
-        chatWebSocketController.sendMessage(1L, testChatMessage);
+        chatWebSocketController.sendMessage(1L, testChatMessage, principal);
 
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");
@@ -82,7 +103,7 @@ class ChatWebSocketControllerTest {
                 .thenThrow(new RuntimeException("Connection not found"));
 
         // When
-        chatWebSocketController.sendMessage(1L, testChatMessage);
+        chatWebSocketController.sendMessage(1L, testChatMessage, principal);
 
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");
@@ -103,7 +124,7 @@ class ChatWebSocketControllerTest {
                 .thenThrow(new IllegalArgumentException("User not authorized"));
 
         // When
-        chatWebSocketController.sendMessage(1L, testChatMessage);
+        chatWebSocketController.sendMessage(1L, testChatMessage, principal);
 
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");
@@ -125,7 +146,7 @@ class ChatWebSocketControllerTest {
                 .build();
 
         // When
-        chatWebSocketController.handleTyping(1L, typingMessage);
+        chatWebSocketController.handleTyping(1L, typingMessage, principal);
 
         // Then
         verify(messagingTemplate, times(1)).convertAndSend(
@@ -145,7 +166,7 @@ class ChatWebSocketControllerTest {
                 .build();
 
         // When
-        chatWebSocketController.handleTyping(2L, typingMessage);
+        chatWebSocketController.handleTyping(2L, typingMessage, principal);
 
         // Then
         verify(messagingTemplate, times(1)).convertAndSend(
@@ -171,7 +192,7 @@ class ChatWebSocketControllerTest {
                 .thenReturn(messageWithNullRecipient);
 
         // When
-        chatWebSocketController.sendMessage(1L, testChatMessage);
+        chatWebSocketController.sendMessage(1L, testChatMessage, principal);
 
         // Then
         verify(socialService).sendMessage(1L, 1L, "Hello world");

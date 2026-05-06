@@ -9,6 +9,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -56,6 +58,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private boolean isProtectedEndpoint(HttpServletRequest request) {
         String path = request.getRequestURI();
         String method = request.getMethod();
+        if ("POST".equalsIgnoreCase(method) && (path.endsWith("/users/login") || path.endsWith("/users/register"))) {
+            return true;
+        }
+        if ("GET".equalsIgnoreCase(method) && path.endsWith("/auth/google/callback")) {
+            return true;
+        }
         return ("POST".equalsIgnoreCase(method) && path.matches(".*/activities/\\d+/share$"))
                 || ("PATCH".equalsIgnoreCase(method) && path.matches(".*/shared-activities/\\d+$"))
                 || ("GET".equalsIgnoreCase(method) && path.endsWith("/matches"))
@@ -63,7 +71,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private String resolveClientKey(HttpServletRequest request) {
-        String user = request.getRemoteUser();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String user = authentication != null && authentication.isAuthenticated() ? authentication.getName() : null;
         if (user != null && !user.isBlank()) {
             return "user:" + user;
         }

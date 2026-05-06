@@ -6,7 +6,6 @@ package com.tourism.platform.dto;
  */
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,10 +14,13 @@ import lombok.Setter;
 @Getter
 public class SendMessageRequest {
     // Getters and Setters
-    @NotNull
+    @jakarta.validation.constraints.NotNull
     private Long connectionId;
 
-    @NotNull
+    /**
+     * Deprecated on input: server now derives sender from authenticated principal.
+     * Kept for backward compatibility with older clients.
+     */
     private Long senderId;
 
     @NotBlank
