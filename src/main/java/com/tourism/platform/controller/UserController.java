@@ -169,6 +169,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update user profile", description = "Updates user profile information")
+    @PreAuthorize("#id == authentication.principal.id or hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
         /**
          * Update a user's profile information.
          *

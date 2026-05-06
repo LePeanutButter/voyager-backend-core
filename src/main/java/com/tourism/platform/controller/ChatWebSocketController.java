@@ -6,11 +6,14 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import java.security.Principal;
 
 import io.swagger.v3.oas.annotations.Hidden;
 
 import com.tourism.platform.dto.ChatMessage;
 import com.tourism.platform.model.Message;
+import com.tourism.platform.model.User;
+import com.tourism.platform.repository.UserRepository;
 import com.tourism.platform.service.SocialService;
 
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ public class ChatWebSocketController {
 
     private final SocialService socialService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final UserRepository userRepository;
 
     @MessageMapping("/chat/{connectionId}/sendMessage")
         /**
@@ -38,12 +42,13 @@ public class ChatWebSocketController {
          * @param connectionId id of the connection the message belongs to
          * @param chatMessage  payload containing senderId, content and metadata
          */
-        public void sendMessage(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
+        public void sendMessage(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage, Principal principal) {
         try {
+            Long authenticatedSenderId = resolveAuthenticatedUserId(principal);
             // Save message to database
             Message savedMessage = socialService.sendMessage(
                     connectionId,
-                    chatMessage.getSenderId(),
+                    authenticatedSenderId,
                     chatMessage.getContent()
             );
 
@@ -73,12 +78,13 @@ public class ChatWebSocketController {
 
                 } catch (RuntimeException e) {
             // Send error back to sender
+            Long authenticatedSenderId = resolveAuthenticatedUserId(principal);
             ChatMessage error = ChatMessage.builder()
                     .type("ERROR")
                     .content("Failed to send message: " + e.getMessage())
                     .build();
             messagingTemplate.convertAndSend(
-                    USER_QUEUE_PREFIX + chatMessage.getSenderId(),
+                    USER_QUEUE_PREFIX + authenticatedSenderId,
                     java.util.Objects.requireNonNull(error)
             );
         }
@@ -91,12 +97,13 @@ public class ChatWebSocketController {
          * @param connectionId id of the connection where typing is occurring
          * @param chatMessage  payload containing senderId
          */
-        public void handleTyping(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage) {
+        public void handleTyping(@DestinationVariable Long connectionId, @Payload @NonNull ChatMessage chatMessage, Principal principal) {
+        Long authenticatedSenderId = resolveAuthenticatedUserId(principal);
         ChatMessage typingNotification = ChatMessage.builder()
                 .connectionId(connectionId)
-                .senderId(chatMessage.getSenderId())
+                .senderId(authenticatedSenderId)
                 .type("TYPING")
-                .content(chatMessage.getSenderId() + " is typing...")
+                .content(authenticatedSenderId + " is typing...")
                 .build();
 
         // Send typing notification to the other user in the connection
@@ -104,5 +111,14 @@ public class ChatWebSocketController {
                 "/topic/chat/" + connectionId + "/typing",
                 java.util.Objects.requireNonNull(typingNotification)
         );
+    }
+
+    private Long resolveAuthenticatedUserId(Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            throw new IllegalArgumentException("WebSocket principal is required");
+        }
+        User user = userRepository.findByUsernameOrEmail(principal.getName(), principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+        return user.getId();
     }
 }

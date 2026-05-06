@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * REST Controller for Social Features
@@ -67,6 +69,8 @@ public class SocialController {
     private final SocialService socialService;
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService customUserDetailsService;
+    @Value("${app.social.demo-enabled:false}")
+    private boolean demoEndpointsEnabled;
 
     /**
      * Resolves the current user id from {@link SecurityContextHolder} (authenticated, non-anonymous principal)
@@ -141,6 +145,27 @@ public class SocialController {
         return null;
     }
 
+    private void enforceSelfOrPrivileged(Long requestedUserId, HttpServletRequest request) {
+        Long currentUserId = getCurrentUserId(request);
+        if (currentUserId.equals(requestedUserId)) {
+            return;
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Set<String> roles = authentication.getAuthorities().stream()
+                .map(auth -> auth.getAuthority())
+                .collect(java.util.stream.Collectors.toSet());
+        if (roles.contains("ROLE_ADMIN") || roles.contains("ROLE_SUPER_ADMIN")) {
+            return;
+        }
+        throw new AuthenticationCredentialsNotFoundException("Access denied for requested user resource");
+    }
+
+    private void ensureDemoEndpointEnabled() {
+        if (!demoEndpointsEnabled) {
+            throw new IllegalArgumentException("This demo endpoint is disabled in the current environment");
+        }
+    }
+
     // Traveler Connections
     @PostMapping("/connections")
     @Operation(summary = "Send connection request", description = "Sends a connection request to another traveler")
@@ -177,6 +202,7 @@ public class SocialController {
     public ResponseEntity<ApiResponse<List<TravelConnectionDto>>> getUserConnections(
             @Parameter(description = "User ID") @PathVariable Long userId,
             HttpServletRequest request) {
+        enforceSelfOrPrivileged(userId, request);
         List<TravelConnectionDto> connections = socialService.getUserConnections(userId);
         ApiResponse<List<TravelConnectionDto>> response = ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -352,6 +378,7 @@ public class SocialController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> createReview(
             @Valid @RequestBody Map<String, Object> reviewData,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         Map<String, Object> responseData = Map.of(
                 "reviewId", 1L,
                 "targetId", reviewData.get("targetId"),
@@ -387,6 +414,7 @@ public class SocialController {
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         List<Map<String, Object>> reviews = List.of(
                 Map.of("id", 1L, RATING, 5, COMMENT, "Great experience!", AUTHOR, JOHN_DOE),
                 Map.of("id", 2L, RATING, 4, COMMENT, "Amazing place!", AUTHOR, JANE_SMITH),
@@ -411,6 +439,7 @@ public class SocialController {
             @Parameter(description = "Review ID") @PathVariable Long reviewId,
             @Valid @RequestBody Map<String, Object> updateData,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         /**
          * Update an existing review. This placeholder returns an updated metadata map.
          *
@@ -439,6 +468,7 @@ public class SocialController {
     public ResponseEntity<ApiResponse<Void>> deleteReview(
             @Parameter(description = "Review ID") @PathVariable Long reviewId,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         /**
          * Delete an existing review identified by id.
          *
@@ -459,6 +489,8 @@ public class SocialController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getConversations(
             @Parameter(description = "User ID") @PathVariable Long userId,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
+        enforceSelfOrPrivileged(userId, request);
         /**
          * Retrieve a list of conversation summaries for the specified user.
          *
@@ -487,7 +519,7 @@ public class SocialController {
     @Operation(summary = "Get conversation messages", description = "Retrieves paginated messages from a specific connection")
     public ResponseEntity<PagedResponse<Message>> getConversationMessages(
             @Parameter(description = "Connection ID") @PathVariable Long connectionId,
-            @Parameter(description = "User ID") @RequestParam Long userId,
+            @Parameter(description = "User ID (deprecated; ignored)") @RequestParam(required = false) Long userId,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "50") int size,
             HttpServletRequest request) {
@@ -503,7 +535,11 @@ public class SocialController {
          * @return ResponseEntity with PagedResponse containing Message objects
          */
 
-        Page<Message> messagesPage = socialService.getConversationMessagesPaginated(connectionId, userId, page, size);
+        Long currentUserId = getCurrentUserId(request);
+        if (userId != null && !userId.equals(currentUserId)) {
+            throw new IllegalArgumentException("userId parameter does not match authenticated user");
+        }
+        Page<Message> messagesPage = socialService.getConversationMessagesPaginated(connectionId, currentUserId, page, size);
 
         PagedResponse<Message> response = PagedResponse.fromPage(
                 messagesPage,
@@ -545,6 +581,8 @@ public class SocialController {
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
+        enforceSelfOrPrivileged(userId, request);
         /**
          * Retrieve a paginated social feed for the specified user.
          *
@@ -580,6 +618,7 @@ public class SocialController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> createPost(
             @Valid @RequestBody Map<String, Object> postData,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         /**
          * Create a new post in the social feed.
          *
@@ -607,6 +646,7 @@ public class SocialController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> likePost(
             @Parameter(description = "Post ID") @PathVariable Long postId,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         /**
          * Like a post on behalf of the authenticated user.
          *
@@ -634,6 +674,7 @@ public class SocialController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> unlikePost(
             @Parameter(description = "Post ID") @PathVariable Long postId,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         /**
          * Remove a like from a post for the authenticated user.
          *
@@ -662,6 +703,7 @@ public class SocialController {
             @Parameter(description = "Post ID") @PathVariable Long postId,
             @Valid @RequestBody Map<String, Object> commentData,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         /**
          * Add a comment to a post.
          *
@@ -692,6 +734,7 @@ public class SocialController {
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
+        ensureDemoEndpointEnabled();
         /**
          * Retrieve paginated comments for a specific post.
          *
@@ -731,11 +774,11 @@ public class SocialController {
          * @param httpRequest    current HTTP request used to resolve authentication and build response path
          * @return ResponseEntity with ApiResponse containing the created Message and HTTP 201
          */
-        Message message = socialService.sendMessage(
-                messageRequest.getConnectionId(),
-                messageRequest.getSenderId(),
-                messageRequest.getContent()
-        );
+        Long currentUserId = getCurrentUserId(httpRequest);
+        if (messageRequest.getSenderId() != null && !messageRequest.getSenderId().equals(currentUserId)) {
+            throw new IllegalArgumentException("senderId does not match authenticated user");
+        }
+        Message message = socialService.sendMessage(messageRequest.getConnectionId(), currentUserId, messageRequest.getContent());
         ApiResponse<Message> response = ApiResponse.success(
                 HttpStatus.CREATED.value(),
                 "Message sent successfully",

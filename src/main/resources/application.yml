@@ -22,8 +22,8 @@ spring:
   # Database Configuration
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/tourism_platform}
-    username: ${DB_USERNAME:SWNT_user}
-    password: ${DB_PASSWORD:1234}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -54,7 +54,7 @@ spring:
   # Security Configuration
   security:
     jwt:
-      secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890}
+      secret: ${JWT_SECRET}
       expiration: ${JWT_EXPIRATION:86400000} # 24 hours
       refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days
   mvc:
@@ -147,6 +147,12 @@ app:
     default-size: 20
     max-size: 100
 
+  social:
+    demo-enabled: ${SOCIAL_DEMO_ENABLED:false}
+
+  websocket:
+    allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:5173}
+
 # Google OAuth2 - custom config
 google:
   oauth2:
@@ -172,6 +178,10 @@ logging:
   level:
     com.tourism.platform: DEBUG
     org.springframework.security: INFO
+
+app:
+  social:
+    demo-enabled: ${SOCIAL_DEMO_ENABLED:true}
 
 ---
 # Production Profile

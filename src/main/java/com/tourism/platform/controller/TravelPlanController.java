@@ -32,6 +32,7 @@ import org.springframework.http.ResponseEntity;
 import com.tourism.platform.model.User;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
@@ -152,6 +153,7 @@ public class TravelPlanController {
 
     @GetMapping("/user/{userId}")
     @Operation(summary = "Get travel plans by user", description = "Retrieves all travel plans for a specific user")
+    @PreAuthorize("#userId == authentication.principal.id or hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
     /**
      * Retrieve paginated travel plans for a given user id.
      *

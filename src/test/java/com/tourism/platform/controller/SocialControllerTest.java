@@ -20,8 +20,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.util.ReflectionTestUtils;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -87,6 +90,7 @@ class SocialControllerTest {
     @BeforeEach
     void setUp() {
         SocialController controller = new SocialController(socialService, jwtTokenProvider, customUserDetailsService);
+        ReflectionTestUtils.setField(controller, "demoEndpointsEnabled", true);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
@@ -120,7 +124,8 @@ class SocialControllerTest {
         void getUserConnectionsOk() throws Exception {
         when(socialService.getUserConnections(2L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/social/connections/{userId}", 2L))
+        mockMvc.perform(get("/social/connections/{userId}", 2L)
+                        .with(domainUser(travelerPrincipal(2L, "u2"))))
                 .andExpect(status().isOk());
     }
 
@@ -182,32 +187,38 @@ class SocialControllerTest {
 
     @Test
         void reviewsFlowOk() throws Exception {
-        mockMvc.perform(get("/social/reviews/{type}/{id}", "destination", 1L))
+        mockMvc.perform(get("/social/reviews/{type}/{id}", "destination", 1L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/social/reviews")
+                        .with(domainUser(travelerPrincipal(1L, "u")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"targetId\":1,\"targetType\":\"destination\",\"rating\":5,\"comment\":\"nice\"}"))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(put("/social/reviews/{id}", 8L)
+                        .with(domainUser(travelerPrincipal(1L, "u")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"rating\":4,\"comment\":\"ok\"}"))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(delete("/social/reviews/{id}", 8L))
+        mockMvc.perform(delete("/social/reviews/{id}", 8L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
     }
 
     @Test
         void conversationsAndMessagesOk() throws Exception {
-        mockMvc.perform(get("/social/conversations/{userId}", 2L))
+        mockMvc.perform(get("/social/conversations/{userId}", 2L)
+                        .with(domainUser(travelerPrincipal(2L, "u2"))))
                 .andExpect(status().isOk());
 
         when(socialService.getConversationMessagesPaginated(1L, 2L, 0, 50))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 50), 0));
 
         mockMvc.perform(get("/social/connections/{connectionId}/messages", 1L)
+                        .with(domainUser(travelerPrincipal(2L, "u2")))
                         .param("userId", "2"))
                 .andExpect(status().isOk());
 
@@ -219,26 +230,32 @@ class SocialControllerTest {
 
     @Test
         void feedAndPostsOk() throws Exception {
-        mockMvc.perform(get("/social/feed/{userId}", 1L))
+        mockMvc.perform(get("/social/feed/{userId}", 1L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/social/posts")
+                        .with(domainUser(travelerPrincipal(1L, "u")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\":\"hi\",\"type\":\"POST\"}"))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/social/posts/{postId}/like", 5L))
+        mockMvc.perform(post("/social/posts/{postId}/like", 5L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(delete("/social/posts/{postId}/like", 5L))
+        mockMvc.perform(delete("/social/posts/{postId}/like", 5L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/social/posts/{postId}/comments", 5L)
+                        .with(domainUser(travelerPrincipal(1L, "u")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\":\"c\"}"))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(get("/social/posts/{postId}/comments", 5L))
+        mockMvc.perform(get("/social/posts/{postId}/comments", 5L)
+                        .with(domainUser(travelerPrincipal(1L, "u"))))
                 .andExpect(status().isOk());
     }
 
@@ -251,6 +268,7 @@ class SocialControllerTest {
         SendMessageRequest body = new SendMessageRequest(1L, 2L, "hey");
 
         mockMvc.perform(post("/social/messages")
+                        .with(domainUser(travelerPrincipal(2L, "u2")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
@@ -377,5 +395,95 @@ class SocialControllerTest {
                         .content(objectMapper.writeValueAsString(body))));
 
         assertThat(ex.getCause()).isInstanceOf(AuthenticationCredentialsNotFoundException.class);
+    }
+
+    @Test
+    void getUserConnectionsDeniedForOtherNonAdminUser() {
+        assertThrows(ServletException.class, () ->
+                mockMvc.perform(get("/social/connections/{userId}", 2L)
+                        .with(domainUser(travelerPrincipal(9L, "intruder")))));
+    }
+
+    @Test
+    void getUserConnectionsAllowedForAdminViewingOtherUser() throws Exception {
+        User admin = travelerPrincipal(1L, "admin");
+        admin.setRole(UserRole.ADMIN);
+        when(socialService.getUserConnections(3L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/social/connections/{userId}", 3L).with(domainUser(admin)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void demoEndpointsReturnErrorWhenDisabled() {
+        SocialController disabledController = new SocialController(socialService, jwtTokenProvider, customUserDetailsService);
+        ReflectionTestUtils.setField(disabledController, "demoEndpointsEnabled", false);
+        MockMvc disabledMvc = MockMvcBuilders.standaloneSetup(disabledController).build();
+
+        assertThrows(ServletException.class, () ->
+                disabledMvc.perform(post("/social/reviews")
+                        .with(domainUser(travelerPrincipal(1L, "u")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetId\":1,\"targetType\":\"d\",\"rating\":5,\"comment\":\"x\"}")));
+    }
+
+    @Test
+    void sendMessageRejectsSenderIdImpersonation() {
+        SendMessageRequest body = new SendMessageRequest(1L, 999L, "hi");
+        assertThrows(ServletException.class, () ->
+                mockMvc.perform(post("/social/messages")
+                        .with(domainUser(travelerPrincipal(2L, "victim")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body))));
+    }
+
+    @Test
+    void sendMessageAllowsOmittedSenderId() throws Exception {
+        Message msg = new Message(1L, 2L, 3L, "hey", MessageStatus.SENT);
+        msg.setId(1L);
+        when(socialService.sendMessage(1L, 2L, "hey")).thenReturn(msg);
+        String json = "{\"connectionId\":1,\"content\":\"hey\"}";
+
+        mockMvc.perform(post("/social/messages")
+                        .with(domainUser(travelerPrincipal(2L, "u2")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void getConversationMessagesRejectsMismatchedUserIdQuery() {
+        assertThrows(ServletException.class, () ->
+                mockMvc.perform(get("/social/connections/{connectionId}/messages", 1L)
+                        .with(domainUser(travelerPrincipal(2L, "u2")))
+                        .param("userId", "99")));
+    }
+
+    @Test
+    void getCurrentUserIdResolvesFromSpringSecurityUserDetailsPrincipal() throws Exception {
+        UserDetails springUser = org.springframework.security.core.userdetails.User.builder()
+                .username("legacy")
+                .password("x")
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_TRAVELER")))
+                .build();
+        User domain = travelerPrincipal(11L, "legacy");
+        when(customUserDetailsService.loadUserByUsername("legacy")).thenReturn(domain);
+
+        ConnectionRequestDto out = new ConnectionRequestDto();
+        when(socialService.sendConnectionRequest(any(), eq(11L))).thenReturn(out);
+
+        SendConnectionRequestDto dto = new SendConnectionRequestDto();
+        dto.setRecipientId(7L);
+        mockMvc.perform(post("/social/connections")
+                        .with(req -> {
+                            SecurityContextHolder.getContext().setAuthentication(
+                                    new UsernamePasswordAuthenticationToken(springUser, null, springUser.getAuthorities()));
+                            return req;
+                        })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isCreated());
+
+        verify(socialService).sendConnectionRequest(any(), eq(11L));
     }
 }
