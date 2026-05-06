@@ -40,4 +40,14 @@ class SendMessageRequestTest {
         assertEquals(9L, request.getSenderId());
         assertEquals("hi", request.getContent());
     }
+
+    @Test
+    void senderIdMayBeNullForServerDerivedSender() {
+        SendMessageRequest request = new SendMessageRequest();
+        request.setConnectionId(3L);
+        request.setSenderId(null);
+        request.setContent("x");
+        assertNull(request.getSenderId());
+        assertEquals(3L, request.getConnectionId());
+    }
 }

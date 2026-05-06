@@ -34,4 +34,22 @@ class WebSocketConfigTest {
         Mockito.verify(reg).setAllowedOriginPatterns("http://localhost:5173", "https://app.example.com");
         Mockito.verify(reg).withSockJS();
     }
+
+    @Test
+    @SuppressWarnings("null")
+    void registerStompEndpointsTrimsEmptySegmentsAndSpaces() {
+        WebSocketConfig cfg = new WebSocketConfig();
+        ReflectionTestUtils.setField(cfg, "allowedOriginPatterns", " http://a.test , ,https://b.test ");
+
+        StompEndpointRegistry stomp = Mockito.mock(StompEndpointRegistry.class);
+        StompWebSocketEndpointRegistration reg = Mockito.mock(StompWebSocketEndpointRegistration.class);
+        SockJsServiceRegistration sockJs = Mockito.mock(SockJsServiceRegistration.class);
+        Mockito.when(stomp.addEndpoint("/ws-chat")).thenReturn(reg);
+        Mockito.when(reg.setAllowedOriginPatterns(Mockito.any(String[].class))).thenReturn(reg);
+        Mockito.when(reg.withSockJS()).thenReturn(sockJs);
+
+        cfg.registerStompEndpoints(stomp);
+
+        Mockito.verify(reg).setAllowedOriginPatterns("http://a.test", "https://b.test");
+    }
 }

@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -74,8 +75,8 @@ class ChatWebSocketControllerTest {
                 .firstName("Alice")
                 .lastName("Doe")
                 .build();
-        when(principal.getName()).thenReturn("alice");
-        when(userRepository.findByUsernameOrEmail("alice", "alice")).thenReturn(Optional.of(authUser));
+        lenient().when(principal.getName()).thenReturn("alice");
+        lenient().when(userRepository.findByUsernameOrEmail("alice", "alice")).thenReturn(Optional.of(authUser));
     }
 
     @Test
@@ -201,5 +202,58 @@ class ChatWebSocketControllerTest {
                 eq("/topic/chat/1"),
                 isA(ChatMessage.class)
         );
+    }
+
+    @Test
+    @SuppressWarnings("null")
+    void sendMessageWithNullPrincipalPropagatesFromErrorHandler() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                chatWebSocketController.sendMessage(1L, testChatMessage, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("WebSocket principal is required");
+    }
+
+    @Test
+    @SuppressWarnings("null")
+    void sendMessageWithBlankPrincipalNameThrows() {
+        when(principal.getName()).thenReturn("   ");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                chatWebSocketController.sendMessage(1L, testChatMessage, principal))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("WebSocket principal is required");
+    }
+
+    @Test
+    @SuppressWarnings("null")
+    void sendMessageWhenUserNotFoundThrows() {
+        when(principal.getName()).thenReturn("ghost");
+        when(userRepository.findByUsernameOrEmail("ghost", "ghost")).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                chatWebSocketController.sendMessage(1L, testChatMessage, principal))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Authenticated user not found");
+    }
+
+    @Test
+    @SuppressWarnings("null")
+    void resolvesUserByEmailWhenPrincipalNameIsEmail() {
+        User byEmail = User.builder()
+                .id(42L)
+                .username("alice")
+                .email("alice@example.com")
+                .password("p")
+                .firstName("A")
+                .lastName("B")
+                .build();
+        when(principal.getName()).thenReturn("alice@example.com");
+        when(userRepository.findByUsernameOrEmail("alice@example.com", "alice@example.com"))
+                .thenReturn(Optional.of(byEmail));
+        when(socialService.sendMessage(1L, 42L, "Hello world")).thenReturn(savedMessage);
+
+        chatWebSocketController.sendMessage(1L, testChatMessage, principal);
+
+        verify(socialService).sendMessage(1L, 42L, "Hello world");
     }
 }

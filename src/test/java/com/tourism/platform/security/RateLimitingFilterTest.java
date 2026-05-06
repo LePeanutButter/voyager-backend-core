@@ -9,6 +9,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RateLimitingFilterTest {
 
@@ -93,5 +94,82 @@ class RateLimitingFilterTest {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/activities/1/share");
         request.setRemoteAddr("10.0.0.1");
         return request;
+    }
+
+    @Test
+    void rateLimitsUsersLoginEndpoint() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter();
+        for (int i = 0; i < 60; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/users/login");
+            req.setRemoteAddr("192.168.0.50");
+            filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        }
+        MockHttpServletRequest blocked = new MockHttpServletRequest("POST", "/api/v1/users/login");
+        blocked.setRemoteAddr("192.168.0.50");
+        MockHttpServletResponse blockedRes = new MockHttpServletResponse();
+        filter.doFilter(blocked, blockedRes, new MockFilterChain());
+        assertEquals(429, blockedRes.getStatus());
+        assertTrue(blockedRes.getContentAsString().contains("Rate limit"));
+    }
+
+    @Test
+    void rateLimitsGoogleOAuthCallback() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter();
+        for (int i = 0; i < 60; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/v1/auth/google/callback");
+            req.setQueryString("code=x");
+            req.setRemoteAddr("198.51.100.2");
+            filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        }
+        MockHttpServletRequest blocked = new MockHttpServletRequest("GET", "/api/v1/auth/google/callback");
+        blocked.setRemoteAddr("198.51.100.2");
+        MockHttpServletResponse blockedRes = new MockHttpServletResponse();
+        filter.doFilter(blocked, blockedRes, new MockFilterChain());
+        assertEquals(429, blockedRes.getStatus());
+    }
+
+    @Test
+    void rateLimitsPostCompatibilityMatches() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter();
+        for (int i = 0; i < 60; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/compatibility/matches");
+            req.setRemoteAddr("10.0.0.88");
+            filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        }
+        MockHttpServletRequest blocked = new MockHttpServletRequest("POST", "/api/v1/compatibility/matches");
+        blocked.setRemoteAddr("10.0.0.88");
+        MockHttpServletResponse blockedRes = new MockHttpServletResponse();
+        filter.doFilter(blocked, blockedRes, new MockFilterChain());
+        assertEquals(429, blockedRes.getStatus());
+    }
+
+    @Test
+    void rateLimitsUsersRegisterEndpoint() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter();
+        for (int i = 0; i < 60; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/users/register");
+            req.setRemoteAddr("10.0.0.40");
+            filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        }
+        MockHttpServletRequest blocked = new MockHttpServletRequest("POST", "/api/v1/users/register");
+        blocked.setRemoteAddr("10.0.0.40");
+        MockHttpServletResponse blockedRes = new MockHttpServletResponse();
+        filter.doFilter(blocked, blockedRes, new MockFilterChain());
+        assertEquals(429, blockedRes.getStatus());
+    }
+
+    @Test
+    void rateLimitsPatchSharedActivities() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter();
+        for (int i = 0; i < 60; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("PATCH", "/api/v1/shared-activities/99");
+            req.setRemoteAddr("10.0.0.41");
+            filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        }
+        MockHttpServletRequest blocked = new MockHttpServletRequest("PATCH", "/api/v1/shared-activities/99");
+        blocked.setRemoteAddr("10.0.0.41");
+        MockHttpServletResponse blockedRes = new MockHttpServletResponse();
+        filter.doFilter(blocked, blockedRes, new MockFilterChain());
+        assertEquals(429, blockedRes.getStatus());
     }
 }
