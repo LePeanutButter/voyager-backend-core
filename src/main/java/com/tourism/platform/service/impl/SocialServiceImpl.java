@@ -429,6 +429,7 @@ public class SocialServiceImpl implements SocialService {
 
                     if (otherUser != null) {
                         return TravelConnectionDto.builder()
+                                .id(connection.getId())
                                 .userId(otherUser.getId())
                                 .username(otherUser.getUsername())
                                 .firstName(otherUser.getFirstName())
