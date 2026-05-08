@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TravelConnectionDto {
+    private Long id;
     private Long userId;
     private String username;
     private String firstName;
