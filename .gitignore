@@ -101,7 +101,6 @@ logs/
 *.sqlite3
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 
 # Kubernetes
