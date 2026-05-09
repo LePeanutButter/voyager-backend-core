@@ -37,6 +37,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 import java.util.List;
+import java.util.Objects;
 
 
 /**
@@ -83,10 +84,7 @@ public class TravelPlanController {
             @Valid @RequestBody TravelPlanDto travelPlanDto,
             HttpServletRequest request) {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        User user = getAuthenticatedUser();
 
         TravelPlanDto createdPlan = travelPlanService.createTravelPlan(travelPlanDto, user.getId());
         
@@ -639,12 +637,25 @@ public class TravelPlanController {
         /**
          * Resolve the currently authenticated User from the security context.
          *
-         * @return User entity of the authenticated principal
+         * @return managed User loaded from persistence
          * @throws EntityNotFoundException when the user cannot be found in repository
          */
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        return userRepository.findByUsername(username)
+        Object principal = authentication != null ? authentication.getPrincipal() : null;
+
+        if (principal instanceof User authenticatedUser) {
+            Long userId = Objects.requireNonNull(authenticatedUser.getId(), "User id missing");
+            return userRepository.findById(userId)
+                    .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        }
+
+        String name = authentication != null ? authentication.getName() : null;
+        if (name == null || name.isBlank()) {
+            throw new EntityNotFoundException("User not found");
+        }
+
+        return userRepository.findByUsername(name)
+                .or(() -> userRepository.findByEmail(name))
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
     }
 }
