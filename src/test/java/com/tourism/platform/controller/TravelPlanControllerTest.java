@@ -3,6 +3,7 @@ package com.tourism.platform.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.tourism.platform.dto.ReservationDto;
+import com.tourism.platform.dto.TravelConnectionDto;
 import com.tourism.platform.dto.TravelPlanActivityDto;
 import com.tourism.platform.dto.TravelPlanDto;
 import com.tourism.platform.dto.TravelerMatchDto;
@@ -22,6 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -132,6 +134,59 @@ class TravelPlanControllerTest {
     
 
     @Test
+    void getTravelPlanByIdShouldReturnPlanWhenPresent() throws Exception {
+        when(travelPlanService.getTravelPlanDtosByUser(1L)).thenReturn(List.of(testTravelPlan));
+
+        mockMvc.perform(get("/travel-plans/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Travel plan retrieved successfully"))
+                .andExpect(jsonPath("$.data.id").value(1));
+
+        verify(travelPlanService).getTravelPlanDtosByUser(1L);
+    }
+
+    @Test
+    void getTravelPlanWhenIdNotInUserListShouldThrow() {
+        when(travelPlanService.getTravelPlanDtosByUser(1L)).thenReturn(List.of(testTravelPlan));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/travel-plans/99");
+
+        assertThrows(EntityNotFoundException.class,
+                () -> travelPlanController.getTravelPlan(99L, request));
+    }
+
+    @Test
+    void createTravelPlanShouldResolveUserWhenPrincipalIsUserInstance() throws Exception {
+        when(authentication.getPrincipal()).thenReturn(testUser);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(travelPlanService.createTravelPlan(any(TravelPlanDto.class), eq(1L)))
+                .thenReturn(testTravelPlan);
+
+        mockMvc.perform(post("/travel-plans")
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(testTravelPlan))))
+                .andExpect(status().isCreated());
+
+        verify(userRepository).findById(1L);
+        verify(userRepository, never()).findByUsername(any());
+    }
+
+    @Test
+    void getAuthenticatedUserShouldResolveByEmailWhenUsernameMissing() throws Exception {
+        when(authentication.getPrincipal()).thenReturn("anonymous");
+        when(authentication.getName()).thenReturn("test@example.com");
+        when(userRepository.findByUsername("test@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(travelPlanService.getTravelPlanDtosByUser(1L)).thenReturn(List.of(testTravelPlan));
+
+        mockMvc.perform(get("/travel-plans"))
+                .andExpect(status().isOk());
+
+        verify(userRepository).findByEmail("test@example.com");
+    }
+
+    @Test
     void getMyTravelPlansShouldReturnUserPlans() throws Exception {
         // Given
         when(travelPlanService.getTravelPlanDtosByUser(1L))
@@ -239,10 +294,44 @@ class TravelPlanControllerTest {
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value("No accepted connections found for this travel plan"))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data").isEmpty());
 
         verify(socialService, never()).getAcceptedConnectionsByTravelPlan(anyLong());
+    }
+
+    @Test
+    void getTravelPlanConnectionsWithAcceptedStatusShouldCallSocialService() throws Exception {
+        TravelConnectionDto connection = TravelConnectionDto.builder()
+                .id(10L)
+                .userId(2L)
+                .username("peer")
+                .build();
+        when(socialService.getAcceptedConnectionsByTravelPlan(1L)).thenReturn(List.of(connection));
+
+        mockMvc.perform(get("/travel-plans/{id}/connections", 1L)
+                        .param("status", "accepted"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Connections retrieved successfully"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].username").value("peer"));
+
+        verify(socialService).getAcceptedConnectionsByTravelPlan(1L);
+    }
+
+    @Test
+    void getTravelPlanConnectionsWithAcceptedStatusAndNoMatchesShouldReturnNoConnectionsMessage() throws Exception {
+        when(socialService.getAcceptedConnectionsByTravelPlan(1L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/travel-plans/{id}/connections", 1L)
+                        .param("status", "ACCEPTED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("No accepted connections found for this travel plan"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        verify(socialService).getAcceptedConnectionsByTravelPlan(1L);
     }
 
     @Test
@@ -354,6 +443,19 @@ class TravelPlanControllerTest {
     }
 
     @Test
+    void findCompatibleTravelersWhenEmptyShouldReturnNoMatchesMessage() throws Exception {
+        when(travelPlanService.findCompatibleTravelers(1L, 1L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/travel-plans/{id}/compatible-travelers", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("No compatible travelers found for this travel plan"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        verify(travelPlanService).findCompatibleTravelers(1L, 1L);
+    }
+
+    @Test
     void findCompatibleTravelersWithExistingPlanShouldReturnMatches() throws Exception {
         TravelerMatchDto match = TravelerMatchDto.builder()
                 .userId(2L)
@@ -382,13 +484,19 @@ class TravelPlanControllerTest {
 
 
     @Test
+    void getAuthenticatedUserWhenAuthenticationNullShouldThrow() {
+        when(securityContext.getAuthentication()).thenReturn(null);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        assertThrows(EntityNotFoundException.class, () -> travelPlanController.getMyTravelPlans(request));
+    }
+
+    @Test
     void getAuthenticatedUserWithNonExistentUserShouldThrowException() {
         // Given
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.empty());
 
         // When & Then
-        assertThrows(EntityNotFoundException.class, () -> {
-            travelPlanController.getTravelPlan(1L, null);
-        });
+        assertThrows(EntityNotFoundException.class, () -> travelPlanController.getTravelPlan(1L, new MockHttpServletRequest()));
     }
 }
