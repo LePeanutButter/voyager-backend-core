@@ -58,7 +58,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private boolean isProtectedEndpoint(HttpServletRequest request) {
         String path = request.getRequestURI();
         String method = request.getMethod();
-        if ("POST".equalsIgnoreCase(method) && (path.endsWith("/users/login") || path.endsWith("/users/register"))) {
+        if ("POST".equalsIgnoreCase(method)
+                && (path.endsWith("/users/login")
+                        || path.endsWith("/users/register")
+                        || path.endsWith("/auth/google/token"))) {
             return true;
         }
         if ("GET".equalsIgnoreCase(method) && path.endsWith("/auth/google/callback")) {

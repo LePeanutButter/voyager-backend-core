@@ -26,10 +26,14 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -101,6 +105,34 @@ class GoogleAuthServiceImplTest {
 
         BusinessException ex = assertThrows(BusinessException.class, () -> service.authenticateWithAuthorizationCode("code"));
         assertNotNull(ex);
+    }
+
+    @Test
+    void authenticateWithMobileServerAuthCodeSendsEmptyRedirectUriToGoogle() {
+        mockServer.expect(requestTo(startsWith("https://oauth2.googleapis.com/token")))
+                .andExpect(method(POST))
+                .andExpect(content().string(allOf(
+                        containsString("redirect_uri="),
+                        containsString("grant_type=authorization_code"),
+                        not(containsString("localhost")))))
+                .andRespond(withSuccess("{\"access_token\":\"atok\"}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("https://www.googleapis.com/oauth2/v2/userinfo"))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("{\"email\":\"mob@example.com\",\"name\":\"M\"}", MediaType.APPLICATION_JSON));
+
+        when(userRepository.findByEmail("mob@example.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByUsername("mob")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+
+        UserDto dto = service.authenticateWithMobileServerAuthCode("native-code");
+
+        assertEquals("jwt", dto.getToken());
+        assertEquals(1L, dto.getId());
     }
 
     @Test
