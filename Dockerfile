@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+# BuildKit cachea ~/.m2 entre builds (DOCKER_BUILDKIT=1, por defecto en Docker Desktop).
 # Multi-stage Dockerfile for Tourism Platform Backend
 # Stage 1: Build stage using Maven
 FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
@@ -9,8 +11,9 @@ WORKDIR /app
 # This layer is only rebuilt when pom.xml changes
 COPY pom.xml .
 
-# Download dependencies (cached layer)
-RUN mvn dependency:go-offline -B
+# Download dependencies (capa + caché Maven en el host de Docker)
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn dependency:go-offline -B
 
 # Copy source code
 COPY src ./src
@@ -19,7 +22,8 @@ COPY src ./src
 # Use -DskipTests to skip tests in production build for faster build time
 # Use -Dspring-boot.repackage.skip=false to ensure the JAR is created
 ARG MAVEN_PROFILE=prod
-RUN mvn clean package -DskipTests -Dspring-boot.repackage.skip=false -P${MAVEN_PROFILE}
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn clean package -DskipTests -Dspring-boot.repackage.skip=false -P${MAVEN_PROFILE}
 
 # Stage 2: Runtime stage using lightweight JRE
 FROM eclipse-temurin:17-jre-alpine AS runtime

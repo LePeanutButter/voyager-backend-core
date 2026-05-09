@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -62,33 +63,46 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle validation exceptions
+     * Handle MethodArgumentNotValidException produced by validation failures.
+     *
+     * @param ex      the validation exception containing binding results
+     * @param request the current web request
+     * @return ResponseEntity with validation error details and HTTP 400 status
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ApiResponse(responseCode = "400", description = "Validation failed", 
-                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-        /**
-         * Handle MethodArgumentNotValidException produced by validation failures.
-         *
-         * @param ex      the validation exception containing binding results
-         * @param request the current web request
-         * @return ResponseEntity with validation error details and HTTP 400 status
-         */
-        public ResponseEntity<ErrorResponse> handleValidationExceptions(
+    @ApiResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public ResponseEntity<ErrorResponse> handleValidationExceptions(
             MethodArgumentNotValidException ex, WebRequest request) {
-        
+
         String message = ex.getBindingResult().getFieldErrors().stream()
-            .map(field -> field.getField() + ": " + field.getDefaultMessage())
-            .collect(Collectors.joining(", "));
-        return buildResponse(HttpStatus.BAD_REQUEST, message.isBlank() ? "Validation failed" : message, request, ex, false);
-        }
+                .map(field -> field.getField() + ": " + field.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        return buildResponse(HttpStatus.BAD_REQUEST, message.isBlank() ? "Validation failed" : message, request,
+                ex, false);
+    }
 
     /**
-     * Handle illegal argument exceptions
+     * Malformed JSON, unknown enum values, or other body deserialization failures.
+     * Handles {@link HttpMessageNotReadableException} (Jackson / message conversion).
+     *
+     * @param ex      deserialization exception carrying the underlying cause detail
+     * @param request the current web request
+     * @return ResponseEntity with HTTP 400 and a descriptive message
      */
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ApiResponse(responseCode = "400", description = "Invalid argument", 
-                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ApiResponse(responseCode = "400", description = "Invalid request body",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public ResponseEntity<ErrorResponse> handleRequestBodyNotReadable(
+            HttpMessageNotReadableException ex, WebRequest request) {
+        Throwable cause = ex.getMostSpecificCause();
+        String detail = cause.getMessage();
+        String message = (detail != null && !detail.isBlank())
+                ? detail
+                : "Malformed or unreadable JSON request body";
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request, ex, false);
+    }
+
     /**
      * Handle IllegalArgumentException and return HTTP 400.
      *
@@ -96,6 +110,9 @@ public class GlobalExceptionHandler {
      * @param request the current web request
      * @return ResponseEntity with error details and HTTP 400
      */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ApiResponse(responseCode = "400", description = "Invalid argument",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
             IllegalArgumentException ex, WebRequest request) {
         
