@@ -27,7 +27,7 @@
 
 set -euo pipefail
 
-readonly INSTALL_ROOT="${VOYAGER_INSTALL_ROOT:-/opt/voyager-backend}"
+readonly INSTALL_ROOT="${VOYAGER_INSTALL_ROOT:-$(pwd)}"
 readonly SERVICE_NAME="${VOYAGER_SERVICE_NAME:-voyager-backend}"
 readonly CONTAINER_NAME="${VOYAGER_CONTAINER_NAME:-voyager-backend}"
 readonly ENV_FILE="${VOYAGER_ENV_FILE:-$INSTALL_ROOT/environment}"
