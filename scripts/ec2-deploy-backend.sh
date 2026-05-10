@@ -150,18 +150,36 @@ load_environment() {
 resolve_image_tar() {
   local tar_path="$IMAGE_TAR_CLI"
   if [[ -z "$tar_path" ]]; then
+    log "DEBUG: Looking for image tar. INSTALL_ROOT=$INSTALL_ROOT, SCRIPT_DIR=$SCRIPT_DIR"
     if [[ -f "$INSTALL_ROOT/voyager-backend-image.tar" ]]; then
       tar_path="$INSTALL_ROOT/voyager-backend-image.tar"
+      log "DEBUG: Found tar at: $tar_path"
     elif [[ -f "$SCRIPT_DIR/voyager-backend-image.tar" ]]; then
       tar_path="$SCRIPT_DIR/voyager-backend-image.tar"
-    elif [[ -f "$INSTALL_ROOT/release" ]]; then
+      log "DEBUG: Found tar at: $tar_path"
+    elif [[ -f "$INSTALL_ROOT/release/voyager-backend-image.tar" ]]; then
+      tar_path="$INSTALL_ROOT/release/voyager-backend-image.tar"
+      log "DEBUG: Found tar at: $tar_path"
+    elif [[ -d "$INSTALL_ROOT/release" ]]; then
       # Look for .tar files in release directory
+      log "DEBUG: Searching in $INSTALL_ROOT/release directory"
       tar_path=$(find "$INSTALL_ROOT/release" -name "voyager-backend-image.tar" -type f 2>/dev/null | head -1)
-    elif [[ -f "$SCRIPT_DIR/release" ]]; then
+      if [[ -n "$tar_path" ]]; then
+        log "DEBUG: Found tar via find: $tar_path"
+      fi
+    elif [[ -f "$SCRIPT_DIR/release/voyager-backend-image.tar" ]]; then
+      tar_path="$SCRIPT_DIR/release/voyager-backend-image.tar"
+      log "DEBUG: Found tar at: $tar_path"
+    elif [[ -d "$SCRIPT_DIR/release" ]]; then
       # Look for .tar files in script/release directory  
+      log "DEBUG: Searching in $SCRIPT_DIR/release directory"
       tar_path=$(find "$SCRIPT_DIR/release" -name "voyager-backend-image.tar" -type f 2>/dev/null | head -1)
+      if [[ -n "$tar_path" ]]; then
+        log "DEBUG: Found tar via find: $tar_path"
+      fi
     fi
   fi
+  log "DEBUG: Final tar_path: ${tar_path:-NOT_FOUND}"
   echo "${tar_path:-}"
 }
 
