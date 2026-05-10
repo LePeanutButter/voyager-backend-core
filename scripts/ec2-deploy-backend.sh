@@ -154,6 +154,12 @@ resolve_image_tar() {
       tar_path="$INSTALL_ROOT/voyager-backend-image.tar"
     elif [[ -f "$SCRIPT_DIR/voyager-backend-image.tar" ]]; then
       tar_path="$SCRIPT_DIR/voyager-backend-image.tar"
+    elif [[ -f "$INSTALL_ROOT/release" ]]; then
+      # Look for .tar files in release directory
+      tar_path=$(find "$INSTALL_ROOT/release" -name "voyager-backend-image.tar" -type f 2>/dev/null | head -1)
+    elif [[ -f "$SCRIPT_DIR/release" ]]; then
+      # Look for .tar files in script/release directory  
+      tar_path=$(find "$SCRIPT_DIR/release" -name "voyager-backend-image.tar" -type f 2>/dev/null | head -1)
     fi
   fi
   echo "${tar_path:-}"
