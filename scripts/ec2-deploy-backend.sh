@@ -237,8 +237,8 @@ EOF
 }
 
 assert_environment_ready() {
-  if grep -qF 'your-rds.region.rds.amazonaws.com' "$ENV_FILE" 2>/dev/null; then
-    die "Edit $ENV_FILE and replace placeholder RDS host/user/password before continuing."
+  if grep -qE '(your-rds\.region\.rds\.amazonaws\.com|your_master_user|your_password|your-google-client-id|your-google-client-secret|your-domain\.com)' "$ENV_FILE" 2>/dev/null; then
+    die "Edit $ENV_FILE and replace placeholder values before continuing."
   fi
   if grep -qF 'change-me-min-32-chars-random' "$ENV_FILE" 2>/dev/null; then
     die "Set a strong JWT_SECRET in $ENV_FILE before continuing."
