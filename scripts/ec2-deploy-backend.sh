@@ -125,7 +125,7 @@ download_rds_cert() {
     curl -o "$cert_file" https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem || die "Failed to download RDS certificate"
     chmod 644 "$cert_file"
   fi
-  echo "$cert_file"
+  printf "%s" "$cert_file"
 }
 
 load_environment() {
