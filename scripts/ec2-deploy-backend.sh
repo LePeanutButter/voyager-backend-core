@@ -213,6 +213,7 @@ ensure_database_exists() {
 
 write_systemd_unit() {
   local image_ref="${VOYAGER_IMAGE:-voyager-backend:latest}"
+  local cert_file="$INSTALL_ROOT/global-bundle.pem"
   cat >"/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
 [Unit]
 Description=Voyager backend (Docker)
@@ -231,6 +232,7 @@ ExecStartPre=-/usr/bin/docker stop $CONTAINER_NAME
 ExecStartPre=-/usr/bin/docker rm $CONTAINER_NAME
 ExecStart=/usr/bin/docker run --name $CONTAINER_NAME \\
   --env-file $ENV_FILE \\
+  -v $cert_file:/etc/ssl/certs/global-bundle.pem:ro \\
   -p 0.0.0.0:8080:8080 \\
   -p 0.0.0.0:8081:8081 \\
   $image_ref
