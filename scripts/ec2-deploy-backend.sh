@@ -147,6 +147,38 @@ load_environment() {
   fi
 }
 
+# When DB_URL uses sslmode=verify-full|verify-ca but doesn't specify sslrootcert,
+# the PostgreSQL JDBC driver defaults to ~/.postgresql/root.crt, which doesn't
+# exist inside the container and Flyway fails at startup with:
+#   FileNotFoundException: /home/appuser/.postgresql/root.crt
+# This appends sslrootcert pointing to the path where the systemd unit mounts
+# the AWS RDS bundle inside the container.
+ensure_db_url_sslrootcert() {
+  [[ -f "$ENV_FILE" ]] || return 0
+  [[ -n "${DB_URL:-}" ]] || return 0
+  local container_cert="/etc/ssl/certs/global-bundle.pem"
+  if [[ "$DB_URL" =~ sslmode=verify-(full|ca) ]] && [[ "$DB_URL" != *sslrootcert=* ]]; then
+    local new_url
+    if [[ "$DB_URL" == *\?* ]]; then
+      new_url="${DB_URL}&sslrootcert=${container_cert}"
+    else
+      new_url="${DB_URL}?sslrootcert=${container_cert}"
+    fi
+    log "DB_URL uses sslmode=verify-* without sslrootcert; injecting sslrootcert=$container_cert"
+    local tmp
+    tmp="$(mktemp)"
+    awk -v new="DB_URL=${new_url}" '
+      BEGIN { replaced = 0 }
+      /^DB_URL=/ { print new; replaced = 1; next }
+      { print }
+      END { if (!replaced) print new }
+    ' "$ENV_FILE" >"$tmp"
+    install -m 0600 "$tmp" "$ENV_FILE"
+    rm -f "$tmp"
+    export DB_URL="$new_url"
+  fi
+}
+
 resolve_image_tar() {
   local tar_path="$IMAGE_TAR_CLI"
   if [[ -z "$tar_path" ]]; then
@@ -294,6 +326,7 @@ main() {
   install_psql_client
 
   ensure_database_exists
+  ensure_db_url_sslrootcert
   load_image_if_needed
   assert_image_present
 
