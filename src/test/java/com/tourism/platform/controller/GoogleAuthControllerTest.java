@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.util.Objects;
 
@@ -19,7 +21,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,10 +39,40 @@ class GoogleAuthControllerTest {
 
     @BeforeEach
     void setUp() {
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet();
         GoogleAuthController controller = new GoogleAuthController(properties, googleAuthService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setValidator(validator)
                 .build();
+    }
+
+    @Test
+    void tokenReturnsWrappedUserWithJwt() throws Exception {
+        UserDto dto = new UserDto();
+        dto.setId(5L);
+        dto.setUsername("g");
+        dto.setEmail("g@g.com");
+        dto.setToken("jwt-1");
+        when(googleAuthService.authenticateWithMobileServerAuthCode("c1")).thenReturn(dto);
+
+        mockMvc.perform(post("/auth/google/token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"c1\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data.token").value("jwt-1"));
+
+        verify(googleAuthService).authenticateWithMobileServerAuthCode("c1");
+    }
+
+    @Test
+    void tokenReturnsBadRequestWhenCodeBlank() throws Exception {
+        mockMvc.perform(post("/auth/google/token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\" \"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

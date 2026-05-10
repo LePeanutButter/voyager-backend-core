@@ -49,6 +49,15 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     @Override
     public UserDto authenticateWithAuthorizationCode(String code) {
+        return authenticateWithCodeAndRedirectUri(code, properties.getRedirectUri());
+    }
+
+    @Override
+    public UserDto authenticateWithMobileServerAuthCode(String code) {
+        return authenticateWithCodeAndRedirectUri(code, "");
+    }
+
+    private UserDto authenticateWithCodeAndRedirectUri(String code, String redirectUri) {
         /**
          * Authenticate or register a user using an OAuth2 authorization code from Google.
          *
@@ -56,7 +65,8 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
          * and either finds an existing user by email or creates a new one. A JWT token
          * is generated and attached to the returned DTO.
          *
-         * @param code OAuth2 authorization code received from Google
+         * @param code          OAuth2 authorization code received from Google
+         * @param redirectUri   redirect URI registered for the code (web callback URL, or empty for native server auth)
          * @return UserDto populated with user information and JWT token
          * @throws BusinessException when the code is missing or configuration is invalid
          * @throws ExternalServiceException when Google token/profile endpoints fail
@@ -65,7 +75,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             throw new BusinessException("Authorization code is required");
         }
 
-        String accessToken = exchangeCodeForAccessToken(code);
+        String accessToken = exchangeCodeForAccessToken(code, redirectUri);
         GoogleProfile profile = fetchGoogleProfile(accessToken);
 
         User user = findOrCreateGoogleUser(profile);
@@ -75,11 +85,12 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         return dto;
     }
 
-    private String exchangeCodeForAccessToken(String code) {
+    private String exchangeCodeForAccessToken(String code, String redirectUri) {
         /**
          * Exchange an OAuth2 authorization code for an access token using Google's token endpoint.
          *
-         * @param code authorization code to exchange
+         * @param code          authorization code to exchange
+         * @param redirectUri redirect URI that was used when the code was issued (empty for native server auth codes)
          * @return access token string
          * @throws BusinessException if client configuration is missing
          * @throws ExternalServiceException for HTTP or parsing errors from Google
@@ -97,7 +108,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         form.add("client_id", properties.getClientId());
         form.add("client_secret", properties.getClientSecret());
         form.add("code", code);
-        form.add("redirect_uri", properties.getRedirectUri());
+        form.add("redirect_uri", redirectUri != null ? redirectUri : "");
         form.add("grant_type", "authorization_code");
 
         HttpHeaders headers = new HttpHeaders();

@@ -1,6 +1,8 @@
 package com.tourism.platform.controller;
 
 import com.tourism.platform.config.GoogleOAuthProperties;
+import com.tourism.platform.dto.ApiResponse;
+import com.tourism.platform.dto.GoogleServerAuthCodeRequest;
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.exception.BusinessException;
 import com.tourism.platform.service.GoogleAuthService;
@@ -10,9 +12,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,7 +32,7 @@ import java.util.UUID;
 @RequestMapping("/auth/google")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Google OAuth2", description = "Starts the Google login redirect and handles the OAuth callback (302 redirects, not JSON APIs).")
+@Tag(name = "Google OAuth2", description = "Browser redirect flow (GET /login, GET /callback) and native JSON exchange (POST /token).")
 public class GoogleAuthController {
 
     private static final String LOCATION_HEADER = "Location";
@@ -68,6 +75,21 @@ public class GoogleAuthController {
 
         response.setStatus(HttpServletResponse.SC_FOUND);
         response.setHeader(LOCATION_HEADER, authorizeUrl);
+    }
+
+    @PostMapping("/token")
+    @Operation(summary = "Google native sign-in", description = "Exchanges a server authorization code (e.g. Android serverAuthCode) for a Voyager JWT; returns JSON like POST /users/login.", security = {})
+    public ResponseEntity<ApiResponse<UserDto>> token(
+            @Valid @RequestBody GoogleServerAuthCodeRequest body,
+            HttpServletRequest request) {
+        UserDto userDto = googleAuthService.authenticateWithMobileServerAuthCode(body.getCode());
+        ApiResponse<UserDto> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Authentication successful",
+                userDto,
+                request.getRequestURI()
+        );
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/callback")
