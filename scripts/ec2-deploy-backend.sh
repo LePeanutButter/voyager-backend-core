@@ -229,6 +229,9 @@ DB_USERNAME=your_master_user
 DB_PASSWORD=your_password
 DB_URL=jdbc:postgresql://your-rds.region.rds.amazonaws.com:5432/tourism_platform?sslmode=require
 JWT_SECRET=change-me-min-32-chars-random
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=https://your-domain.com/api/v1/auth/google/callback
 EOF
   chmod 0600 "$ENV_FILE"
 }
