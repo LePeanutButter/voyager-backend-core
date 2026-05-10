@@ -118,6 +118,16 @@ install_psql_client() {
   command -v psql >/dev/null 2>&1 || die "psql not available after install attempt."
 }
 
+download_rds_cert() {
+  local cert_file="$INSTALL_ROOT/global-bundle.pem"
+  if [[ ! -f "$cert_file" ]]; then
+    log "Downloading AWS RDS SSL certificate..."
+    curl -o "$cert_file" https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem || die "Failed to download RDS certificate"
+    chmod 644 "$cert_file"
+  fi
+  echo "$cert_file"
+}
+
 load_environment() {
   mkdir -p "$INSTALL_ROOT"
   
@@ -168,21 +178,27 @@ ensure_database_exists() {
   local port="${DB_PORT:-5432}"
   local dbname="${DB_NAME:-tourism_platform}"
   local admin_db="${DB_ADMIN_DATABASE:-postgres}"
+  local cert_file
+  cert_file="$(download_rds_cert)"
+  
   export PGPASSWORD="$DB_PASSWORD"
-  export PGSSLMODE="${PGSSLMODE:-require}"
+  export PGSSLMODE="verify-full"
+  export PGSSLROOTCERT="$cert_file"
 
-  log "Checking PostgreSQL database '$dbname' on $DB_HOST:$port ..."
+  log "Checking PostgreSQL database '$dbname' on $DB_HOST:$port with SSL..."
   local exists
-  exists="$(psql -h "$DB_HOST" -p "$port" -U "$DB_USERNAME" -d "$admin_db" -tAc \
+  exists="$(psql "host=$DB_HOST port=$port user=$DB_USERNAME dbname=$admin_db sslmode=verify-full sslrootcert=$cert_file" -tAc \
     "SELECT 1 FROM pg_database WHERE datname = '$dbname'" || true)"
   if [[ "$(echo "$exists" | tr -d '[:space:]')" == "1" ]]; then
     log "Database '$dbname' already exists."
     return 0
   fi
   log "Creating database '$dbname' (Flyway applies schema when the app starts)."
-  psql -h "$DB_HOST" -p "$port" -U "$DB_USERNAME" -d "$admin_db" -v ON_ERROR_STOP=1 \
+  psql "host=$DB_HOST port=$port user=$DB_USERNAME dbname=$admin_db sslmode=verify-full sslrootcert=$cert_file" -v ON_ERROR_STOP=1 \
     -c "CREATE DATABASE \"$dbname\";"
   unset PGPASSWORD
+  unset PGSSLMODE
+  unset PGSSLROOTCERT
 }
 
 write_systemd_unit() {
