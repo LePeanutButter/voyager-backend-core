@@ -125,6 +125,23 @@ jobs:
           name: backend-docker-image
           path: release
 
+      - name: Generate environment file
+        run: |
+          cat > environment << EOF
+          SPRING_PROFILES_ACTIVE=prod
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_URL=${{ secrets.DB_URL }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI=${{ secrets.GOOGLE_REDIRECT_URI }}
+          EOF
+
       - name: Upload manual deployment package
         uses: actions/upload-artifact@v4
         with:
@@ -132,3 +149,4 @@ jobs:
           path: |
             release/voyager-backend-image.tar
             scripts/ec2-deploy-backend.sh
+            environment
