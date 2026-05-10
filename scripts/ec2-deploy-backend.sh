@@ -120,6 +120,14 @@ install_psql_client() {
 
 load_environment() {
   mkdir -p "$INSTALL_ROOT"
+  
+  # Check if environment file exists in INSTALL_ROOT, otherwise copy from script directory
+  if [[ ! -f "$ENV_FILE" && -f "$SCRIPT_DIR/environment" ]]; then
+    log "Copying environment file from script directory to $ENV_FILE"
+    cp "$SCRIPT_DIR/environment" "$ENV_FILE"
+    chmod 0600 "$ENV_FILE"
+  fi
+  
   if [[ -f "$ENV_FILE" ]]; then
     log "Loading $ENV_FILE"
     set +u
