@@ -150,36 +150,22 @@ load_environment() {
 resolve_image_tar() {
   local tar_path="$IMAGE_TAR_CLI"
   if [[ -z "$tar_path" ]]; then
-    log "DEBUG: Looking for image tar. INSTALL_ROOT=$INSTALL_ROOT, SCRIPT_DIR=$SCRIPT_DIR"
     if [[ -f "$INSTALL_ROOT/voyager-backend-image.tar" ]]; then
       tar_path="$INSTALL_ROOT/voyager-backend-image.tar"
-      log "DEBUG: Found tar at: $tar_path"
     elif [[ -f "$SCRIPT_DIR/voyager-backend-image.tar" ]]; then
       tar_path="$SCRIPT_DIR/voyager-backend-image.tar"
-      log "DEBUG: Found tar at: $tar_path"
     elif [[ -f "$INSTALL_ROOT/release/voyager-backend-image.tar" ]]; then
       tar_path="$INSTALL_ROOT/release/voyager-backend-image.tar"
-      log "DEBUG: Found tar at: $tar_path"
     elif [[ -d "$INSTALL_ROOT/release" ]]; then
       # Look for .tar files in release directory
-      log "DEBUG: Searching in $INSTALL_ROOT/release directory"
       tar_path=$(find "$INSTALL_ROOT/release" -name "voyager-backend-image.tar" -type f 2>/dev/null | head -1)
-      if [[ -n "$tar_path" ]]; then
-        log "DEBUG: Found tar via find: $tar_path"
-      fi
     elif [[ -f "$SCRIPT_DIR/release/voyager-backend-image.tar" ]]; then
       tar_path="$SCRIPT_DIR/release/voyager-backend-image.tar"
-      log "DEBUG: Found tar at: $tar_path"
     elif [[ -d "$SCRIPT_DIR/release" ]]; then
       # Look for .tar files in script/release directory  
-      log "DEBUG: Searching in $SCRIPT_DIR/release directory"
       tar_path=$(find "$SCRIPT_DIR/release" -name "voyager-backend-image.tar" -type f 2>/dev/null | head -1)
-      if [[ -n "$tar_path" ]]; then
-        log "DEBUG: Found tar via find: $tar_path"
-      fi
     fi
   fi
-  log "DEBUG: Final tar_path: ${tar_path:-NOT_FOUND}"
   echo "${tar_path:-}"
 }
 
@@ -187,8 +173,8 @@ load_image_if_needed() {
   local tar_path
   tar_path="$(resolve_image_tar)"
   if [[ -n "$tar_path" ]]; then
-    [[ -f "$tar_path" ]] || die "Image tar not found: $tar_path"
-    log "docker load -i $tar_path"
+    [[ -f "$tar_path" ]] || die "Image tar file not found: $tar_path"
+    log "Loading Docker image from: $tar_path"
     docker load -i "$tar_path"
     install -d -m 0755 "$INSTALL_ROOT"
     install -m 0644 "$tar_path" "$INSTALL_ROOT/voyager-backend-image.tar" 2>/dev/null || true
