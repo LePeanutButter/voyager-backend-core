@@ -1,0 +1,110 @@
+# ===========================================
+# GitHub Actions Workflow: CI Build & Deploy
+# Environment: Development
+# Description:
+#   - Continuous Integration (CI): Executes dynamic analysis (unit tests), runs static analysis via SonarCloud.
+#   - Security: Runs Trivy FS scan to detect vulnerabilities in dependencies and source.
+#   - Continuous Delivery Prep: Publishes compiled backend artifact for manual deployment.
+#   - Trigger: Runs automatically on every pull request targeting the 'development' branch, and can be run manually via workflow_dispatch.
+# ===========================================
+name: CI Build & Deploy (Java Backend - Development PR)
+
+on:
+  pull_request:
+    branches:
+      - development
+  workflow_dispatch:
+
+jobs:
+  trivy_scan:
+    name: Run Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -qq
+          sudo apt-get install -y trivy
+
+      - name: Run Trivy FS Scan
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          skip-setup-trivy: 'true'
+
+  sonar_scan:
+    name: SonarCloud Analysis (Java)
+    needs: trivy_scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn -B verify sonar:sonar \
+            -Dsonar.projectKey=${{ secrets.PROJECT_KEY }} \
+            -Dsonar.organization=${{ secrets.ORGANIZATION_KEY }} \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.scm.disabled=true \
+            -Dsonar.pullrequest.key=${{ github.event.number }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref }} \
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+
+  build:
+    name: Build & Test (Java)
+    needs: sonar_scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run unit tests
+        run: mvn -B test
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          mkdir -p release
+          docker build -t voyager-backend:latest .
+
+      - name: Save image for Learner Lab
+        run: docker save voyager-backend:latest -o release/voyager-backend-image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-docker-image
+          path: release/voyager-backend-image.tar

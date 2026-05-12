@@ -1,0 +1,204 @@
+package com.tourism.platform.controller;
+
+import com.tourism.platform.config.GoogleOAuthProperties;
+import com.tourism.platform.dto.ApiResponse;
+import com.tourism.platform.dto.GoogleServerAuthCodeRequest;
+import com.tourism.platform.dto.UserDto;
+import com.tourism.platform.exception.BusinessException;
+import com.tourism.platform.service.GoogleAuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/auth/google")
+@RequiredArgsConstructor
+@Slf4j
+@Tag(name = "Google OAuth2", description = "Browser redirect flow (GET /login, GET /callback) and native JSON exchange (POST /token).")
+public class GoogleAuthController {
+
+    private static final String LOCATION_HEADER = "Location";
+    private static final String OAUTH_STATE_COOKIE = "google_oauth_state";
+
+    private final GoogleOAuthProperties properties;
+    private final GoogleAuthService googleAuthService;
+
+    @GetMapping("/login")
+    @Operation(summary = "Start Google OAuth2 login", description = "Redirects the user to Google authorization endpoint")
+    /**
+     * Initiate the Google OAuth2 login flow by redirecting the client to Google's
+     * authorization endpoint.
+     *
+     * @param response HTTP servlet response used to set a 302 redirect and Location header
+     * @throws BusinessException if the Google client id is not configured
+     */
+    public void login(HttpServletRequest request, HttpServletResponse response) {
+        if (properties.getClientId() == null || properties.getClientId().isBlank()) {
+            throw new BusinessException("Google client-id is not configured");
+        }
+
+        // Minimal CSRF protection for the authorization response
+        String state = UUID.randomUUID().toString();
+        Cookie stateCookie = new Cookie(OAUTH_STATE_COOKIE, state);
+        stateCookie.setHttpOnly(true);
+        stateCookie.setSecure(request.isSecure());
+        stateCookie.setPath("/");
+        stateCookie.setMaxAge(300);
+        response.addCookie(stateCookie);
+
+        String authorizeUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
+                "?client_id=" + url(properties.getClientId()) +
+                "&response_type=code" +
+                "&redirect_uri=" + url(properties.getRedirectUri()) +
+                "&scope=" + url(properties.getScopes()) +
+                "&access_type=online" +
+                "&include_granted_scopes=true" +
+                "&state=" + url(state);
+
+        response.setStatus(HttpServletResponse.SC_FOUND);
+        response.setHeader(LOCATION_HEADER, authorizeUrl);
+    }
+
+    @PostMapping("/token")
+    @Operation(summary = "Google native sign-in", description = "Exchanges a server authorization code (e.g. Android serverAuthCode) for a Voyager JWT; returns JSON like POST /users/login.", security = {})
+    public ResponseEntity<ApiResponse<UserDto>> token(
+            @Valid @RequestBody GoogleServerAuthCodeRequest body,
+            HttpServletRequest request) {
+        UserDto userDto = googleAuthService.authenticateWithMobileServerAuthCode(body.getCode());
+        ApiResponse<UserDto> response = ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Authentication successful",
+                userDto,
+                request.getRequestURI()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/callback")
+    @Operation(summary = "Google OAuth2 callback", description = "Exchanges code for Google token, fetches profile, upserts user, and redirects the browser to the frontend with JWT query params (or error).")
+    /**
+     * OAuth2 callback endpoint that receives the authorization code from Google.
+     *
+     * Exchanges the code for an access token, upserts the user and redirects the
+     * client to the frontend callback URL with a JWT token or error details.
+     *
+     * @param code             authorization code (may be null when an error occurred)
+     * @param error            optional error code returned by the provider
+     * @param errorDescription optional error description returned by the provider
+     * @param response         HTTP servlet response used to redirect the client
+     */
+    public void callback(
+            @Parameter(description = "Authorization code returned by Google after user consent")
+            @RequestParam(required = false) String code,
+            @Parameter(description = "OAuth error code when Google redirects with an error")
+            @RequestParam(required = false) String error,
+            @Parameter(description = "State value previously generated by login endpoint")
+            @RequestParam(required = false) String state,
+            @Parameter(description = "Human-readable OAuth error description from Google")
+            @RequestParam(name = "error_description", required = false) String errorDescription,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        if (error != null && !error.isBlank()) {
+            redirectWithError(response, "oauth_error",
+                    "Google OAuth2 error: " + error + (errorDescription != null ? " - " + errorDescription : ""));
+            return;
+        }
+        if (code == null || code.isBlank()) {
+            redirectWithError(response, "missing_code", "Authorization code is required");
+            return;
+        }
+        validateAndClearOAuthState(state, request, response);
+
+        try {
+            UserDto userDto = googleAuthService.authenticateWithAuthorizationCode(code);
+            String redirect = frontendCallbackBase() + "?token=" + url(userDto.getToken());
+            response.setStatus(HttpServletResponse.SC_FOUND);
+            response.setHeader(LOCATION_HEADER, redirect);
+        } catch (BusinessException ex) {
+            redirectWithError(response, "business_error", ex.getMessage());
+        } catch (Exception ex) {
+            redirectWithError(response, "auth_failed", ex.getMessage());
+        }
+    }
+
+    private void redirectWithError(HttpServletResponse response, String error, String message) {
+        /**
+         * Helper to redirect the client to the frontend callback URL with error details.
+         *
+         * @param response HTTP servlet response used for the redirect
+         * @param error    short error code to include
+         * @param message  human readable error message
+         */
+        String redirect = frontendCallbackBase() +
+            "?error=" + url(error) +
+            "&message=" + url(message != null ? message : "Authentication failed");
+        response.setStatus(HttpServletResponse.SC_FOUND);
+        response.setHeader(LOCATION_HEADER, redirect);
+    }
+
+    private String frontendCallbackBase() {
+        /**
+         * Resolve the configured frontend callback base URL.
+         *
+         * @return frontend callback base URL
+         * @throws BusinessException when the property is not configured
+         */
+        if (properties.getFrontendRedirectUri() == null || properties.getFrontendRedirectUri().isBlank()) {
+            throw new BusinessException("Google frontend-redirect-uri is not configured");
+        }
+        return properties.getFrontendRedirectUri();
+    }
+
+    private String url(String v) {
+        /**
+         * URL-encode the provided value using UTF-8.
+         *
+         * @param v raw value to encode
+         * @return encoded string
+         */
+        return URLEncoder.encode(v, StandardCharsets.UTF_8);
+    }
+
+    private void validateAndClearOAuthState(String callbackState, HttpServletRequest request, HttpServletResponse response) {
+        String cookieState = null;
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (OAUTH_STATE_COOKIE.equals(cookie.getName())) {
+                    cookieState = cookie.getValue();
+                    break;
+                }
+            }
+        }
+        Cookie clearCookie = new Cookie(OAUTH_STATE_COOKIE, "");
+        clearCookie.setHttpOnly(true);
+        clearCookie.setSecure(request.isSecure());
+        clearCookie.setPath("/");
+        clearCookie.setMaxAge(0);
+        response.addCookie(clearCookie);
+
+        if (cookieState == null || callbackState == null || !cookieState.equals(callbackState)) {
+            throw new BusinessException("Invalid OAuth state");
+        }
+    }
+}
+

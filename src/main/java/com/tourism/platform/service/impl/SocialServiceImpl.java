@@ -1,0 +1,458 @@
+package com.tourism.platform.service.impl;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.tourism.platform.dto.ConnectionRequestDto;
+import com.tourism.platform.dto.SendConnectionRequestDto;
+import com.tourism.platform.dto.TravelConnectionDto;
+import com.tourism.platform.dto.TravelerSummaryDto;
+import com.tourism.platform.exception.ResourceNotFoundException;
+import com.tourism.platform.model.Connection;
+import com.tourism.platform.model.ConnectionStatus;
+import com.tourism.platform.model.Message;
+import com.tourism.platform.model.MessageStatus;
+import com.tourism.platform.model.User;
+import com.tourism.platform.repository.ConnectionRepository;
+import com.tourism.platform.repository.MessageRepository;
+import com.tourism.platform.repository.SharedSpaceAccessRepository;
+import com.tourism.platform.repository.TravelPlanRepository;
+import com.tourism.platform.repository.UserRepository;
+import com.tourism.platform.service.SocialService;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class SocialServiceImpl implements SocialService {
+
+    private static final String CONNECTION_NOT_FOUND = "Connection not found";
+    private final MessageRepository messageRepository;
+    private final UserRepository userRepository;
+    private final TravelPlanRepository travelPlanRepository;
+    private final ConnectionRepository connectionRepository;
+    private final SharedSpaceAccessRepository sharedSpaceAccessRepository;
+
+
+    @Override
+    @Transactional(readOnly = true)
+    /**
+     * Build a concise traveler summary for display in social contexts.
+     *
+     * @param travelerId id of the traveler
+     * @return TravelerSummaryDto containing a short bio and display information
+     * @throws ResourceNotFoundException if the traveler does not exist
+     */
+    public TravelerSummaryDto getTravelerSummary(Long travelerId) {
+        User user = userRepository.findById(Objects.requireNonNull(travelerId))
+                .orElseThrow(() -> new ResourceNotFoundException("Traveler not found with ID: " + travelerId));
+
+        String bio = user.getBio() == null ? "" : user.getBio().trim();
+        if (bio.length() > 160) {
+            bio = bio.substring(0, 160) + "...";
+        }
+
+        return TravelerSummaryDto.builder()
+                .userId(user.getId())
+                .displayName((user.getFirstName() + " " + user.getLastName()).trim())
+                .bioShort(bio)
+                .profileImageUrl(user.getProfileImageUrl())
+                .interests("travel, culture")
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    /**
+     * Return a sample list of accepted connections for a travel plan.
+     *
+     * This implementation currently returns a small sample list derived from
+     * existing users and is intended as a placeholder for a real query.
+     *
+     * @param travelPlanId id of the travel plan
+     * @return list of TravelConnectionDto representing accepted connections
+     * @throws ResourceNotFoundException if the travel plan does not exist
+     */
+    public List<TravelConnectionDto> getAcceptedConnectionsByTravelPlan(Long travelPlanId) {
+        if (!travelPlanRepository.existsById(Objects.requireNonNull(travelPlanId))) {
+            throw new ResourceNotFoundException("Travel plan not found with ID: " + travelPlanId);
+        }
+
+        return userRepository.findAll().stream().limit(3).map(user -> TravelConnectionDto.builder()
+                        .userId(user.getId())
+                        .username(user.getUsername())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .status("ACCEPTED")
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    /**
+     * Delete a connection and related data (messages, shared access) if the
+     * requesting user is one of the participants.
+     *
+     * @param connectionId      id of the connection to delete
+     * @param requestingUserId  id of the user requesting deletion
+     * @throws ResourceNotFoundException when the connection does not exist or user lacks access
+     */
+    public void deleteConnection(Long connectionId, Long requestingUserId) {
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
+
+        if (!connection.getRequesterId().equals(requestingUserId) && !connection.getRecipientId().equals(requestingUserId)) {
+            throw new ResourceNotFoundException("Connection not found or access denied");
+        }
+
+        // Delete related messages first
+        messageRepository.deleteByConnectionId(Objects.requireNonNull(connectionId));
+
+        // Revoke shared space access
+        sharedSpaceAccessRepository.deleteByConnectionId(Objects.requireNonNull(connectionId));
+
+        // Delete the connection
+        connectionRepository.deleteById(Objects.requireNonNull(connectionId));
+    }
+
+    // Add these implementations to SocialServiceImpl
+    @Override
+    @Transactional
+    /**
+     * Send a message on an accepted connection.
+     *
+     * @param connectionId id of the connection
+     * @param senderId     id of the sending user
+     * @param content      message content text
+     * @return persisted Message entity
+     * @throws IllegalArgumentException if the user is not part of the connection or content is invalid
+     * @throws ResourceNotFoundException if the connection does not exist
+     */
+    public Message sendMessage(Long connectionId, Long senderId, String content) {
+        // Validate connection exists and user is part of it
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
+
+        if (!connection.getRequesterId().equals(senderId) && !connection.getRecipientId().equals(senderId)) {
+            throw new IllegalArgumentException("User is not part of this connection");
+        }
+
+        if (connection.getStatus() != ConnectionStatus.ACCEPTED) {
+            throw new IllegalArgumentException("Cannot send messages to unaccepted connections");
+        }
+
+        // Validate content is not empty
+        if (content == null || content.trim().isEmpty()) {
+            throw new IllegalArgumentException("Message content cannot be empty");
+        }
+
+        // Determine recipient
+        Long recipientId = connection.getRequesterId().equals(senderId) ?
+                connection.getRecipientId() : connection.getRequesterId();
+
+        Message message = new Message();
+        message.setConnectionId(Objects.requireNonNull(connectionId));
+        message.setSenderId(senderId);
+        message.setRecipientId(recipientId);
+        message.setContent(content.trim());
+        message.setStatus(MessageStatus.SENT);
+
+
+        return messageRepository.save(message);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    /**
+     * Retrieve conversation messages for a connection, ordered by createdAt descending.
+     *
+     * @param connectionId id of the connection
+     * @param userId       id of the requesting user
+     * @return list of messages in the conversation
+     * @throws IllegalArgumentException if the user is not part of the connection
+     * @throws ResourceNotFoundException if the connection does not exist
+     */
+    public List<Message> getConversationMessages(Long connectionId, Long userId) {
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
+
+        if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {
+            throw new IllegalArgumentException("User is not part of this connection");
+        }
+
+        // Get messages in both directions
+        List<Message> messagesFromUser1 = messageRepository.findBySenderIdAndRecipientIdOrderByCreatedAtDesc(
+                connection.getRequesterId(), connection.getRecipientId());
+        List<Message> messagesFromUser2 = messageRepository.findBySenderIdAndRecipientIdOrderByCreatedAtDesc(
+                connection.getRecipientId(), connection.getRequesterId());
+
+        // Combine and sort by timestamp
+        return Stream.concat(messagesFromUser1.stream(), messagesFromUser2.stream())
+                .sorted(Comparator.comparing(Message::getCreatedAt).reversed())
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    /**
+     * Mark a single message as read by its recipient.
+     *
+     * @param messageId id of the message to mark read
+     * @param userId    id of the user marking the message
+     * @throws ResourceNotFoundException if the message does not exist
+     * @throws IllegalArgumentException if the user is not the recipient
+     */
+    public void markMessageAsRead(Long messageId, Long userId) {
+        Message message = messageRepository.findById(Objects.requireNonNull(messageId))
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
+
+        if (!message.getRecipientId().equals(userId)) {
+            throw new IllegalArgumentException("Only message recipients can mark messages as read");
+        }
+
+        message.setStatus(MessageStatus.READ);
+        messageRepository.save(message);
+    }
+
+    // Connection request management methods
+    @Override
+    @Transactional
+    /**
+     * Send a connection request from one user to another.
+     *
+     * @param request     DTO containing recipient and message
+     * @param requesterId id of the user initiating the request
+     * @return ConnectionRequestDto representing the created or updated request
+     * @throws ResourceNotFoundException if the recipient user does not exist
+     * @throws IllegalArgumentException for invalid or duplicate request scenarios
+     */
+    public ConnectionRequestDto sendConnectionRequest(SendConnectionRequestDto request, Long requesterId) {
+        // Validate recipient exists
+        if (!userRepository.existsById(Objects.requireNonNull(request.getRecipientId()))) {
+            throw new ResourceNotFoundException("Recipient user not found");
+        }
+
+        // Check if user is trying to send request to themselves
+        if (request.getRecipientId().equals(requesterId)) {
+            throw new IllegalArgumentException("Cannot send connection request to yourself");
+        }
+
+        // Check if a connection already exists between these users
+        Optional<Connection> existingConnection = connectionRepository
+                .findByRequesterIdAndRecipientId(requesterId, request.getRecipientId());
+        if (existingConnection.isPresent()) {
+            Connection connection = existingConnection.get();
+            switch (connection.getStatus()) {
+                case PENDING -> throw new IllegalArgumentException("A pending connection request already exists");
+                case ACCEPTED -> throw new IllegalArgumentException("Users are already connected");
+                default -> {
+                    // If rejected or blocked, create a new request
+                    connection.setStatus(ConnectionStatus.PENDING);
+                    Connection updatedConnection = connectionRepository.save(connection);
+                    return convertToConnectionRequestDto(updatedConnection);
+                }
+            }
+        }
+
+        // Also check reverse direction (in case recipient already sent a request)
+        Optional<Connection> reverseConnection = connectionRepository
+                .findByRequesterIdAndRecipientId(request.getRecipientId(), requesterId);
+        if (reverseConnection.isPresent()) {
+            Connection connection = reverseConnection.get();
+            switch (connection.getStatus()) {
+                case PENDING -> throw new IllegalArgumentException("A pending connection request already exists");
+                case ACCEPTED -> throw new IllegalArgumentException("Users are already connected");
+                default -> {
+                    // no-op
+                }
+            }
+        }
+
+        // Create new connection request
+        Connection connection = new Connection();
+        connection.setRequesterId(requesterId);
+        connection.setRecipientId(request.getRecipientId());
+        connection.setStatus(ConnectionStatus.PENDING);
+        connection.setMessage(request.getMessage());
+        connection = connectionRepository.save(connection);
+
+        return convertToConnectionRequestDto(connection);
+    }
+
+    @Override
+    @Transactional
+    /**
+     * Accept a pending connection request.
+     *
+     * @param requestId   id of the connection request to accept
+     * @param recipientId id of the user accepting the request
+     * @return ConnectionRequestDto representing the accepted connection
+     * @throws ResourceNotFoundException if the request does not exist
+     * @throws IllegalArgumentException if the caller is not the recipient or request state is invalid
+     */
+    public ConnectionRequestDto acceptConnectionRequest(Long requestId, Long recipientId) {
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(requestId))
+                .orElseThrow(() -> new ResourceNotFoundException("Connection request not found"));
+
+        if (!connection.getRecipientId().equals(recipientId)) {
+            throw new IllegalArgumentException("Only the recipient can accept this request");
+        }
+
+        if (connection.getStatus() != ConnectionStatus.PENDING) {
+            throw new IllegalArgumentException("This connection request cannot be accepted");
+        }
+
+        connection.setStatus(ConnectionStatus.ACCEPTED);
+        connection = connectionRepository.save(connection);
+
+        return convertToConnectionRequestDto(connection);
+    }
+
+    @Override
+    @Transactional
+    /**
+     * Reject a pending connection request.
+     *
+     * @param requestId   id of the connection request to reject
+     * @param recipientId id of the user rejecting the request
+     * @return ConnectionRequestDto representing the rejected connection
+     * @throws ResourceNotFoundException if the request does not exist
+     * @throws IllegalArgumentException if the caller is not the recipient or request state is invalid
+     */
+    public ConnectionRequestDto rejectConnectionRequest(Long requestId, Long recipientId) {
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(requestId))
+                .orElseThrow(() -> new ResourceNotFoundException("Connection request not found"));
+
+        if (!connection.getRecipientId().equals(recipientId)) {
+            throw new IllegalArgumentException("Only the recipient can reject this request");
+        }
+
+        if (connection.getStatus() != ConnectionStatus.PENDING) {
+            throw new IllegalArgumentException("This connection request cannot be rejected");
+        }
+
+        connection.setStatus(ConnectionStatus.REJECTED);
+        connection = connectionRepository.save(connection);
+
+        return convertToConnectionRequestDto(connection);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    /**
+     * Get pending connection requests for a user.
+     *
+     * @param userId id of the user
+     * @return list of pending ConnectionRequestDto
+     */
+    public List<ConnectionRequestDto> getPendingRequestsForUser(Long userId) {
+        List<Connection> pendingRequests = connectionRepository
+                .findByRecipientIdAndStatus(userId, ConnectionStatus.PENDING);
+        
+        return pendingRequests.stream()
+                .map(this::convertToConnectionRequestDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    /**
+     * Get connection requests sent by a user.
+     *
+     * @param userId id of the user
+     * @return list of sent ConnectionRequestDto
+     */
+    public List<ConnectionRequestDto> getSentRequestsForUser(Long userId) {
+        List<Connection> sentRequests = connectionRepository
+                .findByRequesterIdAndStatus(userId, ConnectionStatus.PENDING);
+        
+        return sentRequests.stream()
+                .map(this::convertToConnectionRequestDto)
+                .toList();
+    }
+
+    private ConnectionRequestDto convertToConnectionRequestDto(Connection connection) {
+        /**
+         * Convert a Connection entity into a ConnectionRequestDto with user display information.
+         *
+         * @param connection entity to convert
+         * @return populated ConnectionRequestDto
+         */
+        ConnectionRequestDto dto = new ConnectionRequestDto();
+        dto.setId(connection.getId());
+        dto.setRequesterId(connection.getRequesterId());
+        dto.setRecipientId(connection.getRecipientId());
+        dto.setStatus(connection.getStatus().toString());
+        dto.setMessage(connection.getMessage());
+        dto.setCreatedAt(connection.getCreatedAt());
+        dto.setUpdatedAt(connection.getUpdatedAt());
+
+        // Load user information for display
+        User requester = userRepository.findById(Objects.requireNonNull(connection.getRequesterId())).orElse(null);
+        User recipient = userRepository.findById(Objects.requireNonNull(connection.getRecipientId())).orElse(null);
+
+        if (requester != null) {
+            dto.setRequesterName(requester.getFirstName() + " " + requester.getLastName());
+            dto.setRequesterProfileImage(requester.getProfileImageUrl());
+        }
+
+        if (recipient != null) {
+            dto.setRecipientName(recipient.getFirstName() + " " + recipient.getLastName());
+            dto.setRecipientProfileImage(recipient.getProfileImageUrl());
+        }
+
+        return dto;
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<TravelConnectionDto> getUserConnections(Long userId) {
+        // Get all connections where user is either requester or recipient and status is ACCEPTED
+        List<Connection> connections = connectionRepository.findByRequesterIdAndStatus(userId, ConnectionStatus.ACCEPTED);
+        connections.addAll(connectionRepository.findByRecipientIdAndStatus(userId, ConnectionStatus.ACCEPTED));
+
+        return connections.stream()
+                .map(connection -> {
+                    Long otherUserId = connection.getRequesterId().equals(userId) ?
+                            connection.getRecipientId() : connection.getRequesterId();
+                    User otherUser = userRepository.findById(Objects.requireNonNull(otherUserId)).orElse(null);
+
+                    if (otherUser != null) {
+                        return TravelConnectionDto.builder()
+                                .id(connection.getId())
+                                .userId(otherUser.getId())
+                                .username(otherUser.getUsername())
+                                .firstName(otherUser.getFirstName())
+                                .lastName(otherUser.getLastName())
+                                .status(connection.getStatus().toString())
+                                .build();
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Message> getConversationMessagesPaginated(Long connectionId, Long userId, int page, int size) {
+        Connection connection = connectionRepository.findById(Objects.requireNonNull(connectionId))
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
+
+        if (!connection.getRequesterId().equals(userId) && !connection.getRecipientId().equals(userId)) {
+            throw new IllegalArgumentException("User is not part of this connection");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return messageRepository.findConversationMessages(connectionId, pageable);
+    }
+}

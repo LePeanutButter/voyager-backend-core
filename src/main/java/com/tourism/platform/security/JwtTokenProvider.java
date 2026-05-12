@@ -44,7 +44,7 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Generate JWT token from username
+     * Generate token from username
      * 
      * @param username user username
      * @return JWT token string
@@ -54,10 +54,30 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
         return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .subject(username)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /**
+     * Generate token from username and userId
+     * 
+     * @param username user username
+     * @param userId user ID
+     * @return JWT token string
+     */
+    public String generateTokenFromUsernameAndUserId(String username, Long userId) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+
+        return Jwts.builder()
+                .subject(username)
+                .claim("userId", userId)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -72,10 +92,10 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtRefreshExpirationInMs);
 
         return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .subject(username)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
                 .compact();
     }
 
@@ -86,13 +106,42 @@ public class JwtTokenProvider {
      * @return username string
      */
     public String getUsernameFromJWT(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
 
         return claims.getSubject();
+    }
+
+    /**
+     * Get user ID from JWT token
+     * 
+     * @param token JWT token
+     * @return user ID as Long
+     */
+    public Long getUserIdFromJWT(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        Object raw = claims.get("userId");
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Long l) {
+            return l;
+        }
+        if (raw instanceof Integer i) {
+            return i.longValue();
+        }
+        if (raw instanceof Number n) {
+            return n.longValue();
+        }
+        return null;
     }
 
     /**
@@ -103,21 +152,14 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
+            Jwts.parser()
+                    .verifyWith(getSigningKey())
                     .build()
-                    .parseClaimsJws(token);
+                    .parseSignedClaims(token);
             return true;
-        } catch (SecurityException ex) {
-            // Invalid signature
-        } catch (MalformedJwtException ex) {
-            // Invalid token
-        } catch (ExpiredJwtException ex) {
-            // Expired token
-        } catch (UnsupportedJwtException ex) {
-            // Unsupported token
-        } catch (IllegalArgumentException ex) {
-            // Token claims string is empty
+        } catch (SecurityException | MalformedJwtException | ExpiredJwtException | 
+                 UnsupportedJwtException | IllegalArgumentException ex) {
+            // Log the exception if needed, but return false for all JWT validation failures
         }
         return false;
     }
@@ -129,11 +171,11 @@ public class JwtTokenProvider {
      * @return expiration date
      */
     public Date getTokenExpiration(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
 
         return claims.getExpiration();
     }

@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO representing a user in responses and internal transfers. Contains
+ * profile fields such as id, username, name and contact information.
+ */
+
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -9,6 +14,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 /**
  * Data Transfer Object for User responses
@@ -53,6 +59,9 @@ public class UserDto {
     @Schema(description = "User bio")
     private String bio;
 
+    @Schema(description = "User travel interests")
+    private Set<String> interests;
+
     @Schema(description = "User date of birth")
     private LocalDateTime dateOfBirth;
 
@@ -61,4 +70,7 @@ public class UserDto {
 
     @Schema(description = "Last update timestamp")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "JWT token for authenticated sessions")
+    private String token;
 }

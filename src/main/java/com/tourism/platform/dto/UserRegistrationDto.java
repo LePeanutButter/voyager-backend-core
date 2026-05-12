@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * Request DTO used when registering a new user. Contains required fields such
+ * as username, password and email along with optional profile details.
+ */
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

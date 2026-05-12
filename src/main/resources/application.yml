@@ -3,16 +3,27 @@ server:
   port: 8080
   servlet:
     context-path: /api/v1
+  error:
+    include-stacktrace: never
+    include-message: always
+  tomcat:
+    max-http-form-post-size: 2MB
+    max-swallow-size: 2MB
 
 spring:
   application:
     name: tourism-platform
-  
+
+  # Load project-root .env into the Environment (same KEY=value syntax as .properties). File is optional.
+  # Working directory must be the module root when running from the IDE, or set spring.config.import explicitly.
+  config:
+    import: optional:file:.env[.properties]
+
   # Database Configuration
   datasource:
-    url: jdbc:postgresql://localhost:5432/tourism_platform
-    username: ${DB_USERNAME:tourism_user}
-    password: ${DB_PASSWORD:tourism_pass}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/tourism_platform}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -20,6 +31,7 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
+      validation-timeout: 5000
   
   # JPA Configuration
   jpa:
@@ -33,28 +45,22 @@ spring:
         use_sql_comments: true
     open-in-view: false
   
-  # H2 Database (for testing)
-  h2:
-    console:
-      enabled: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    # Allows a later-added V0 baseline to run on DBs that already applied the old V1 hardening-only migration first.
+    out-of-order: true
   
   # Security Configuration
   security:
     jwt:
-      secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890}
+      secret: ${JWT_SECRET}
       expiration: ${JWT_EXPIRATION:86400000} # 24 hours
       refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days
+  mvc:
+    async:
+      request-timeout: 10s
   
-  # Actuator Configuration
-  actuator:
-    endpoints:
-      web:
-        exposure:
-          include: health,info,metrics
-    endpoint:
-      health:
-        show-details: when-authorized
-
 # OpenAPI Documentation
 springdoc:
   api-docs:
@@ -68,14 +74,36 @@ springdoc:
 logging:
   level:
     com.tourism.platform: INFO
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "{\"timestamp\":\"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}\",\"level\":\"%level\",\"logger\":\"%logger{36}\",\"thread\":\"%thread\",\"traceId\":\"%X{traceId:-}\",\"requestId\":\"%X{requestId:-}\",\"userId\":\"%X{userId:-}\",\"message\":\"%replace(%msg){'\"','\\\\\"'}\"}%n"
+    file: "{\"timestamp\":\"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}\",\"level\":\"%level\",\"logger\":\"%logger{36}\",\"thread\":\"%thread\",\"traceId\":\"%X{traceId:-}\",\"requestId\":\"%X{requestId:-}\",\"userId\":\"%X{userId:-}\",\"message\":\"%replace(%msg){'\"','\\\\\"'}\"}%n"
   file:
     name: logs/tourism-platform.log
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  health:
+    db:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
 
 # External Service Configuration
 external-services:
@@ -83,13 +111,33 @@ external-services:
     base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
     timeout: ${NOTIFICATION_SERVICE_TIMEOUT:10000}
 
-# Application Configuration
+# Application Configuration (+ Amadeus travel catalog OAuth2 credentials)
 app:
+  integrations:
+    amadeus:
+      # Master switch for /catalog/* (mock or live).
+      enabled: ${AMADEUS_CATALOG_ENABLED:true}
+      # true = Amadeus-compatible JSON generated locally (no API key). false = real Amadeus (needs client-id/secret).
+      mock-mode: ${AMADEUS_MOCK_MODE:true}
+      api-host: ${AMADEUS_API_HOST:https://test.api.amadeus.com}
+      client-id: ${AMADEUS_CLIENT_ID:}
+      client-secret: ${AMADEUS_CLIENT_SECRET:}
+      token-path: ${AMADEUS_TOKEN_PATH:/v1/security/oauth2/token}
+      connect-timeout-millis: ${AMADEUS_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-millis: ${AMADEUS_READ_TIMEOUT_MS:20000}
+
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+    # Exact origins (comma-separated). Used when no origin patterns are configured.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    # Ant-style patterns (comma-separated), e.g. https://*.example.com — takes precedence over allowed-origins when non-empty.
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
+    # Browser rule: with * origins, credentials must be false.
+    allow-all-origins: ${CORS_ALLOW_ALL_ORIGINS:false}
+    # Adds patterns for *.amazonaws.com and localhost (Learner Lab / ALB / S3 website) without opening all domains.
+    use-aws-hostname-patterns: ${CORS_USE_AWS_HOSTNAME_PATTERNS:false}
+    allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-    allowed-headers: "*"
-    allow-credentials: true
+    allowed-headers: Authorization,Content-Type,X-Trace-Id,X-Request-Id
   
   file-upload:
     max-file-size: 10MB
@@ -99,6 +147,21 @@ app:
     default-size: 20
     max-size: 100
 
+  social:
+    demo-enabled: ${SOCIAL_DEMO_ENABLED:false}
+
+  websocket:
+    allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:5173}
+
+# Google OAuth2 - custom config
+google:
+  oauth2:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/auth/google/callback}
+    scopes: ${GOOGLE_SCOPES:openid email profile}
+    frontend-redirect-uri: ${GOOGLE_FRONTEND_REDIRECT_URI:http://localhost:5173/auth/google/callback}
+
 ---
 # Development Profile
 spring:
@@ -106,26 +169,19 @@ spring:
     activate:
       on-profile: dev
   
-  datasource:
-    url: jdbc:h2:mem:testdb
-    username: sa
-    password: 
-    driver-class-name: org.h2.Driver
-  
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
-  
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
 
 logging:
   level:
     com.tourism.platform: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
+
+app:
+  social:
+    demo-enabled: ${SOCIAL_DEMO_ENABLED:true}
 
 ---
 # Production Profile
@@ -138,6 +194,16 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+
+# Actuator on 8081 matches ALB target group health checks in voyager-infrastructure (HTTP :8081/actuator/health).
+management:
+  server:
+    port: 8081
+
+app:
+  cors:
+    # Override with CORS_USE_AWS_HOSTNAME_PATTERNS=false if the frontend is not hosted under *.amazonaws.com
+    use-aws-hostname-patterns: ${CORS_USE_AWS_HOSTNAME_PATTERNS:true}
 
 logging:
   level:

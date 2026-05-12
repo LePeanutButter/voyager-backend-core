@@ -1,5 +1,11 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO for a single activity inside a travel plan. Includes timing, location
+ * and optional reservation or notes data used by the client to display
+ * itinerary items.
+ */
+
 import com.tourism.platform.model.ActivityType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;

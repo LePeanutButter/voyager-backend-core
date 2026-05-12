@@ -1,5 +1,10 @@
 package com.tourism.platform.dto;
 
+/**
+ * DTO used to update mutable user profile fields. Sent by clients when a user
+ * edits their profile to modify display name, biography, or contact details.
+ */
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,6 +12,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 /**
  * Data Transfer Object for user update requests
@@ -39,4 +46,7 @@ public class UserUpdateDto {
     @Schema(description = "User bio", example = "Travel enthusiast exploring the world")
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;
+
+    @Schema(description = "Travel interests", example = "[\"beaches\", \"food\", \"museums\"]")
+    private List<String> interests;
 }

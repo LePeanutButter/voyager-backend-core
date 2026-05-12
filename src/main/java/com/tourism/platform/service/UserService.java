@@ -1,14 +1,16 @@
 package com.tourism.platform.service;
 
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
+
 import com.tourism.platform.dto.UserDto;
 import com.tourism.platform.dto.UserRegistrationDto;
 import com.tourism.platform.dto.UserUpdateDto;
 import com.tourism.platform.model.UserRole;
 import com.tourism.platform.model.UserStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
-import java.util.Optional;
 
 /**
  * Service interface for user management operations
@@ -41,7 +43,7 @@ public interface UserService {
      * @param userId user ID
      * @return Optional UserDto if found
      */
-    Optional<UserDto> getUserById(Long userId);
+    Optional<UserDto> getUserById(@NonNull Long userId);
 
     /**
      * Get user by username
@@ -66,7 +68,7 @@ public interface UserService {
      * @param updateDto user update data
      * @return Optional UserDto if update successful
      */
-    Optional<UserDto> updateUser(Long userId, UserUpdateDto updateDto);
+    Optional<UserDto> updateUser(@NonNull Long userId, @NonNull UserUpdateDto updateDto);
 
     /**
      * Change user password
@@ -76,7 +78,7 @@ public interface UserService {
      * @param newPassword new password
      * @return true if password change successful
      */
-    boolean changePassword(Long userId, String currentPassword, String newPassword);
+    boolean changePassword(@NonNull Long userId, @NonNull String currentPassword, @NonNull String newPassword);
 
     /**
      * Update user role (admin operation)
@@ -85,7 +87,7 @@ public interface UserService {
      * @param role new role
      * @return Optional UserDto if update successful
      */
-    Optional<UserDto> updateUserRole(Long userId, UserRole role);
+    Optional<UserDto> updateUserRole(@NonNull Long userId, @NonNull UserRole role);
 
     /**
      * Update user status (admin operation)
@@ -94,7 +96,7 @@ public interface UserService {
      * @param status new status
      * @return Optional UserDto if update successful
      */
-    Optional<UserDto> updateUserStatus(Long userId, UserStatus status);
+    Optional<UserDto> updateUserStatus(@NonNull Long userId, @NonNull UserStatus status);
 
     /**
      * Delete user account
@@ -102,7 +104,7 @@ public interface UserService {
      * @param userId user ID
      * @return true if deletion successful
      */
-    boolean deleteUser(Long userId);
+    boolean deleteUser(@NonNull Long userId);
 
     /**
      * Get all users with pagination
@@ -110,7 +112,7 @@ public interface UserService {
      * @param pageable pagination information
      * @return Page of UserDto
      */
-    Page<UserDto> getAllUsers(Pageable pageable);
+    Page<UserDto> getAllUsers(@NonNull Pageable pageable);
 
     /**
      * Get users by role with pagination
@@ -119,7 +121,7 @@ public interface UserService {
      * @param pageable pagination information
      * @return Page of UserDto
      */
-    Page<UserDto> getUsersByRole(UserRole role, Pageable pageable);
+    Page<UserDto> getUsersByRole(@NonNull UserRole role, @NonNull Pageable pageable);
 
     /**
      * Get users by status with pagination
@@ -128,7 +130,7 @@ public interface UserService {
      * @param pageable pagination information
      * @return Page of UserDto
      */
-    Page<UserDto> getUsersByStatus(UserStatus status, Pageable pageable);
+    Page<UserDto> getUsersByStatus(@NonNull UserStatus status, @NonNull Pageable pageable);
 
     /**
      * Search users by name with pagination
@@ -137,7 +139,7 @@ public interface UserService {
      * @param pageable pagination information
      * @return Page of UserDto
      */
-    Page<UserDto> searchUsersByName(String searchTerm, Pageable pageable);
+    Page<UserDto> searchUsersByName(@NonNull String searchTerm, @NonNull Pageable pageable);
 
     /**
      * Check if username is available
@@ -145,7 +147,7 @@ public interface UserService {
      * @param username username to check
      * @return true if username is available
      */
-    boolean isUsernameAvailable(String username);
+    boolean isUsernameAvailable(@NonNull String username);
 
     /**
      * Check if email is available
@@ -153,7 +155,7 @@ public interface UserService {
      * @param email email to check
      * @return true if email is available
      */
-    boolean isEmailAvailable(String email);
+    boolean isEmailAvailable(@NonNull String email);
 
     /**
      * Enable/disable user account
@@ -162,7 +164,7 @@ public interface UserService {
      * @param enabled account status
      * @return Optional UserDto if update successful
      */
-    Optional<UserDto> setUserEnabled(Long userId, boolean enabled);
+    Optional<UserDto> setUserEnabled(@NonNull Long userId, boolean enabled);
 
     /**
      * Get user statistics
@@ -178,15 +180,31 @@ public interface UserService {
         private final long totalUsers;
         private final long activeUsers;
 
+        /**
+         * Construct a new UserStatistics instance.
+         *
+         * @param totalUsers  total number of users in the system
+         * @param activeUsers number of users currently marked as active
+         */
         public UserStatistics(long totalUsers, long activeUsers) {
             this.totalUsers = totalUsers;
             this.activeUsers = activeUsers;
         }
 
+        /**
+         * Get the total number of users.
+         *
+         * @return total users count
+         */
         public long getTotalUsers() {
             return totalUsers;
         }
 
+        /**
+         * Get the number of active users.
+         *
+         * @return active users count
+         */
         public long getActiveUsers() {
             return activeUsers;
         }

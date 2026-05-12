@@ -1,0 +1,53 @@
+package com.tourism.platform.dto;
+
+/**
+ * Unit tests for {@link com.tourism.platform.dto.SendMessageRequest}.
+ *
+ * Validates construction and basic accessor behavior for message send request
+ * payloads used by messaging endpoints.
+ */
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class SendMessageRequestTest {
+
+    @Test
+    void testSendMessageRequest() {
+        SendMessageRequest request = new SendMessageRequest();
+        
+        // Test getters and setters
+        request.setConnectionId(1L);
+        request.setSenderId(100L);
+        request.setContent("Hello, world!");
+        
+        assertEquals(1L, request.getConnectionId());
+        assertEquals(100L, request.getSenderId());
+        assertEquals("Hello, world!", request.getContent());
+    }
+
+    @Test
+    void testSendMessageRequestConstructor() {
+        // Test that the class can be instantiated
+        SendMessageRequest request = new SendMessageRequest();
+        assertNotNull(request);
+    }
+
+    @Test
+    void allArgsConstructor_SetsFields() {
+        SendMessageRequest request = new SendMessageRequest(5L, 9L, "hi");
+        assertEquals(5L, request.getConnectionId());
+        assertEquals(9L, request.getSenderId());
+        assertEquals("hi", request.getContent());
+    }
+
+    @Test
+    void senderIdMayBeNullForServerDerivedSender() {
+        SendMessageRequest request = new SendMessageRequest();
+        request.setConnectionId(3L);
+        request.setSenderId(null);
+        request.setContent("x");
+        assertNull(request.getSenderId());
+        assertEquals(3L, request.getConnectionId());
+    }
+}
